@@ -23,3 +23,23 @@ describe("CSV", () => {
     expect(toCsv([{ key: "n", label: "Name" }, { key: "a", label: "Amount", kind: "money" }], [{ n: "Smith, Pat", a: 123456 }])).toBe('Name,Amount\n"Smith, Pat",1234.56');
   });
 });
+
+import { formatMetric, metricStatus } from "@/lib/metrics-defs";
+
+describe("metric status", () => {
+  it("higher is better: on, watch within 10%, off", () => {
+    expect(metricStatus(0.96, 0.95, "higher")).toBe("on");
+    expect(metricStatus(0.9, 0.95, "higher")).toBe("watch");
+    expect(metricStatus(0.8, 0.95, "higher")).toBe("off");
+  });
+  it("lower is better", () => {
+    expect(metricStatus(3, 3, "lower")).toBe("on");
+    expect(metricStatus(3.2, 3, "lower")).toBe("watch");
+    expect(metricStatus(4, 3, "lower")).toBe("off");
+    expect(metricStatus(null, 3, "lower")).toBe("none");
+  });
+  it("formats", () => {
+    expect(formatMetric(0.953, "percent")).toBe("95%");
+    expect(formatMetric(5_000_000, "money")).toBe("$50,000");
+  });
+});
