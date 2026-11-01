@@ -2447,8 +2447,10 @@ export type Database = {
           type: string
         }[]
       }
+      ai_key_for: { Args: { p_company: string }; Returns: string }
       charge_income_account: { Args: { p_type: string }; Returns: string }
       claim_portal: { Args: { p_company: string }; Returns: number }
+      clear_ai_connection: { Args: { p_company: string }; Returns: undefined }
       company_by_subdomain: {
         Args: { p_subdomain: string }
         Returns: {
@@ -2519,6 +2521,10 @@ export type Database = {
       reverse_journal_entry: {
         Args: { p_date: string; p_entry: string; p_memo: string }
         Returns: string
+      }
+      set_ai_key: {
+        Args: { p_company: string; p_key: string }
+        Returns: undefined
       }
       shares_company: { Args: { pid: string }; Returns: boolean }
       subdomain_available: { Args: { p_subdomain: string }; Returns: boolean }

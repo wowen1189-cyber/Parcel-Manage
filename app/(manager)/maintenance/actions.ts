@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+import { improveTechnicianSummary } from "@/lib/ai/technician";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -121,6 +123,7 @@ export async function createWorkOrder(_: FormState, form: FormData): Promise<For
     .select("id, number")
     .single();
   if (error) return { error: error.message, values: typed(form) };
+  after(() => improveTechnicianSummary(company.id, wo.id));
   await logEvent(ctx, wo.id, "created", { source: d.source, priority });
   revalidatePath("/maintenance");
   redirect(`/maintenance/${wo.id}?added=1`);

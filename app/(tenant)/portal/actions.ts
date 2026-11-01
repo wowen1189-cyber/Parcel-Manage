@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+import { improveTechnicianSummary } from "@/lib/ai/technician";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -105,6 +107,7 @@ export async function createRequest(_: PortalState, form: FormData): Promise<Por
     .select("id, number")
     .single();
   if (error) return { error: "Your request couldn't be sent. Please try again or call the office.", values: typed(form) };
+  after(() => improveTechnicianSummary(company.id, wo.id));
   await supabase.from("work_order_event").insert({ company_id: company.id, work_order_id: wo.id, kind: "created", detail: { source: "portal", priority }, actor_profile_id: (await supabase.auth.getUser()).data.user!.id });
   await tellOffice(
     company.id,
