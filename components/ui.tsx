@@ -85,7 +85,7 @@ export function StatTile({ label, value, note }: { label: string; value: ReactNo
   return (
     <Card className="p-5">
       <p className="text-[13px] font-medium text-muted">{label}</p>
-      <p className="tabular mt-1 text-[30px] font-bold leading-tight">{value}</p>
+      <div className="tabular mt-1 text-[30px] font-bold leading-tight">{value}</div>
       {note && <p className="mt-1 text-[13px] text-subtle">{note}</p>}
     </Card>
   );
