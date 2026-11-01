@@ -3,14 +3,14 @@
 Build in order. Each phase ends with a demo Wesley can click through, tests passing, and sample data seeded. AppFolio stays live until Phase 4's switch-over checklist is complete. At the start of a phase, restate its checklist; at the end, report what's done and what to click.
 
 ## Phase 0 — Foundation
-- [ ] Next.js + TypeScript + Tailwind app; design tokens and base components from `06-design-system.md`; Archivo font
-- [ ] Supabase project connected; `0001_core.sql` applied; typed client generated; `.env.example`
-- [ ] Auth: email magic link + password; company creation on first sign-in; invite teammates by email with role and title
-- [ ] Manager app shell: sidebar (all nav items, placeholders OK), top bar, "+ New" menu, AI panel placeholder; responsive
-- [ ] Company subdomains: add `company.subdomain` (unique; lowercase letters, numbers, hyphens) in a new migration; middleware reads the subdomain and loads that company before sign-in; SIM REI seeded as `simreipm`; root domain read from `NEXT_PUBLIC_ROOT_DOMAIN` (`parcelmanage.com` in production, `localhost:3000` locally); local dev at `simreipm.localhost:3000`; on the Vercel test address fall back to the signed-in user's company; a test proving a user from one company signing in on another company's subdomain sees nothing
-- [ ] Company settings screen: profile (name, phones incl. tenant-facing office phone, address, time zone) and Business rules form seeded with SIM REI defaults from `02-business-rules.md`
-- [ ] Audit log writes; RLS verified with a test that a second company can't see the first company's rows; database tests that a posted journal entry can't be edited, un-posted or deleted, that an invite only works for the invited email, and that work order numbers start at 1 for each company
-- [ ] Seed script: SIM REI with its entities, properties (The Grove Tower 20 units, Grove Park mixed-use, 420 S Palmetto, 1026 W Line St, 6 Forest Lane) and sample tenants
+- [x] Next.js + TypeScript + Tailwind app; design tokens and base components from `06-design-system.md`; Archivo font
+- [x] Supabase project connected; `0001_core.sql` applied; typed client generated; `.env.example`
+- [x] Auth: email magic link + password; company creation on first sign-in; invite teammates by email with role and title
+- [x] Manager app shell: sidebar (all nav items, placeholders OK), top bar, "+ New" menu, AI panel placeholder; responsive
+- [x] Company subdomains: add `company.subdomain` (unique; lowercase letters, numbers, hyphens) in a new migration; middleware reads the subdomain and loads that company before sign-in; SIM REI seeded as `simreipm`; root domain read from `NEXT_PUBLIC_ROOT_DOMAIN` (`parcelmanage.com` in production, `localhost:3000` locally); local dev at `simreipm.localhost:3000`; on the Vercel test address fall back to the signed-in user's company; a test proving a user from one company signing in on another company's subdomain sees nothing
+- [x] Company settings screen: profile (name, phones incl. tenant-facing office phone, address, time zone) and Business rules form seeded with SIM REI defaults from `02-business-rules.md`
+- [x] Audit log writes; RLS verified with a test that a second company can't see the first company's rows; database tests that a posted journal entry can't be edited, un-posted or deleted, that an invite only works for the invited email, and that work order numbers start at 1 for each company
+- [x] Seed script: SIM REI with its entities, properties (The Grove Tower 20 units, Grove Park mixed-use, 420 S Palmetto, 1026 W Line St, 6 Forest Lane) and sample tenants
 - [ ] GitHub repo + Vercel project with preview deploys
 **Done when:** Wesley signs in, sees the shell with SIM REI's properties seeded, edits a business rule, and a second test company sees none of SIM REI's data.
 

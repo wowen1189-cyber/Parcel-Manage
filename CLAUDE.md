@@ -18,7 +18,8 @@ Read these before writing code, and re-read the relevant one before each phase:
 - **Tailwind CSS** with the tokens in `docs/06-design-system.md`; build small in-house components (no heavy UI kit). Font: Archivo (Google Fonts)
 - **Supabase**: Postgres, Auth (email magic link + password), Storage (documents, photos), Row Level Security, scheduled jobs (pg_cron or Supabase scheduled functions)
 - **Vercel** hosting; GitHub repo `parcel-manage`; preview deploy per branch
-- **Zod** for validation, **Drizzle or supabase-js typed client** (pick one in Phase 0 and stick to it), **Vitest** for unit tests, **Playwright** for key end-to-end flows
+- **Zod** for validation, **supabase-js typed client** (chosen in Phase 0: it works directly with Row Level Security; types in `lib/supabase/database.types.ts`, regenerate with `npm run db:types`), **Vitest** for unit and database tests, **Playwright** for key end-to-end flows
+- **Next.js 16**: read `node_modules/next/dist/docs/` before using an API (see `AGENTS.md`). Middleware is `proxy.ts`. Cache Components is off on purpose: nearly every screen is private and per-request
 - Money: store as integer cents. Dates: store `date`/`timestamptz`; display in the company's time zone (SIM REI: America/New_York)
 - Email: Resend. SMS: Twilio. Payments: Stripe Connect. Bank feeds: Plaid. Screening: TransUnion ShareAble for Rentals (CRS Credit API as backup). Calendar: Google Calendar API. AI: provider abstraction over Anthropic / OpenAI / Gemini / OpenAI-compatible, using **the company's own key**
 
@@ -46,3 +47,10 @@ Read these before writing code, and re-read the relevant one before each phase:
 - Domain logic lives in `lib/` with unit tests (rent and late fees, deposit tiers, screening decisions, triage priority, Florida notice deadlines, owner distribution splits).
 - Every list screen: search, filters, CSV export. Every record: an activity timeline and documents.
 - Copy style: plain, short sentences; no jargon; sentence-case headings.
+
+## Running and checking the app
+- `npm run dev`, then open **http://simreipm.localhost:3000** (each company has its own subdomain; plain `localhost:3000` is the main site).
+- `npm run typecheck`, `npx eslint .`, `npm test` (unit), `npm run test:db` (database rules against the live Supabase project, using throwaway `zz-test-` users and companies that it deletes afterwards).
+- `npm run seed` loads SIM REI; `npm run seed -- --reset` starts it over.
+- Migrations: add a new numbered file in `supabase/migrations/` (never edit one that's applied), apply it to Supabase, and record it in `supabase_migrations.schema_migrations`. Then run `npm run db:types`.
+- Data access: pages call `requireCompany()` from `lib/session.ts`, which resolves the company from the subdomain and checks membership. Service-role access (`lib/supabase/admin.ts`) is for server jobs only, always with an explicit `company_id`.
