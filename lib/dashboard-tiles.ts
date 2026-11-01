@@ -10,6 +10,8 @@ export const DASHBOARD_TILES: TileDef[] = [
   { id: "expirations", title: "Lease expirations", wide: false },
   { id: "vendors", title: "Vendors missing paperwork", wide: false },
   { id: "work-orders", title: "Open work orders", wide: false },
+  { id: "deposits", title: "Deposit deadlines", wide: false },
+  { id: "bills", title: "Bills to approve", wide: false },
 ];
 
 export type DashboardPrefs = { order?: string[]; wide?: string[]; hidden?: string[] };

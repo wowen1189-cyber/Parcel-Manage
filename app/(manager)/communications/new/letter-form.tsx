@@ -14,6 +14,7 @@ export function LetterForm({
   defaultTitle,
   emailNotices,
   hasEmail,
+  prefill = {},
 }: {
   templateId: string;
   leaseId: string;
@@ -21,11 +22,12 @@ export function LetterForm({
   defaultTitle: string;
   emailNotices: boolean;
   hasEmail: boolean;
+  prefill?: Record<string, string>;
 }) {
   const template = letterById(templateId)!;
   const [state, action, pending] = useActionState(sendLetter, empty);
   const [inputs, setInputs] = useState<Record<string, string>>(() =>
-    Object.fromEntries(template.inputs.map((i) => [i.id, state.values?.[`in_${i.id}`] ?? (i.id === "amount" && templateId === "three-day" ? (ctx.rentOwedCents / 100).toFixed(2) : i.kind === "date" ? ctx.today : "")])),
+    Object.fromEntries(template.inputs.map((i) => [i.id, state.values?.[`in_${i.id}`] ?? prefill[i.id] ?? (i.id === "amount" && templateId === "three-day" ? (ctx.rentOwedCents / 100).toFixed(2) : i.kind === "date" ? ctx.today : "")])),
   );
   const [title, setTitle] = useState(state.values?.sender_title ?? defaultTitle);
   const legalEmailOk = !template.legal || emailNotices;

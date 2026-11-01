@@ -54,7 +54,15 @@ export default async function NewLetterPage({ searchParams }: PageProps<"/commun
       {!found ? (
         <Notice>Choose the tenant to fill in the letter.</Notice>
       ) : (
-        <LetterForm templateId={template.id} leaseId={leaseId} ctx={found.ctx} defaultTitle={membership.title ?? ""} emailNotices={found.emailNotices} hasEmail={found.tenants.some((t) => t.email)} />
+        <LetterForm
+          templateId={template.id}
+          leaseId={leaseId}
+          ctx={found.ctx}
+          defaultTitle={membership.title ?? ""}
+          emailNotices={found.emailNotices}
+          hasEmail={found.tenants.some((t) => t.email)}
+          prefill={Object.fromEntries(template.inputs.map((i) => [i.id, param(sp, `in_${i.id}`)]).filter(([, v]) => v))}
+        />
       )}
     </>
   );

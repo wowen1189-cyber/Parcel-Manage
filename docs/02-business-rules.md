@@ -81,7 +81,7 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 - 3-day notice to pay or deliver possession (83.56(3)): rent only; deadline excludes Saturdays, Sundays and court holidays; +5 days if mailed; hand delivery or posting if absent.
 - 7-day notices of noncompliance with/without opportunity to cure (83.56(2)).
 - Notice of entry for repairs: at least 24 hours, entry between 7:30 AM and 8:00 PM (83.53(2), as amended in 2022).
-- Security deposit: return within 15 days, or send notice of intent to claim by certified mail within 30 days; tenant has 15 days to object (83.49).
+- Security deposit: return within 15 days, or send notice of intent to claim by certified mail within 30 days; tenant has 15 days to object (83.49). The move-out screen records the move-out (ends the lease, frees the unit), lists deductions, shows each 83.49(3) deadline with days left, prefills the statutory claim notice, won't deduct until the objection window has closed (15 days after receipt; certified mail assumed received in 5 days), then applies the deposit to what's owed and records the refund, all posted from trust. The dashboard lists every open deposit deadline.
 - Legal notices are **never sent automatically**; they're drafted for approval. Parcel Manage builds each one from the statutory form, a person reviews and sends it, and the delivery method is recorded (posted, hand-delivered, mailed, certified mail, or e-mail only when the tenant signed the 83.505 e-mail addendum, 83.56(4)). Every letter is filed as a PDF on the tenant's record. The 3-day deadline excludes the delivery day, weekends and court holidays (plus 5 days if mailed); confirm local court closures with the clerk.
 
 ## Tenant portal

@@ -1437,6 +1437,101 @@ export type Database = {
           },
         ]
       }
+      move_out: {
+        Row: {
+          claim_notice_message_id: string | null
+          claim_notice_method: string | null
+          claim_notice_sent_on: string | null
+          closed_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          decision: string | null
+          deductions: Json
+          forwarding_address: string | null
+          id: string
+          inspection_notes: string | null
+          lease_id: string
+          objection_received_on: string | null
+          refund_cents: number | null
+          refund_paid_on: string | null
+          refund_reference: string | null
+          updated_at: string
+          vacated_on: string
+        }
+        Insert: {
+          claim_notice_message_id?: string | null
+          claim_notice_method?: string | null
+          claim_notice_sent_on?: string | null
+          closed_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          decision?: string | null
+          deductions?: Json
+          forwarding_address?: string | null
+          id?: string
+          inspection_notes?: string | null
+          lease_id: string
+          objection_received_on?: string | null
+          refund_cents?: number | null
+          refund_paid_on?: string | null
+          refund_reference?: string | null
+          updated_at?: string
+          vacated_on: string
+        }
+        Update: {
+          claim_notice_message_id?: string | null
+          claim_notice_method?: string | null
+          claim_notice_sent_on?: string | null
+          closed_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          decision?: string | null
+          deductions?: Json
+          forwarding_address?: string | null
+          id?: string
+          inspection_notes?: string | null
+          lease_id?: string
+          objection_received_on?: string | null
+          refund_cents?: number | null
+          refund_paid_on?: string | null
+          refund_reference?: string | null
+          updated_at?: string
+          vacated_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "move_out_claim_notice_message_id_fkey"
+            columns: ["claim_notice_message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "move_out_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "move_out_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "move_out_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: true
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_distribution: {
         Row: {
           amount_cents: number
@@ -2678,6 +2773,16 @@ export type Database = {
       }
       set_ai_key: {
         Args: { p_company: string; p_key: string }
+        Returns: undefined
+      }
+      settle_deposit: {
+        Args: {
+          p_apply: number
+          p_date: string
+          p_lease: string
+          p_reference?: string
+          p_refund: number
+        }
         Returns: undefined
       }
       shares_company: { Args: { pid: string }; Returns: boolean }

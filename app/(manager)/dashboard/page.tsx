@@ -12,6 +12,8 @@ import { listTenants } from "@/lib/tenants";
 import { listVendors } from "@/lib/vendor-list";
 import { listWorkOrders } from "@/lib/work-order-list";
 import { formatWhen, WO_PRIORITY } from "@/lib/work-orders";
+import { claimDeadlines, daysUntil, depositDeadlines } from "@/lib/deposits";
+import { contactName } from "@/lib/format";
 import { saveDashboardLayout } from "../preferences";
 
 export const metadata = { title: "Dashboard" };
@@ -28,7 +30,20 @@ export default async function DashboardPage() {
     supabase.from("profile").select("preferences").eq("id", user.id).single(),
     supabase.from("lease").select("id, status, end_date, move_out_on, unit!inner(property_id)").eq("company_id", company.id).in("status", ["active", "notice"]),
   ]);
-  const workOrders = await listWorkOrders(supabase, company.id, { q: "", view: "open", priority: "", property: "" });
+  const [workOrders, { data: moveOuts }, { data: bills }] = await Promise.all([
+    listWorkOrders(supabase, company.id, { q: "", view: "open", priority: "", property: "" }),
+    supabase.from("move_out").select("id, lease_id, vacated_on, decision, claim_notice_sent_on, claim_notice_method, lease(unit(label, property(name)), lease_tenant(is_primary, role, contact(kind, first_name, last_name, business_name)))").eq("company_id", company.id).is("closed_at", null),
+    supabase.from("bill").select("id, amount_cents").eq("company_id", company.id).eq("status", "received"),
+  ]);
+  const depositRows = (moveOuts ?? [])
+    .map((m) => {
+      const d = depositDeadlines(m.vacated_on);
+      const next = m.claim_notice_sent_on ? claimDeadlines(m.claim_notice_sent_on, (m.claim_notice_method ?? "certified_mail") as "certified_mail" | "email_addendum").balanceDueBy : m.decision === "claim" ? d.claimNoticeBy : d.returnBy;
+      const label = m.claim_notice_sent_on ? "Pay remaining deposit" : m.decision === "claim" ? "Send claim notice" : "Return deposit or send claim";
+      const t = [...m.lease.lease_tenant].filter((x) => x.role === "tenant").sort((a, b) => Number(b.is_primary) - Number(a.is_primary))[0];
+      return { id: m.id, leaseId: m.lease_id, name: contactName(t?.contact), where: m.lease.unit.property.name, next, label, left: daysUntil(today, next) };
+    })
+    .sort((a, b) => a.next.localeCompare(b.next));
   const total = units?.length ?? 0;
   const occupied = units?.filter((u) => u.status === "occupied" || u.status === "notice").length ?? 0;
   const signed = leases.filter((l) => l.status !== "draft");
@@ -146,6 +161,44 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <p>All on-site vendors have their W-9 and insurance on file.</p>
+          )}
+        </div>
+      </Card>
+    ),
+    deposits: (
+      <Card className="h-full overflow-hidden">
+        <CardHeader title="Deposit deadlines" description="Fla. Stat. 83.49(3) after each move-out." />
+        {depositRows.length ? (
+          <ul className="divide-y divide-line">
+            {depositRows.slice(0, 6).map((d) => (
+              <li key={d.id}>
+                <Link href={`/tenants/${d.leaseId}/move-out`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-surface-muted">
+                  <span>
+                    <span className="block text-sm font-semibold">{d.name}</span>
+                    <span className="text-[13px] text-subtle">
+                      {d.label} · {d.where}
+                    </span>
+                  </span>
+                  <Pill tone={d.left < 0 ? "danger" : d.left <= 5 ? "warn" : "neutral"}>{d.left < 0 ? `${-d.left} days late` : `${date(d.next)}`}</Pill>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState title="No deposits waiting" />
+        )}
+      </Card>
+    ),
+    bills: (
+      <Card className="h-full">
+        <CardHeader title="Bills to approve" action={viewAll("/bills?status=received", "Review")} />
+        <div className="px-5 py-4 text-sm">
+          {bills?.length ? (
+            <p>
+              <span className="font-semibold">{bills.length} bills</span> ({money(bills.reduce((s, b) => s + b.amount_cents, 0))}) are waiting for approval.
+            </p>
+          ) : (
+            <p>No bills waiting for approval.</p>
           )}
         </div>
       </Card>

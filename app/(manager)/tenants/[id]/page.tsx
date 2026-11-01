@@ -12,6 +12,7 @@ import { HouseholdCard } from "./household";
 import { ChargeForm, PaymentForm, ReturnPaymentButton } from "./ledger";
 import { InviteButton, ReplyForm } from "./portal";
 import { buildLedger } from "@/lib/ledger";
+import { depositHeldCents } from "@/lib/deposits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 
@@ -64,7 +65,8 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const insurance = l.renters_insurance ?? [];
   const vehicles = people.flatMap((p) => p.contact.vehicle);
   const ledger = buildLedger(l.charge, l.payment, { cents: l.opening_balance_cents, asOf: l.opening_balance_as_of });
-  const deposits = l.payment.filter((p) => p.purpose === "deposit" && p.status === "succeeded").reduce((s, p) => s + p.amount_cents, 0);
+  const { data: moveOut } = await supabase.from("move_out").select("refund_cents, closed_at").eq("lease_id", l.id).maybeSingle();
+  const deposits = depositHeldCents(l.payment, moveOut?.closed_at ? moveOut.refund_cents : 0);
   const showAll = sp.ledger === "all";
   const ledgerRows = [...ledger.rows].reverse().slice(0, showAll ? undefined : 12);
   const canPost = ["admin", "property_manager", "accountant", "leasing_agent"].includes(membership.role);
@@ -368,6 +370,9 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                 <span className="flex gap-3">
                   <Link href={`/communications/new?lease=${l.id}&template=rent-reminder`} className="text-[13px] font-semibold text-accent hover:underline">
                     Send a letter
+                  </Link>
+                  <Link href={`/tenants/${l.id}/move-out`} className="text-[13px] font-semibold text-accent hover:underline">
+                    Move-out
                   </Link>
                   <Link href={`/tenants/${l.id}/lease`} className="text-[13px] font-semibold text-accent hover:underline">
                     Lease document
