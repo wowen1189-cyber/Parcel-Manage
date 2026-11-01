@@ -44,3 +44,30 @@ export async function listBills(supabase: Db, companyId: string, f: BillFilters)
     .map((b) => ({ ...b, vendorName: b.vendor ? contactName(b.vendor.contact) : "No vendor" }))
     .filter((b) => !q || `${b.vendorName} ${b.invoice_number ?? ""} ${b.memo ?? ""} ${b.property?.name ?? ""}`.toLowerCase().includes(q));
 }
+
+/** The next date after a recurring bill is created. */
+export function nextBillDate(current: string, frequency: string): string {
+  const [y, m, d] = current.split("-").map(Number);
+  const months = frequency === "yearly" ? 12 : frequency === "quarterly" ? 3 : 1;
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  return `${target.toISOString().slice(0, 7)}-${String(Math.min(d, last)).padStart(2, "0")}`;
+}
+
+/** Create the bills that are due (daily job and "create now"). Each still needs approval. */
+export async function runRecurringBills(supabase: Db, companyId: string, today: string): Promise<number> {
+  const { data: due } = await supabase.from("recurring_bill").select("id, vendor_id, property_id, amount_cents, expense_account, memo, frequency, next_on, property(entity_id)").eq("company_id", companyId).eq("active", true).lte("next_on", today);
+  let n = 0;
+  for (const r of due ?? []) {
+    let next = r.next_on;
+    // Catch up if the job didn't run, one bill per period.
+    while (next <= today) {
+      const { error } = await supabase.from("bill").insert({ company_id: companyId, entity_id: r.property.entity_id, vendor_id: r.vendor_id, property_id: r.property_id, amount_cents: r.amount_cents, expense_account: r.expense_account, memo: r.memo, invoice_date: next, due_date: next, source: "recurring" });
+      if (error) break;
+      n++;
+      next = nextBillDate(next, r.frequency);
+    }
+    await supabase.from("recurring_bill").update({ next_on: next }).eq("id", r.id);
+  }
+  return n;
+}

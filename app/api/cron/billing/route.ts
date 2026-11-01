@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { runBilling } from "@/lib/billing-run";
+import { runRecurringBills } from "@/lib/bills";
 import { todayIn } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
   const { data: companies, error } = await db.from("company").select("id, name, settings, time_zone");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const results: Record<string, unknown> = {};
-  for (const c of companies ?? []) results[c.name] = await runBilling(db, c, todayIn(c.time_zone));
+  for (const c of companies ?? []) {
+    const today = todayIn(c.time_zone);
+    results[c.name] = { ...(await runBilling(db, c, today)), recurringBills: await runRecurringBills(db, c.id, today) };
+  }
   return NextResponse.json(results);
 }

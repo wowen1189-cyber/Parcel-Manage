@@ -32,3 +32,13 @@ describe("online payments", () => {
     expect(parseStripeSignature(null)).toBeNull();
   });
 });
+
+import { nextBillDate } from "@/lib/bills";
+describe("recurring bills", () => {
+  it("steps by month, quarter or year, keeping the day where it can", () => {
+    expect(nextBillDate("2026-11-15", "monthly")).toBe("2026-12-15");
+    expect(nextBillDate("2027-01-31", "monthly")).toBe("2027-02-28");
+    expect(nextBillDate("2026-11-30", "quarterly")).toBe("2027-02-28");
+    expect(nextBillDate("2026-11-01", "yearly")).toBe("2027-11-01");
+  });
+});

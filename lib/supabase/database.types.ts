@@ -2190,6 +2190,70 @@ export type Database = {
           },
         ]
       }
+      recurring_bill: {
+        Row: {
+          active: boolean
+          amount_cents: number
+          company_id: string
+          created_at: string
+          expense_account: string
+          frequency: string
+          id: string
+          memo: string
+          next_on: string
+          property_id: string
+          vendor_id: string
+        }
+        Insert: {
+          active?: boolean
+          amount_cents: number
+          company_id: string
+          created_at?: string
+          expense_account?: string
+          frequency?: string
+          id?: string
+          memo: string
+          next_on: string
+          property_id: string
+          vendor_id: string
+        }
+        Update: {
+          active?: boolean
+          amount_cents?: number
+          company_id?: string
+          created_at?: string
+          expense_account?: string
+          frequency?: string
+          id?: string
+          memo?: string
+          next_on?: string
+          property_id?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_bill_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_bill_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_bill_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_charge: {
         Row: {
           amount_cents: number
