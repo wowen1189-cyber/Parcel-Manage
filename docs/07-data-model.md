@@ -3,7 +3,7 @@
 The starting schema is in `supabase/migrations/0001_core.sql`. Claude Code should extend it phase by phase with new migrations (never edit an applied migration).
 
 ## Tenancy and people
-- **company** — a property management company (SIM REI is the first). Holds settings (business rules JSON validated by Zod, branding, phones, time zone).
+- **company** — a property management company (SIM REI is the first). Has a unique `subdomain` (SIM REI: `simreipm`) that routes `<subdomain>.<parcel-domain>` to it. Holds settings (business rules JSON validated by Zod, branding, phones, time zone).
 - **profile** — a login (Supabase auth user), created automatically on sign-up; teammates at the same company can see each other's profile. **membership** links a profile to a company with a role, a title (editable, used on letters) and property access. **invitation** holds an emailed invite (email, role, title, property access, hashed link token, 7-day expiry) until the person signs in and accepts it. `create_company()` makes a new company with the caller as admin; `accept_invitation()` turns an invite into a membership.
 - **contact** — any person or business the company deals with (tenant, applicant, owner, vendor contact, emergency contact). Portal users link a profile to a contact.
 
