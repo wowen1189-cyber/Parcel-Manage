@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ROOT_DOMAIN } from "@/lib/env";
 import { getOrigin, safeNext } from "@/lib/request";
+import { getRequestSubdomain } from "@/lib/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { companyUrl, isValidSubdomain } from "@/lib/tenant";
 
@@ -29,15 +31,36 @@ export async function sendSignInLink(_: FormState, form: FormData): Promise<Form
 
   const supabase = await createClient();
   const next = safeNext(form.get("next"));
+  // A tenant on file at this company may sign in for the first time: their account is created on first use.
+  // Anyone else needs an account (or invite) already. The answer below is the same either way.
+  const firstTime = await isTenantOnFile(parsed.data);
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
-    options: { shouldCreateUser: false, emailRedirectTo: `${await getOrigin()}/auth/callback?next=${encodeURIComponent(next)}` },
+    options: { shouldCreateUser: firstTime, emailRedirectTo: `${await getOrigin()}/auth/callback?next=${encodeURIComponent(firstTime && next === "/dashboard" ? "/portal" : next)}` },
   });
   // Same answer whether or not the account exists, so the form can't be used to check who has one.
   // 429: a link went to this address less than a minute ago.
   if (error?.status === 429) return { error: "A link was just sent to that address. Use the newest email, or wait a minute and ask again." };
   if (error && error.status !== 400 && error.status !== 422) return { error: "We couldn't send the link just now. Try again in a minute." };
   return { message: `If ${parsed.data} has an account, a sign-in link is on its way. It works for one hour.` };
+}
+
+/** Is this e-mail on a tenant record (current or upcoming lease) at the company whose site this is? Server-only check. */
+async function isTenantOnFile(address: string): Promise<boolean> {
+  const subdomain = await getRequestSubdomain();
+  if (!subdomain) return false;
+  const db = createAdminClient();
+  const { data: company } = await db.from("company").select("id").eq("subdomain", subdomain).maybeSingle();
+  if (!company) return false;
+  const { data } = await db
+    .from("lease_tenant")
+    .select("contact!inner(email), lease!inner(status)")
+    .eq("company_id", company.id)
+    .eq("role", "tenant")
+    .in("lease.status", ["active", "notice", "draft", "pending_signature"])
+    .ilike("contact.email", `%${address.replace(/[%_]/g, "")}%`)
+    .limit(5);
+  return (data ?? []).some((r) => (r.contact.email ?? "").toLowerCase().split(/\s*[,;]\s*/).includes(address));
 }
 
 const EMAIL_LINK_TYPES = ["email", "magiclink", "signup", "recovery", "email_change", "invite"] as const;

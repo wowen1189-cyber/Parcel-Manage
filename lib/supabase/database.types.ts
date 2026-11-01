@@ -1115,6 +1115,7 @@ export type Database = {
           created_at: string
           direction: string
           id: string
+          lease_id: string | null
           provider_ref: string | null
           sender_membership_id: string | null
           sender_name: string | null
@@ -1130,6 +1131,7 @@ export type Database = {
           created_at?: string
           direction: string
           id?: string
+          lease_id?: string | null
           provider_ref?: string | null
           sender_membership_id?: string | null
           sender_name?: string | null
@@ -1145,6 +1147,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          lease_id?: string | null
           provider_ref?: string | null
           sender_membership_id?: string | null
           sender_name?: string | null
@@ -1165,6 +1168,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contact"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
             referencedColumns: ["id"]
           },
           {
@@ -2236,6 +2246,7 @@ export type Database = {
         }[]
       }
       charge_income_account: { Args: { p_type: string }; Returns: string }
+      claim_portal: { Args: { p_company: string }; Returns: number }
       company_by_subdomain: {
         Args: { p_subdomain: string }
         Returns: {
@@ -2261,6 +2272,9 @@ export type Database = {
         Returns: boolean
       }
       is_member: { Args: { cid: string }; Returns: boolean }
+      portal_contact_ids: { Args: never; Returns: string[] }
+      portal_lease_ids: { Args: never; Returns: string[] }
+      portal_unit_ids: { Args: never; Returns: string[] }
       post_charge: {
         Args: {
           p_amount: number

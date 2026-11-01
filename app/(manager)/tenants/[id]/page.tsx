@@ -10,6 +10,7 @@ import { requireCompany } from "@/lib/session";
 import { LeaseNotesForm, BillingSettingsForm, TenantContactForm } from "../forms";
 import { HouseholdCard } from "./household";
 import { ChargeForm, PaymentForm, ReturnPaymentButton } from "./ledger";
+import { InviteButton, ReplyForm } from "./portal";
 import { buildLedger } from "@/lib/ledger";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 
@@ -42,7 +43,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
+      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, portal_profile_id, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
@@ -66,6 +67,14 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const showAll = sp.ledger === "all";
   const ledgerRows = [...ledger.rows].reverse().slice(0, showAll ? undefined : 12);
   const canPost = ["admin", "property_manager", "accountant", "leasing_agent"].includes(membership.role);
+  const tenantContacts = people.filter((p) => p.role === "tenant").map((p) => p.contact);
+  const { data: messages } = await supabase
+    .from("message")
+    .select("id, direction, body, sender_name, sender_title, created_at, contact_id")
+    .eq("company_id", company.id)
+    .in("contact_id", tenantContacts.map((c) => c.id))
+    .order("created_at", { ascending: false })
+    .limit(20);
 
   return (
     <>
@@ -296,6 +305,38 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                 </details>
               </div>
             )}
+          </Card>
+          <Card>
+            <CardHeader title="Tenant portal" description="Tenants sign in with their e-mail to pay, request repairs and message you." />
+            <ul className="divide-y divide-line">
+              {tenantContacts.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-[14px]">
+                  <span>
+                    <span className="font-semibold">{contactName(c)}</span>
+                    <span className="block text-[12px] text-subtle">{c.portal_profile_id ? "Using the portal" : c.email ? c.email : "No e-mail on file"}</span>
+                  </span>
+                  {c.email && canEdit && <InviteButton contactId={c.id} label={c.portal_profile_id ? "Re-send link" : "Send portal invite"} />}
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Card>
+            <CardHeader title="Messages" description="Portal messages with this household, newest first." />
+            <div className="space-y-2 px-5 py-4">
+              {messages?.length ? (
+                messages.map((m) => (
+                  <div key={m.id} className={`rounded-[12px] px-3 py-2 text-[14px] ${m.direction === "inbound" ? "bg-surface-muted" : "bg-accent-softer"}`}>
+                    <p className="whitespace-pre-wrap">{m.body}</p>
+                    <p className="mt-1 text-[12px] text-subtle">
+                      {m.direction === "inbound" ? contactName(tenantContacts.find((c) => c.id === m.contact_id)) : [m.sender_name, m.sender_title].filter(Boolean).join(", ")} · {date(m.created_at.slice(0, 10))}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[13px] text-subtle">No messages yet.</p>
+              )}
+              {tenantContacts[0] && canEdit && <ReplyForm contactId={(messages?.find((m) => m.direction === "inbound")?.contact_id ?? tenantContacts[0].id) as string} leaseId={l.id} />}
+            </div>
           </Card>
           <Card>
             <CardHeader title="Notes and access" />

@@ -82,7 +82,12 @@ export const requireCompany = cache(async () => {
   const access = await resolveCompanyAccess(supabase, user.id, subdomain);
 
   if (access.status === "unknown-subdomain") redirect("/no-company");
-  if (access.status === "no-access") redirect("/no-access");
+  if (access.status === "no-access") {
+    // Not staff here: a tenant goes to their portal instead (linked by verified e-mail, migration 0017).
+    const { data: c } = await supabase.rpc("company_by_subdomain", { p_subdomain: subdomain ?? "" });
+    const { data: leases } = c?.[0] ? await supabase.rpc("claim_portal", { p_company: c[0].id }) : { data: 0 };
+    redirect(leases ? "/portal" : "/no-access");
+  }
   if (access.status === "no-company") redirect("/welcome");
 
   // On the main site itself (not a preview address), send people to their company's own address.

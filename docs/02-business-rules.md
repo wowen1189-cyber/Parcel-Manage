@@ -81,6 +81,11 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 - Security deposit: return within 15 days, or send notice of intent to claim by certified mail within 30 days; tenant has 15 days to object (83.49).
 - Legal notices are **never sent automatically**; they're drafted for approval.
 
+## Tenant portal
+- Tenants sign in on the company's site with the e-mail on their tenant record (a sign-in link, no password); their first sign-in creates the login and links it by verified e-mail. They see only their own lease, ledger, requests and messages (Row Level Security, migration 0017).
+- Repair requests use the same triage as the office: gas or fire buttons skip every question and send an emergency; otherwise priority comes from the answers, self-check tips show first, and an emergency needs the false-emergency acknowledgment (text, fee and answers stored on the work order). The office is e-mailed for every request, message, insurance upload and notice to vacate.
+- A notice to vacate from the portal goes to the office as a message; the office confirms in writing and sets the move-out date (the lease's notice terms apply).
+
 ## Communications
 - Letters and emails go out with the **sender's name and title**; signature = sender. Titles editable and saved per user.
 - Every message (email, text, portal, letter) is saved to the tenant's record; copies of letters file to the document cabinet.
