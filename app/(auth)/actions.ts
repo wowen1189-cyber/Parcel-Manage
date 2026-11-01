@@ -60,7 +60,11 @@ async function isTenantOnFile(address: string): Promise<boolean> {
     .in("lease.status", ["active", "notice", "draft", "pending_signature"])
     .ilike("contact.email", `%${address.replace(/[%_]/g, "")}%`)
     .limit(5);
-  return (data ?? []).some((r) => (r.contact.email ?? "").toLowerCase().split(/\s*[,;]\s*/).includes(address));
+  if ((data ?? []).some((r) => (r.contact.email ?? "").toLowerCase().split(/\s*[,;]\s*/).includes(address))) return true;
+  // Owners and partners may sign in to the owner portal too.
+  const { data: owners } = await db.from("entity").select("email, property(property_owner(contact(email)))").eq("company_id", company.id);
+  const emails = (owners ?? []).flatMap((o) => [o.email, ...o.property.flatMap((p) => p.property_owner.map((x) => x.contact?.email))]);
+  return emails.some((e) => (e ?? "").toLowerCase().split(/\s*[,;]\s*/).includes(address));
 }
 
 const EMAIL_LINK_TYPES = ["email", "magiclink", "signup", "recovery", "email_change", "invite"] as const;

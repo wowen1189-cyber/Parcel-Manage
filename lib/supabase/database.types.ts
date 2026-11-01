@@ -3159,6 +3159,8 @@ export type Database = {
         Returns: boolean
       }
       is_member: { Args: { cid: string }; Returns: boolean }
+      owner_entity_ids: { Args: never; Returns: string[] }
+      owner_property_ids: { Args: never; Returns: string[] }
       portal_contact_ids: { Args: never; Returns: string[] }
       portal_lease_ids: { Args: never; Returns: string[] }
       portal_unit_ids: { Args: never; Returns: string[] }

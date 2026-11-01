@@ -74,3 +74,16 @@ describe("tenant portal", () => {
     expect(error).not.toBeNull();
   });
 });
+
+describe("owner portal", () => {
+  it("shows an owner only the owners whose records list their e-mail", async () => {
+    const owner = await createTestUser("owner-portal");
+    const c = staff.client;
+    const mine = (await c.from("entity").insert({ company_id: company.id, name: "Mine LLC", email: `x@example.test, ${owner.email.toUpperCase()}` }).select().single()).data!;
+    await c.from("entity").insert({ company_id: company.id, name: "Not Mine LLC", email: "other@example.test" });
+    const seen = (await owner.client.from("entity").select("id, name")).data ?? [];
+    expect(seen.map((e) => e.name)).toEqual(["Mine LLC"]);
+    expect(seen[0].id).toBe(mine.id);
+    expect((await owner.client.from("lease").select("id")).data).toEqual([]);
+  });
+});
