@@ -9,6 +9,9 @@ import { lateFeeText, leaseTiming } from "@/lib/leases";
 import { requireCompany } from "@/lib/session";
 import { LeaseNotesForm, BillingSettingsForm, TenantContactForm } from "../forms";
 import { HouseholdCard } from "./household";
+import { ChargeForm, PaymentForm, ReturnPaymentButton } from "./ledger";
+import { buildLedger } from "@/lib/ledger";
+import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 
 export async function generateMetadata({ params }: PageProps<"/tenants/[id]">) {
   const { id } = await params;
@@ -39,7 +42,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
+      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
@@ -58,6 +61,11 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const commercial = l.unit.kind === "commercial";
   const insurance = l.renters_insurance ?? [];
   const vehicles = people.flatMap((p) => p.contact.vehicle);
+  const ledger = buildLedger(l.charge, l.payment, { cents: l.opening_balance_cents, asOf: l.opening_balance_as_of });
+  const deposits = l.payment.filter((p) => p.purpose === "deposit" && p.status === "succeeded").reduce((s, p) => s + p.amount_cents, 0);
+  const showAll = sp.ledger === "all";
+  const ledgerRows = [...ledger.rows].reverse().slice(0, showAll ? undefined : 12);
+  const canPost = ["admin", "property_manager", "accountant", "leasing_agent"].includes(membership.role);
 
   return (
     <>
@@ -101,7 +109,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label="Owes" value={<span className={(l.opening_balance_cents ?? 0) > 0 ? "text-danger" : undefined}>{money(l.opening_balance_cents, { blank: "$0.00" })}</span>} note={l.opening_balance_as_of ? `From AppFolio, ${date(l.opening_balance_as_of)}` : undefined} />
+        <StatTile label={ledger.balanceCents < 0 ? "Credit" : "Owes"} value={<span className={ledger.balanceCents > 0 ? "text-danger" : undefined}>{money(Math.abs(ledger.balanceCents))}</span>} note={ledger.rows.length ? `${ledger.rows.length} ledger entries` : undefined} />
         <StatTile label="Monthly total" value={money(monthly)} note={`Rent ${money(l.rent_cents)}${recurring.length ? ` + ${money(monthly - l.rent_cents)} other` : ""}`} />
         <StatTile label="Deposit held" value={money(l.deposit_cents)} note={l.deposit_pending_cents ? `${money(l.deposit_pending_cents)} pending` : commercial ? "Commercial lease" : "Fla. Stat. 83.49 applies"} />
         <StatTile label={l.status === "notice" ? "Moving out" : "Lease ends"} value={<span className="text-xl">{l.status === "notice" ? date(l.move_out_on) : l.end_date ? date(l.end_date) : "Month-to-month"}</span>} note={`Started ${date(l.start_date)}`} />
@@ -229,12 +237,65 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader title="Ledger" />
-            <EmptyState title={`Balance ${money(l.opening_balance_cents, { blank: "$0.00" })}`}>
-              Brought over from AppFolio on {date(l.opening_balance_as_of)}. Rent charges, payments and late fees will list here once
-              accounting is switched on.
-            </EmptyState>
+          <Card className="overflow-hidden">
+            <CardHeader
+              title="Ledger"
+              description={`Balance ${money(ledger.balanceCents)}${deposits ? ` · ${money(deposits)} deposit held in trust` : ""}`}
+              action={<Link href={`/tenants/${l.id}/ledger.csv`} className="text-[13px] font-semibold text-accent hover:underline">Export CSV</Link>}
+            />
+            {ledgerRows.length ? (
+              <Table minWidth={460}>
+                <Thead>
+                  <Th>Date</Th>
+                  <Th>Item</Th>
+                  <Th right>Amount</Th>
+                  <Th right>Balance</Th>
+                </Thead>
+                <Tbody>
+                  {ledgerRows.map((r) => (
+                    <tr key={r.id}>
+                      <Td className="whitespace-nowrap text-[13px]">{date(r.date)}</Td>
+                      <Td className="text-[13px]">
+                        {r.description}
+                        {r.kind === "payment" && r.status === "succeeded" && canPost && (
+                          <div>
+                            <ReturnPaymentButton paymentId={r.id} today={today} fee={l.nsf_fee_cents ? money(l.nsf_fee_cents) : null} />
+                          </div>
+                        )}
+                        {r.status === "returned" && r.kind === "payment" && <p className="text-[12px] text-danger">Returned</p>}
+                      </Td>
+                      <Td right className={`text-[13px] ${r.paymentCents ? "text-accent" : ""}`}>{r.paymentCents ? `−${money(r.paymentCents)}` : money(r.chargeCents)}</Td>
+                      <Td right className="text-[13px] font-semibold">{money(r.balanceCents)}</Td>
+                    </tr>
+                  ))}
+                </Tbody>
+              </Table>
+            ) : (
+              <EmptyState title="Nothing on the ledger yet">Rent posts automatically each month once automatic billing is on (Settings → Billing).</EmptyState>
+            )}
+            {ledger.rows.length > 12 && (
+              <p className="border-t border-line px-5 py-2 text-[13px]">
+                <Link href={`/tenants/${l.id}${showAll ? "" : "?ledger=all"}`} className="font-semibold text-accent hover:underline">
+                  {showAll ? "Show recent only" : `Show all ${ledger.rows.length}`}
+                </Link>
+              </p>
+            )}
+            {canPost && (
+              <div className="space-y-3 border-t border-line px-5 py-4">
+                <details>
+                  <summary className="cursor-pointer text-[13px] font-semibold text-accent">+ Record a payment</summary>
+                  <div className="mt-3">
+                    <PaymentForm leaseId={l.id} today={today} certifiedOnly={l.certified_funds_only} />
+                  </div>
+                </details>
+                <details>
+                  <summary className="cursor-pointer text-[13px] font-semibold text-accent">+ Add a charge</summary>
+                  <div className="mt-3">
+                    <ChargeForm leaseId={l.id} today={today} />
+                  </div>
+                </details>
+              </div>
+            )}
           </Card>
           <Card>
             <CardHeader title="Notes and access" />

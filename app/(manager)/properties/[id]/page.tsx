@@ -8,6 +8,7 @@ import { LeaseSettingsForm, PropertyForm, UnitForm } from "../forms";
 import { allowsRepairDeductible, missingLeaseSettings, readLeaseSettings } from "@/lib/property-lease-settings";
 import { describeFee, effectiveFee, monthlyFee, readCompanyFee } from "@/lib/management-fees";
 import { UNASSIGNED_OWNER } from "@/lib/owners";
+import { buildLedger } from "@/lib/ledger";
 import { FeeForm } from "../../owners/forms";
 
 export async function generateMetadata({ params }: PageProps<"/properties/[id]">) {
@@ -25,7 +26,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
     supabase
       .from("property")
       .select(
-        "*, entity(id, name, management_fee), property_owner(ownership_pct, contact(first_name, last_name, business_name)), unit(id, label, kind, beds, baths, sqft, market_rent_cents, status, amenities, notes, lease(id, status, rent_cents, end_date, opening_balance_cents, lease_tenant(is_primary, contact(first_name, last_name, business_name))))",
+        "*, entity(id, name, management_fee), property_owner(ownership_pct, contact(first_name, last_name, business_name)), unit(id, label, kind, beds, baths, sqft, market_rent_cents, status, amenities, notes, lease(id, status, rent_cents, end_date, opening_balance_cents, opening_balance_as_of, charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), lease_tenant(is_primary, contact(first_name, last_name, business_name))))",
       )
       .eq("id", id)
       .eq("company_id", company.id)
@@ -39,7 +40,8 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
   const occupied = units.filter((u) => u.status === "occupied" || u.status === "notice").length;
   const rent = units.reduce((s, u) => s + (current(u)?.rent_cents ?? 0), 0);
   const market = units.reduce((s, u) => s + (u.market_rent_cents ?? 0), 0);
-  const owed = units.reduce((s, u) => s + Math.max(0, current(u)?.opening_balance_cents ?? 0), 0);
+  const balanceOf = (lease: ReturnType<typeof current>) => (lease ? buildLedger(lease.charge, lease.payment, { cents: lease.opening_balance_cents, asOf: lease.opening_balance_as_of }).balanceCents : 0);
+  const owed = units.reduce((s, u) => s + Math.max(0, balanceOf(current(u))), 0);
   const canEdit = ["admin", "property_manager"].includes(membership.role);
   const leaseSettings = readLeaseSettings(p.lease_settings, p.property_type, units.length);
   const hasCommercial = units.some((u) => u.kind === "commercial");
@@ -64,7 +66,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Occupancy" value={units.length ? `${Math.round((occupied / units.length) * 100)}%` : "—"} note={`${occupied} of ${units.length} units`} />
         <StatTile label="Monthly rent" value={money(rent)} note={`Market ${money(market)}`} />
-        <StatTile label="Owed (from AppFolio)" value={money(owed)} note="As of Nov 1, 2026" />
+        <StatTile label="Owed by tenants" value={money(owed)} note="Current ledger balances" />
         <StatTile label="Owner" value={p.entity ? <Link href={`/owners/${p.entity.id}`} className="text-lg hover:underline">{p.entity.name === UNASSIGNED_OWNER ? "Not set yet" : p.entity.name}</Link> : "—"} note={p.property_owner.map((o) => `${contactName(o.contact)} ${Number(o.ownership_pct)}%`).join(" · ") || "Ownership split not set"} />
       </div>
 

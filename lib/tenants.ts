@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { buildLedger } from "@/lib/ledger";
 import { contactName, contactSortKey } from "@/lib/format";
 import { leaseTiming } from "@/lib/leases";
 
@@ -25,7 +26,7 @@ export async function listTenants(supabase: Db, companyId: string, f: TenantFilt
   const { data, error } = await supabase
     .from("lease")
     .select(
-      "id, status, start_date, end_date, move_out_on, rent_cents, deposit_cents, deposit_pending_cents, opening_balance_cents, unit!inner(id, label, kind, property!inner(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone))",
+      "id, status, start_date, end_date, move_out_on, rent_cents, deposit_cents, deposit_pending_cents, opening_balance_cents, opening_balance_as_of, charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), unit!inner(id, label, kind, property!inner(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone))",
     )
     .eq("company_id", companyId)
     .in("status", ["active", "notice", "draft"]);
@@ -51,7 +52,7 @@ export async function listTenants(supabase: Db, companyId: string, f: TenantFilt
         rentCents: l.rent_cents,
         depositCents: l.deposit_cents,
         depositPendingCents: l.deposit_pending_cents,
-        balanceCents: l.opening_balance_cents,
+        balanceCents: buildLedger(l.charge, l.payment, { cents: l.opening_balance_cents, asOf: l.opening_balance_as_of }).balanceCents,
         startDate: l.start_date,
         endDate: l.end_date,
         moveOutOn: l.move_out_on,

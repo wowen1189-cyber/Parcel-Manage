@@ -203,33 +203,39 @@ export type Database = {
           charge_type: string
           company_id: string
           created_at: string
+          created_by: string | null
           description: string
           due_date: string
           id: string
           journal_entry_id: string | null
           lease_id: string
+          memo: string | null
         }
         Insert: {
           amount_cents: number
           charge_type: string
           company_id: string
           created_at?: string
+          created_by?: string | null
           description: string
           due_date: string
           id?: string
           journal_entry_id?: string | null
           lease_id: string
+          memo?: string | null
         }
         Update: {
           amount_cents?: number
           charge_type?: string
           company_id?: string
           created_at?: string
+          created_by?: string | null
           description?: string
           due_date?: string
           id?: string
           journal_entry_id?: string | null
           lease_id?: string
+          memo?: string | null
         }
         Relationships: [
           {
@@ -237,6 +243,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "charge_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
           {
@@ -1229,39 +1242,54 @@ export type Database = {
           amount_cents: number
           company_id: string
           created_at: string
+          created_by: string | null
           fee_cents: number
           id: string
           journal_entry_id: string | null
           lease_id: string
+          memo: string | null
           method: string
           processor_ref: string | null
+          purpose: string
           received_on: string
+          reference: string | null
+          returned_on: string | null
           status: string
         }
         Insert: {
           amount_cents: number
           company_id: string
           created_at?: string
+          created_by?: string | null
           fee_cents?: number
           id?: string
           journal_entry_id?: string | null
           lease_id: string
+          memo?: string | null
           method: string
           processor_ref?: string | null
+          purpose?: string
           received_on: string
+          reference?: string | null
+          returned_on?: string | null
           status?: string
         }
         Update: {
           amount_cents?: number
           company_id?: string
           created_at?: string
+          created_by?: string | null
           fee_cents?: number
           id?: string
           journal_entry_id?: string | null
           lease_id?: string
+          memo?: string | null
           method?: string
           processor_ref?: string | null
+          purpose?: string
           received_on?: string
+          reference?: string | null
+          returned_on?: string | null
           status?: string
         }
         Relationships: [
@@ -1270,6 +1298,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
           {
@@ -2183,6 +2218,24 @@ export type Database = {
     }
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: string }
+      account_balances: {
+        Args: {
+          p_company: string
+          p_entity: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          account_id: string
+          credit_cents: number
+          debit_cents: number
+          is_trust: boolean
+          name: string
+          number: string
+          type: string
+        }[]
+      }
+      charge_income_account: { Args: { p_type: string }; Returns: string }
       company_by_subdomain: {
         Args: { p_subdomain: string }
         Returns: {
@@ -2195,6 +2248,11 @@ export type Database = {
         Args: { p_name: string; p_subdomain: string; p_time_zone?: string }
         Returns: string
       }
+      ensure_chart_of_accounts: {
+        Args: { p_company: string }
+        Returns: undefined
+      }
+      gl_id: { Args: { p_company: string; p_number: string }; Returns: string }
       has_role: {
         Args: {
           cid: string
@@ -2203,6 +2261,49 @@ export type Database = {
         Returns: boolean
       }
       is_member: { Args: { cid: string }; Returns: boolean }
+      post_charge: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_due: string
+          p_lease: string
+          p_memo?: string
+          p_type: string
+        }
+        Returns: string
+      }
+      post_journal_entry: {
+        Args: {
+          p_company: string
+          p_date: string
+          p_entity: string
+          p_lines: Json
+          p_memo: string
+          p_source: string
+        }
+        Returns: string
+      }
+      record_payment: {
+        Args: {
+          p_amount: number
+          p_lease: string
+          p_memo?: string
+          p_method: string
+          p_purpose?: string
+          p_received: string
+          p_reference?: string
+          p_status?: string
+        }
+        Returns: string
+      }
+      return_payment: {
+        Args: { p_date: string; p_fee?: number; p_payment: string }
+        Returns: undefined
+      }
+      reverse_journal_entry: {
+        Args: { p_date: string; p_entry: string; p_memo: string }
+        Returns: string
+      }
       shares_company: { Args: { pid: string }; Returns: boolean }
       subdomain_available: { Args: { p_subdomain: string }; Returns: boolean }
     }

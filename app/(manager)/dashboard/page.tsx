@@ -52,7 +52,7 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Occupancy" value={total ? `${Math.round((occupied / total) * 100)}%` : "—"} note={`${occupied} of ${total} units · ${propertyCount ?? 0} properties`} />
         <StatTile label="Monthly rent" value={money(rent)} note={`${signed.length} leases`} />
-        <StatTile label="Owed by tenants" value={money(owed)} note={`${owing.length} tenants · from AppFolio Nov 1`} />
+        <StatTile label="Owed by tenants" value={money(owed)} note={`${owing.length} tenants`} />
         <StatTile label="Vacant" value={total - occupied} note={total - occupied === 1 ? "unit" : "units"} />
       </div>
     ),

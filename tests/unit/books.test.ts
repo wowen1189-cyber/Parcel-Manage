@@ -1,0 +1,22 @@
+import { describe, expect, it } from "vitest";
+import { checkEntry, netIncome, normalBalance, trialBalanceTotals, type AccountBalance } from "@/lib/books";
+
+const row = (number: string, type: string, debit: number, credit: number): AccountBalance => ({ account_id: number, number, name: number, type, is_trust: false, debit_cents: debit, credit_cents: credit });
+
+describe("books", () => {
+  const rows = [row("1000", "asset", 100000, 0), row("1100", "asset", 150000, 100000), row("4000", "income", 0, 150000), row("5000", "expense", 20000, 0), row("2000", "liability", 0, 20000)];
+  it("shows balances in each account's normal direction", () => {
+    expect(normalBalance(rows[1])).toBe(50000);
+    expect(normalBalance(rows[2])).toBe(150000);
+  });
+  it("checks the trial balance and net income", () => {
+    expect(trialBalanceTotals(rows)).toEqual({ debit: 270000, credit: 270000, balanced: true });
+    expect(netIncome(rows)).toBe(130000);
+  });
+  it("only posts balanced manual entries", () => {
+    expect(checkEntry([{ account: "5000", debit: 1000, credit: 0 }, { account: "1000", debit: 0, credit: 1000 }])).toBeNull();
+    expect(checkEntry([{ account: "5000", debit: 1000, credit: 0 }, { account: "1000", debit: 0, credit: 900 }])).toMatch(/must match/);
+    expect(checkEntry([{ account: "5000", debit: 1000, credit: 1000 }, { account: "1000", debit: 0, credit: 0 }])).toMatch(/at least two|not both/);
+    expect(checkEntry([{ account: "", debit: 1000, credit: 0 }, { account: "1000", debit: 0, credit: 1000 }])).toMatch(/Choose an account/);
+  });
+});
