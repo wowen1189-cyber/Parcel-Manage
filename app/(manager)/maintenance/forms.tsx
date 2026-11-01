@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button, Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import { ENTRY_BASIS_LABEL, NOTICE_METHOD_LABEL } from "@/lib/work-orders";
-import { addNote, assignVendor, changePriority, completeWorkOrder, scheduleVisit, type FormState } from "./actions";
+import { addNote, assignVendor, changePriority, chargeFalseEmergency, completeWorkOrder, scheduleVisit, type FormState } from "./actions";
 
 const empty: FormState = {};
 
@@ -177,6 +177,23 @@ export function PriorityForm({ workOrderId, priority }: { workOrderId: string; p
       </div>
       <Button type="submit" small variant="secondary" disabled={pending}>
         {pending ? "Saving…" : "Change priority"}
+      </Button>
+    </form>
+  );
+}
+
+export function FalseEmergencyForm({ workOrderId, feeLabel }: { workOrderId: string; feeLabel: string }) {
+  const [state, action, pending] = useActionState(chargeFalseEmergency, empty);
+  if (state.message) return <Notice tone="success">{state.message}</Notice>;
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="work_order_id" value={workOrderId} />
+      <Status state={state} />
+      <Field label="Vendor's emergency charge ($)" hint={`Added to the ${feeLabel} fee the tenant agreed to`}>
+        <Input name="vendor_charge" inputMode="decimal" />
+      </Field>
+      <Button type="submit" small variant="secondary" disabled={pending}>
+        {pending ? "Charging…" : "Charge the tenant"}
       </Button>
     </form>
   );

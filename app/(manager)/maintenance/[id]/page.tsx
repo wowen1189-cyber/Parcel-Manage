@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Card, CardHeader, Notice, PageHeader, Pill } from "@/components/ui";
 import { readBusinessRules } from "@/lib/business-rules";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { contactName, date, money, oneLineAddress, todayIn } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
 import { vendorCompliance } from "@/lib/vendors";
 import { dateToZoned, earliestNoticeEntry, ENTRY_BASIS_LABEL, formatWhen, NOTICE_METHOD_LABEL, WO_PRIORITY, WO_STATUS } from "@/lib/work-orders";
 import { cancelWorkOrder } from "../actions";
-import { AssignVendorForm, CompleteForm, NoteForm, PriorityForm, ScheduleForm, type VendorOption } from "../forms";
+import { FalseEmergencyForm, AssignVendorForm, CompleteForm, NoteForm, PriorityForm, ScheduleForm, type VendorOption } from "../forms";
 
 export async function generateMetadata({ params }: PageProps<"/maintenance/[id]">) {
   const { id } = await params;
@@ -36,6 +37,7 @@ const EVENT_LABEL: Record<string, string> = {
   accepted: "Vendor accepted",
   declined: "Vendor declined",
   tenant_message: "Tenant added a note",
+  false_emergency_charged: "False-emergency charge posted",
   scheduled: "Visit scheduled",
   tenant_notified: "Tenants emailed",
   completed: "Completed",
@@ -87,6 +89,10 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
   const events = [...w.work_order_event].sort((a, b) => b.created_at.localeCompare(a.created_at));
   const where = [w.property.name, w.unit && w.unit.label !== "Home" ? `Unit ${w.unit.label}` : null].filter(Boolean).join(" · ");
   const rules = readBusinessRules(company.settings);
+  const { data: photos } = await supabase.from("document").select("storage_path, source").eq("company_id", company.id).eq("work_order_id", w.id).eq("category", "photo");
+  const photoLinks = photos?.length ? ((await createAdminClient().storage.from("documents").createSignedUrls(photos.map((p) => p.storage_path), 600)).data ?? []) : [];
+  const ack = w.emergency_ack as { fee_cents?: number; accepted_at?: string; text?: string } | null;
+  const charged = w.work_order_event.some((e) => e.kind === "false_emergency_charged");
 
   return (
     <>
@@ -123,8 +129,33 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
             <div className="space-y-3 px-5 py-4 text-sm">
               <p className="leading-relaxed">{w.ai_summary}</p>
               {w.priority_reason && <p className="text-[13px] text-subtle">Priority changed by staff: {w.priority_reason}</p>}
+              {ack?.accepted_at && (
+                <p className="rounded-[var(--radius-control)] bg-surface-muted px-3 py-2 text-[13px] text-muted">
+                  The tenant accepted the false-emergency terms {formatWhen(ack.accepted_at, tz)}: &ldquo;{ack.text}&rdquo;
+                </p>
+              )}
+              {photoLinks.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {photoLinks.map((x) =>
+                    x.signedUrl ? (
+                      <a key={x.path} href={x.signedUrl} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={x.signedUrl} alt="Photo on this work order" className="aspect-square w-full rounded-[10px] object-cover" />
+                      </a>
+                    ) : null,
+                  )}
+                </div>
+              )}
             </div>
           </Card>
+          {ack?.accepted_at && !charged && canEdit && (
+            <Card>
+              <CardHeader title="Not really an emergency?" description="Charge the fee the tenant agreed to plus the vendor's emergency charge. Only collectible if the lease or a maintenance addendum provides for it." />
+              <div className="px-5 py-4">
+                <FalseEmergencyForm workOrderId={w.id} feeLabel={money(ack.fee_cents ?? 0)} />
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Vendor" description={w.vendor ? undefined : "Who's doing the work. On-site vendors need a W-9 and current insurance."} />

@@ -353,3 +353,35 @@ export async function changePriority(_: FormState, form: FormData): Promise<Form
   revalidatePath("/maintenance");
   return { message: "Priority changed." };
 }
+
+/**
+ * The tenant reported an emergency and accepted the false-emergency terms, and it wasn't one: charge the
+ * fee they agreed to plus the vendor's emergency charge to their ledger. A person decides (never automatic),
+ * and the charge is only collectible if the lease or a maintenance addendum provides for it (docs/02).
+ */
+export async function chargeFalseEmergency(_: FormState, form: FormData): Promise<FormState> {
+  const ctx = await requireCompany();
+  const { supabase, company, membership } = ctx;
+  if (!["admin", "property_manager"].includes(membership.role)) return { error: "Only an admin or property manager can charge this." };
+  const p = z
+    .object({
+      work_order_id: z.string().uuid(),
+      vendor_charge: z.string().trim().transform((v) => v.replace(/[$,\s]/g, "")).refine((v) => !v || /^\d+(\.\d{1,2})?$/.test(v), "Enter the vendor's emergency charge as a dollar amount."),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!p.success) return { error: p.error.issues[0].message };
+  const { data: wo } = await supabase.from("work_order").select("id, number, title, emergency_ack, unit(lease(id, status))").eq("id", p.data.work_order_id).eq("company_id", company.id).maybeSingle();
+  if (!wo?.emergency_ack) return { error: "The tenant didn't accept the false-emergency terms on this request." };
+  const ack = wo.emergency_ack as { fee_cents?: number };
+  const lease = wo.unit?.lease.find((l) => l.status === "active" || l.status === "notice");
+  if (!lease) return { error: "No current lease for this unit." };
+  if (wo.unit && (await supabase.from("work_order_event").select("id").eq("work_order_id", wo.id).eq("kind", "false_emergency_charged").maybeSingle()).data) return { error: "Already charged." };
+  const amount = (ack.fee_cents ?? 0) + (p.data.vendor_charge ? Math.round(Number(p.data.vendor_charge) * 100) : 0);
+  if (amount <= 0) return { error: "Nothing to charge." };
+  const { error } = await supabase.rpc("post_charge", { p_lease: lease.id, p_type: "false_emergency", p_description: `False emergency, work order #${wo.number}`, p_amount: amount, p_due: new Date().toISOString().slice(0, 10) });
+  if (error) return { error: error.message };
+  await logEvent(ctx, wo.id, "false_emergency_charged", { amount_cents: amount });
+  revalidatePath(`/maintenance/${wo.id}`);
+  revalidatePath(`/tenants/${lease.id}`);
+  return { message: `Charged $${(amount / 100).toFixed(2)} to the tenant's ledger.` };
+}
