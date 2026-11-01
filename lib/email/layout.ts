@@ -12,6 +12,8 @@ const C = {
   accent: "#007852",
   accentDeep: "#043728",
   accentSoft: "#e7f8f1",
+  brand: "#032017",
+  gold: "#f7bd40",
 };
 const FONT = "Archivo, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
@@ -55,15 +57,15 @@ export function emailHtml(e: EmailContent): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
     <tr><td style="padding:0 4px 20px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;background:${C.accent};border-radius:11px;font:800 15px/40px ${FONT};color:#ffffff;letter-spacing:-0.02em;">PM</td>
+        <td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;background:${C.brand};border-radius:11px;font:800 15px/40px ${FONT};color:#ffffff;letter-spacing:-0.02em;">PM<span style="color:${C.gold};">.</span></td>
         <td style="padding-left:12px;">
-          <div style="font:800 17px/1.2 ${FONT};color:${C.ink};letter-spacing:-0.01em;">Parcel Manage</div>
+          <div style="font:800 17px/1.2 ${FONT};color:${C.ink};letter-spacing:-0.01em;">Parcel Manage<span style="color:${C.gold};">.</span></div>
           ${e.fromLine ? `<div style="font:13px/1.3 ${FONT};color:${C.subtle};">${e.fromLine}</div>` : ""}
         </td>
       </tr></table>
     </td></tr>
     <tr><td style="background:${C.surface};border:1px solid ${C.line};border-radius:18px;">
-      <div style="height:6px;background:${C.accent};border-radius:18px 18px 0 0;"></div>
+      <div style="height:6px;background:${C.brand};border-radius:18px 18px 0 0;"></div>
       <div style="padding:32px 32px 16px;">
         <h1 style="margin:0 0 16px;font:800 26px/1.2 ${FONT};color:${C.ink};letter-spacing:-0.015em;">${e.heading}</h1>
         ${e.paragraphs.map(p).join("\n")}

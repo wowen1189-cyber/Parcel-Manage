@@ -24,6 +24,9 @@
   --color-danger-bg: #ffe6e1;
   --color-danger: #b63325;
   --color-dark: #14201c;
+  /* Parcel brand family (shared with Parcel TM): deep green logo tile and the gold "period". */
+  --color-brand: #032017;
+  --color-gold: #f7bd40;
 
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-script: var(--font-caveat), cursive;

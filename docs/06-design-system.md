@@ -36,7 +36,7 @@ Status pill mapping: Current/Completed/Approved/On target → accent-soft; Late/
 - Touch targets ≥ 44px; inputs 40–46px high.
 
 ## Layout
-- Manager app: left sidebar (220px, white, logo block "PM · Parcel Manage" (green tile with PM; sister products use the same tile with their own initials, e.g. TM) + company name), content area max ~1280px, top bar with page title + subtitle, "+ New" primary button. Sidebar stacks on phones.
+- Manager app: left sidebar (220px, white, logo block "PM · Parcel Manage" (Parcel family mark, same as Parcel TM: brand deep green `#032017` tile, white "PM", gold `#f7bd40` dot; the wordmark ends in a gold period. Buttons stay accent `#007852`: TM's `#008b61` is under 4.5:1 with white text) + company name), content area max ~1280px, top bar with page title + subtitle, "+ New" primary button. Sidebar stacks on phones.
 - Portals: phone-first; bottom tab bar; one column; 16–20px side padding.
 - Tables: header row on `surface-muted`, 1px row dividers, numbers right-aligned tabular, horizontal scroll inside the card on small screens.
 
