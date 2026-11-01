@@ -95,3 +95,4 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 ## Communications
 - Letters and emails go out with the **sender's name and title**; signature = sender. Titles editable and saved per user.
 - Every message (email, text, portal, letter) is saved to the tenant's record; copies of letters file to the document cabinet.
+- Automations (Settings › Automations, off until the company turns them on): routine reminders (rent, renters insurance, repair visits) are e-mailed automatically; legal notices are only drafted as To do items for a person. The 83.575(2) end-of-term reminder must be delivered within the 15 days before the tenant's 60-day notice period starts, or liquidated damages for leaving without notice can't be charged.

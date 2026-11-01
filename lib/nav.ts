@@ -6,6 +6,7 @@ export type NavItem = { slug: string; label: string; phase: number; description:
 
 export const NAV_ITEMS: NavItem[] = [
   { slug: "dashboard", label: "Dashboard", phase: 0, description: "Your key numbers and what needs attention." },
+  { slug: "tasks", label: "To do", phase: 3, description: "Notices and decisions the daily automations found for you." },
   { slug: "properties", label: "Properties", phase: 0, description: "Buildings, units and who owns them." },
   { slug: "tenants", label: "Tenants & leases", phase: 1, description: "Tenant profiles, ledgers, leases and households." },
   { slug: "expirations", label: "Lease expirations", phase: 1, description: "Keep lease endings spread across the year.", href: "/tenants/expirations" },
@@ -39,7 +40,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { id: "maintenance", label: "Maintenance", items: ["maintenance", "inspections"] },
   { id: "money", label: "Accounting", items: ["accounting", "bills", "recurring-bills", "journal-entries", "bank-accounts"] },
   { id: "insights", label: "Reports", items: ["reports", "metrics"] },
-  { id: "communications", label: "Communications", items: ["communications"] },
+  { id: "communications", label: "Communications", items: ["communications", "tasks"] },
   { id: "admin", label: "Admin", items: ["settings", "import"] },
 ];
 

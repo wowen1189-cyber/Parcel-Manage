@@ -386,6 +386,86 @@ export type Database = {
           },
         ]
       }
+      automation_task: {
+        Row: {
+          company_id: string
+          created_at: string
+          detail: string
+          done_at: string | null
+          done_by: string | null
+          due_on: string | null
+          id: string
+          key: string
+          kind: string
+          lease_id: string | null
+          letter_template: string | null
+          status: string
+          title: string
+          work_order_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          detail?: string
+          done_at?: string | null
+          done_by?: string | null
+          due_on?: string | null
+          id?: string
+          key: string
+          kind: string
+          lease_id?: string | null
+          letter_template?: string | null
+          status?: string
+          title: string
+          work_order_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          detail?: string
+          done_at?: string | null
+          done_by?: string | null
+          due_on?: string | null
+          id?: string
+          key?: string
+          kind?: string
+          lease_id?: string | null
+          letter_template?: string | null
+          status?: string
+          title?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_task_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_task_done_by_fkey"
+            columns: ["done_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_task_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_task_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_order"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       autopay: {
         Row: {
           active: boolean

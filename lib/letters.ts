@@ -220,6 +220,32 @@ export const LETTERS: LetterTemplate[] = [
     ],
   },
   {
+    id: "end-of-term-reminder",
+    title: "Reminder of your end-of-term notice duty",
+    group: "Florida notices",
+    cite: "Fla. Stat. 83.575(2)",
+    legal: true,
+    description: "Send within the 15 days before the tenant's notice period starts. Without it, liquidated damages for leaving without notice can't be charged.",
+    inputs: [
+      { id: "notice_days", label: "Notice days in the lease", kind: "text", hint: "60" },
+      { id: "ld_amount", label: "Liquidated damages ($)", kind: "money", hint: "SIM REI's lease: one month's rent." },
+    ],
+    subject: () => "Your lease end date and notice requirement",
+    body: (c, v) => {
+      const days = Number(v.notice_days) || 60;
+      const end = c.leaseEnd;
+      const by = end ? longDate(new Date(Date.parse(`${end}T12:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10)) : "(date)";
+      return [
+        `To: ${c.tenantNames}, ${c.premises}`,
+        `This is written notice under section 83.575(2), Florida Statutes. Your lease ends on ${end ? longDate(end) : "(lease end date)"}.`,
+        `Your lease requires you to give us written notice at least ${days} days before the lease ends if you do not plan to renew, which means by ${by}.`,
+        `If you move out at the end of the lease without giving that notice, you may owe liquidated damages of ${money(cents(v.ld_amount) || c.rentCents)}. There are no other fees, penalties or charges for not giving this notice. Rent and any other amounts you owe under the lease still apply as usual.`,
+        "If you'd like to renew, just let us know.",
+        ...signoff(c),
+      ];
+    },
+  },
+  {
     id: "entry",
     title: "Notice of entry for repairs",
     group: "Florida notices",
