@@ -6,7 +6,8 @@ import { readBusinessRules } from "@/lib/business-rules";
 import { bedBath, contactName, date, money, todayIn } from "@/lib/format";
 import { lateFeeText, leaseTiming } from "@/lib/leases";
 import { requireCompany } from "@/lib/session";
-import { LeaseNotesForm, TenantContactForm } from "../forms";
+import { LeaseNotesForm, LeaseTermsForm, TenantContactForm } from "../forms";
+import { HouseholdCard } from "./household";
 
 export async function generateMetadata({ params }: PageProps<"/tenants/[id]">) {
   const { id } = await params;
@@ -36,7 +37,7 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, emergency_contact(id, name, relationship, phone), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number))), recurring_charge(id, description, amount_cents), pet(id, kind, name, is_assistance_animal), renters_insurance(id, carrier, policy_number, expires_on, status, company_is_interested_party, tenant_contact_id)",
+      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
@@ -123,6 +124,31 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
               {l.commercial_lease_type && <Row label="Lease type">{l.commercial_lease_type}</Row>}
               {l.unit.amenities.length > 0 && <Row label="Amenities">{l.unit.amenities.join(", ")}</Row>}
             </dl>
+            {canEdit && (
+              <details className="border-t border-line px-5 py-4">
+                <summary className="cursor-pointer text-[13px] font-semibold text-accent">Edit late fee and payment terms</summary>
+                <div className="mt-3">
+                  <LeaseTermsForm
+                    leaseId={l.id}
+                    companyDefault={`${lateFeeText({ late_fee_grace_days: null, late_fee_flat_cents: null, late_fee_pct: null }, rules).text} (from Settings)`}
+                    canEdit={canEdit}
+                    terms={{
+                      late_fee_grace_days: l.late_fee_grace_days,
+                      late_fee_flat_cents: l.late_fee_flat_cents,
+                      late_fee_pct: l.late_fee_pct == null ? null : Number(l.late_fee_pct),
+                      late_fee_basis: l.late_fee_basis,
+                      late_fee_daily_cents: l.late_fee_daily_cents,
+                      late_fee_daily_max_cents: l.late_fee_daily_max_cents,
+                      nsf_fee_cents: l.nsf_fee_cents,
+                      certified_funds_only: l.certified_funds_only,
+                      rent_reminders: l.rent_reminders,
+                      next_rent_increase_on: l.next_rent_increase_on,
+                      next_rent_cents: l.next_rent_cents,
+                    }}
+                  />
+                </div>
+              </details>
+            )}
           </Card>
 
           <Card>
@@ -145,11 +171,6 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
                       <span className="font-semibold text-warn">No phone or email on file</span>
                     )}
                   </p>
-                  {c.emergency_contact.length > 0 && (
-                    <p className="mt-1 text-[13px] text-subtle">
-                      {c.emergency_contact.map((e) => `Emergency: ${e.name}${e.relationship ? ` (${e.relationship})` : ""} ${e.phone}`).join(" · ")}
-                    </p>
-                  )}
                   <details className="mt-3">
                     <summary className="cursor-pointer text-[13px] font-semibold text-accent">Edit contact details</summary>
                     <div className="mt-3">
@@ -178,41 +199,16 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
             <CardHeader title="Notes and access" />
             <LeaseNotesForm leaseId={l.id} unitId={l.unit.id} notes={l.notes} accessNotes={l.unit.access_notes} canEdit={canEdit} />
           </Card>
-          <Card>
-            <CardHeader title="Household and insurance" />
-            <dl className="divide-y divide-line px-5 py-2 text-sm">
-              <Row label="Renters insurance">
-                {insurance.length ? (
-                  insurance.map((p) => (
-                    <p key={p.id}>
-                      {p.carrier}
-                      {p.policy_number && <span className="text-subtle"> · #{p.policy_number}</span>}{" "}
-                      <Pill tone={p.status === "active" ? "success" : "danger"}>{p.status === "active" ? `Until ${date(p.expires_on)}` : `Expired ${date(p.expires_on)}`}</Pill>
-                    </p>
-                  ))
-                ) : commercial ? (
-                  <span className="text-subtle">Not tracked</span>
-                ) : (
-                  <span className="font-semibold text-warn">None on file</span>
-                )}
-              </Row>
-              <Row label="Vehicles">
-                {vehicles.length ? vehicles.map((v) => [v.make_model, v.tag_number && `Tag ${v.tag_number}`, v.parking_permit_number && `Permit ${v.parking_permit_number}`].filter(Boolean).join(" · ")).join("; ") : <span className="text-subtle">None on file</span>}
-              </Row>
-              <Row label="Pets">
-                {l.pet.length ? (
-                  l.pet.map((p) => (
-                    <span key={p.id} className="mr-2">
-                      {p.name ? `${p.name} (${p.kind})` : p.kind}
-                      {p.is_assistance_animal && <Pill tone="info">Assistance animal</Pill>}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-subtle">None on file</span>
-                )}
-              </Row>
-            </dl>
-          </Card>
+          <HouseholdCard
+            leaseId={l.id}
+            people={people.map((p) => ({ id: p.contact.id, name: contactName(p.contact) }))}
+            insurance={insurance}
+            vehicles={vehicles}
+            pets={l.pet}
+            emergency={people.flatMap((p) => p.contact.emergency_contact)}
+            commercial={commercial}
+            canEdit={canEdit}
+          />
           <Card>
             <CardHeader title="Documents" />
             <EmptyState title="No documents yet">Upload the signed lease and addenda here once document storage is on.</EmptyState>
