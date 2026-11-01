@@ -1278,14 +1278,19 @@ export type Database = {
           company_id: string
           contact_id: string | null
           created_at: string
+          delivery: string | null
           direction: string
+          document_id: string | null
           id: string
           lease_id: string | null
+          legal: boolean
           provider_ref: string | null
           sender_membership_id: string | null
           sender_name: string | null
           sender_title: string | null
           status: string
+          subject: string | null
+          template_id: string | null
           thread_key: string
         }
         Insert: {
@@ -1294,14 +1299,19 @@ export type Database = {
           company_id: string
           contact_id?: string | null
           created_at?: string
+          delivery?: string | null
           direction: string
+          document_id?: string | null
           id?: string
           lease_id?: string | null
+          legal?: boolean
           provider_ref?: string | null
           sender_membership_id?: string | null
           sender_name?: string | null
           sender_title?: string | null
           status?: string
+          subject?: string | null
+          template_id?: string | null
           thread_key: string
         }
         Update: {
@@ -1310,14 +1320,19 @@ export type Database = {
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          delivery?: string | null
           direction?: string
+          document_id?: string | null
           id?: string
           lease_id?: string | null
+          legal?: boolean
           provider_ref?: string | null
           sender_membership_id?: string | null
           sender_name?: string | null
           sender_title?: string | null
           status?: string
+          subject?: string | null
+          template_id?: string | null
           thread_key?: string
         }
         Relationships: [
@@ -1333,6 +1348,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contact"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "document"
             referencedColumns: ["id"]
           },
           {

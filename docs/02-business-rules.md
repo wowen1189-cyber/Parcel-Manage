@@ -82,7 +82,7 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 - 7-day notices of noncompliance with/without opportunity to cure (83.56(2)).
 - Notice of entry for repairs: at least 24 hours, entry between 7:30 AM and 8:00 PM (83.53(2), as amended in 2022).
 - Security deposit: return within 15 days, or send notice of intent to claim by certified mail within 30 days; tenant has 15 days to object (83.49).
-- Legal notices are **never sent automatically**; they're drafted for approval.
+- Legal notices are **never sent automatically**; they're drafted for approval. Parcel Manage builds each one from the statutory form, a person reviews and sends it, and the delivery method is recorded (posted, hand-delivered, mailed, certified mail, or e-mail only when the tenant signed the 83.505 e-mail addendum, 83.56(4)). Every letter is filed as a PDF on the tenant's record. The 3-day deadline excludes the delivery day, weekends and court holidays (plus 5 days if mailed); confirm local court closures with the clerk.
 
 ## Tenant portal
 - Tenants sign in on the company's site with the e-mail on their tenant record (a sign-in link, no password); their first sign-in creates the login and links it by verified e-mail. They see only their own lease, ledger, requests and messages (Row Level Security, migration 0017).
