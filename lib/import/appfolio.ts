@@ -491,3 +491,57 @@ export function samePerson(a: PersonName, b: PersonName): boolean {
   const [fa, fb] = [firstWord(a.first_name), firstWord(b.first_name)];
   return Boolean(fa && fb && (fa.startsWith(fb) || fb.startsWith(fa)));
 }
+
+// ---------- Owner directory ----------
+export type DirectoryOwner = {
+  name: string;
+  kind: "person" | "business";
+  entityType: "LLC" | "Corporation" | "Individual";
+  first_name: string | null;
+  last_name: string | null;
+  emails: string[];
+  phone: string | null;
+  mailingAddress: string | null;
+  /** Properties owned, with ownership percent. Names as AppFolio prints them. */
+  properties: { name: string; pct: number }[];
+  paymentType: string | null;
+  holdPayments: boolean;
+  emailPackets: boolean;
+  packetReports: string | null;
+};
+
+/** AppFolio Owner Directory export → one record per owner (an LLC or a person). */
+export function readOwnerDirectory(text: string): DirectoryOwner[] {
+  const [head, ...rows] = parseCsv(text).filter((r) => r.some((c) => clean(c)));
+  const col = (r: string[], name: string) => clean(r[head.indexOf(name)] ?? "");
+  return rows.map((r) => {
+    const name = col(r, "Name");
+    const business = /\b(llc|inc|corp|corporation|trust|lp|ltd|company)\b/i.test(name);
+    const p = phones(col(r, "Phone Numbers"));
+    const person = business ? { first_name: null, last_name: null } : personName(name);
+    // "1026 W Line (100%), 12 Forest Lane Eustis, FL 32726 (100%)": split on the "%)," between entries.
+    const properties = [...col(r, "Properties Owned").matchAll(/(.+?)\s*\((\d+(?:\.\d+)?)%\)\s*(?:,\s*|$)/g)].map((m) => ({ name: clean(m[1]), pct: Number(m[2]) }));
+    return {
+      name,
+      kind: business ? "business" : "person",
+      entityType: business ? (/\b(inc|corp|corporation)\b/i.test(name) ? "Corporation" : "LLC") : "Individual",
+      ...person,
+      emails: col(r, "Email").split(",").map(clean).filter(Boolean),
+      phone: p.mobile ?? p.phone,
+      mailingAddress: col(r, "Address") || null,
+      properties,
+      paymentType: col(r, "Payment Type") || null,
+      holdPayments: col(r, "Hold Payments?").toLowerCase() === "yes",
+      emailPackets: col(r, "Send Owner Packets by Email?").toLowerCase() === "yes",
+      packetReports: col(r, "Owner Packet Reports") || null,
+    } satisfies DirectoryOwner;
+  });
+}
+
+/** AppFolio sometimes appends the city to a property name ("12 Forest Lane Eustis, FL 32726"). */
+export function sameProperty(appfolioName: string, name: string): boolean {
+  const a = appfolioName.toLowerCase().replace(/\s+/g, " ").trim();
+  const b = name.toLowerCase().replace(/\s+/g, " ").trim();
+  // The only extra AppFolio adds is " City, ST 12345".
+  return a === b || (a.startsWith(`${b} `) && /^[a-z .']+, [a-z]{2} \d{5}(-\d{4})?$/.test(a.slice(b.length + 1)));
+}

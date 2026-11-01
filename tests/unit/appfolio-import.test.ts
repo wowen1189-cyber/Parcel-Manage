@@ -11,11 +11,13 @@ import {
   pets,
   phones,
   plates,
+  readOwnerDirectory,
   readRentRoll,
   readTenantDirectory,
   readVendorDirectory,
   sameBusiness,
   samePerson,
+  sameProperty,
   sortTenantTags,
 } from "@/lib/import/appfolio";
 
@@ -174,5 +176,23 @@ describe("tenant directory", () => {
     expect(pat).not.toHaveProperty("birthdate");
     // A unit named after the street is a single-family "Home"; a person row carries the business name too.
     expect(shop).toMatchObject({ unitLabel: "Home", kind: "person", company_name: "Example Shop LLC", lease: { late_fee_pct: 10, late_fee_basis: "all_charges", certified_funds_only: true, rent_reminders: false, commercial_lease_type: "Modified Gross" } });
+  });
+});
+
+describe("owner directory", () => {
+  const csv = [
+    "Name,Phone Numbers,Email,Payment Type,Hold Payments?,Owner Packet Reports,Send Owner Packets by Email?,Properties Owned,Address",
+    '"Sample Holdings, LLC",Mobile: (352) 555-0100,"a@example.com, b@example.com",eCheck,No,Owner Statement,Yes,"1 Main St (100%), 2 Oak Lane Eustis, FL 32726 (100%)","10 Office Rd Eustis, FL 32726"',
+    '"Doe, Jane",Mobile: (352) 555-0101,jane@example.com,check,Yes,Rent Roll,No,Sample Tower (32.5%),',
+  ].join("\n");
+  it("reads owners, their properties and shares", () => {
+    const [llc, person] = readOwnerDirectory(csv);
+    expect(llc).toMatchObject({ kind: "business", entityType: "LLC", emails: ["a@example.com", "b@example.com"], phone: "(352) 555-0100", emailPackets: true });
+    expect(llc.properties).toEqual([{ name: "1 Main St", pct: 100 }, { name: "2 Oak Lane Eustis, FL 32726", pct: 100 }]);
+    expect(person).toMatchObject({ kind: "person", first_name: "Jane", last_name: "Doe", holdPayments: true, properties: [{ name: "Sample Tower", pct: 32.5 }] });
+  });
+  it("matches a property name AppFolio printed with its city", () => {
+    expect(sameProperty("2 Oak Lane Eustis, FL 32726", "2 Oak Lane")).toBe(true);
+    expect(sameProperty("2 Oak Lane", "2 Oak")).toBe(false);
   });
 });

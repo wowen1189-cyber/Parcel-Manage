@@ -14,7 +14,8 @@
     "db:types": "sh scripts/db-types.sh",
     "import:appfolio": "node --env-file=.env.local scripts/import-appfolio.mts",
     "auth:emails": "node scripts/auth-emails.mts",
-    "import:tenants": "node --env-file=.env.local scripts/import-tenant-directory.mts"
+    "import:tenants": "node --env-file=.env.local scripts/import-tenant-directory.mts",
+    "import:owners": "node --env-file=.env.local scripts/import-owners.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
