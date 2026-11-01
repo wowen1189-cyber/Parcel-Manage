@@ -1,0 +1,1805 @@
+{
+ "_readme": "Tenant-portal guided maintenance request. Step 0 is safetyCheck: \"I smell gas\" and \"I see smoke, fire or sparks\" are always shown first and skip straight to the safety screen. Then: category -> item -> symptom -> questions (+ assistant tips) -> photos (min 1, required unless the symptom has photosRequired: false) -> review. Priority: collect the priority of every matching rule and answerTip. If any matched, use the highest of those (this lets a Routine rule lower an Urgent basePriority, e.g. heat with the home above 60°F). If none matched, use basePriority. Rank: Routine < Urgent < Emergency. Questions with showIf only appear when that answer is chosen. Emergency screens: flags.gas -> leave home, call 911 and gas company; showFireSafety -> get out, call 911, breaker off if safe; any other Emergency -> call the office now, and the tenant must accept the false-emergency acknowledgment (company setting, SIM REI $100 + vendor emergency charge) before continuing. No acknowledgment for gas or fire. Tenants never pick 'emergency' themselves. Company-specific phone numbers come from settings ({officePhone}).",
+ "safetyCheck": {
+  "shownOn": "First screen, above the categories, always visible. Tapping one skips every other step: no questions, no photos, no acknowledgment.",
+  "options": [
+   {
+    "id": "gas",
+    "label": "I smell gas",
+    "priority": "Emergency",
+    "flags": {
+     "gas": true
+    },
+    "screen": "Leave the home now and leave the door open. Don't use light switches, matches or your phone inside. Once you're outside, call 911 and the gas company, then call the office at {officePhone}."
+   },
+   {
+    "id": "fire",
+    "label": "I see smoke, fire or sparks",
+    "priority": "Emergency",
+    "showFireSafety": true,
+    "screen": "Get everyone out and call 911. If it's safe and you can reach the breaker panel, turn off the main breaker. Then call the office at {officePhone}."
+   }
+  ],
+  "afterScreen": "Create an Emergency work order right away with whatever the tenant adds (an optional note and optional photos). Page the on-call contact the same way as any other emergency."
+ },
+ "priorities": [
+  "Routine",
+  "Urgent",
+  "Emergency"
+ ],
+ "categories": [
+  {
+   "id": "hvac",
+   "label": "AC & heating",
+   "sub": "AC, heat, thermostat",
+   "itemQuestion": "Which part?",
+   "items": [
+    {
+     "id": "ac",
+     "label": "Air conditioner",
+     "symptoms": [
+      {
+       "id": "warm",
+       "label": "Not cooling or blowing warm air",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "tstat",
+         "question": "Is the thermostat set to Cool and below the room temperature?",
+         "options": [
+          "Yes",
+          "No",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "out",
+         "question": "Is the outdoor unit running (fan spinning, humming)?",
+         "options": [
+          "Yes",
+          "No",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "filter",
+         "question": "When was the air filter last changed?",
+         "options": [
+          "This month",
+          "1–3 months ago",
+          "Over 3 months",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "ice",
+         "question": "Do you see ice on the copper lines or the indoor unit?",
+         "options": [
+          "Yes",
+          "No",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "temp",
+         "question": "What temperature does the thermostat show inside right now?",
+         "options": [
+          "80°F or below",
+          "Above 80°F"
+         ]
+        },
+        {
+         "id": "risk",
+         "question": "Do young children or elderly people live in the home?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "Make sure the thermostat is on Cool, set a few degrees below room temperature, and give it 10 minutes.",
+        "Check the air filter. A clogged filter is the most common reason an AC stops cooling.",
+        "Check the breaker panel for a tripped AC or air handler breaker. Reset it once only."
+       ],
+       "answerTips": [
+        {
+         "question": "filter",
+         "answers": [
+          "Over 3 months",
+          "Not sure"
+         ],
+         "tip": "Your filter may be overdue. If it looks gray or dusty, replace it. A clogged filter can freeze the coil and stop cooling."
+        },
+        {
+         "question": "ice",
+         "answers": [
+          "Yes"
+         ],
+         "tip": "Ice means airflow is blocked. Turn cooling OFF and set the fan to ON for about 2 hours to thaw it, then try again."
+        },
+        {
+         "question": "tstat",
+         "answers": [
+          "No"
+         ],
+         "tip": "Set the thermostat to Cool, a few degrees below room temperature, and wait 10 minutes before submitting."
+        },
+        {
+         "question": "out",
+         "answers": [
+          "No"
+         ],
+         "tip": "If the outdoor unit isn't running, check the breaker panel and the shutoff box next to the outdoor unit. If a breaker trips again after one reset, leave it off."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "temp": [
+           "Above 80°F"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "It's above 80°F inside, so we're treating this as an emergency. Stay somewhere cool if you can."
+        },
+        {
+         "when": {
+          "risk": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "With young children or elderly people in the home, we're treating a cooling outage as an emergency."
+        }
+       ],
+       "photoHint": "Take a photo of the thermostat screen and the air filter",
+       "likelyCause": "Clogged filter, frozen coil or a tripped breaker; the technician may also check refrigerant and the capacitor"
+      },
+      {
+       "id": "leak",
+       "label": "Water leaking or dripping",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "where",
+         "question": "Where is the water?",
+         "options": [
+          "Around the indoor unit or closet",
+          "From a ceiling vent",
+          "Outside near the unit",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "cool",
+         "question": "Is the AC still cooling?",
+         "options": [
+          "Yes",
+          "No",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "pan",
+         "question": "Is there standing water in the pan under the indoor unit?",
+         "options": [
+          "Yes",
+          "No",
+          "Can't see it"
+         ]
+        },
+        {
+         "id": "stop",
+         "question": "After turning the AC off at the thermostat, does the water stop within a few minutes?",
+         "options": [
+          "Yes",
+          "No",
+          "Haven't tried yet"
+         ]
+        },
+        {
+         "id": "spread",
+         "question": "Is the water reaching a ceiling, another room, or anything electrical?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "This is most often a clogged condensate drain line. Algae builds up in the line and water backs up.",
+        "Turn the AC off at the thermostat to stop more water from coming out, and put towels down.",
+        "If you're comfortable: find the white PVC drain pipe near the indoor unit. If it has a capped T-shaped opening, pour in 1 cup of white vinegar, wait 30 minutes, then pour in a cup of water.",
+        "Check outside where the drain pipe ends. If nothing drips out while the AC runs, the line is likely clogged."
+       ],
+       "answerTips": [
+        {
+         "question": "where",
+         "answers": [
+          "From a ceiling vent"
+         ],
+         "tip": "Water from a ceiling vent can mean the drain pan above the ceiling is overflowing. Keep the AC off and move belongings away from the drip."
+        },
+        {
+         "question": "pan",
+         "answers": [
+          "Yes"
+         ],
+         "tip": "A full drain pan points to a clogged drain line. Many units have a safety switch that shuts the AC off when the pan fills."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "stop": [
+           "No"
+          ],
+          "spread": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency"
+        }
+       ],
+       "photoHint": "Take a photo of the water and the indoor unit, including the drain pan if you can see it",
+       "likelyCause": "Clogged condensate drain line"
+      },
+      {
+       "id": "off",
+       "label": "Won't turn on at all",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "screen",
+         "question": "Is the thermostat screen on?",
+         "options": [
+          "Yes",
+          "No, it's blank"
+         ]
+        },
+        {
+         "id": "brk",
+         "question": "Have you checked the breaker panel?",
+         "options": [
+          "Yes, all on",
+          "One was tripped",
+          "Haven't checked"
+         ]
+        },
+        {
+         "id": "temp",
+         "question": "What temperature does the thermostat show inside right now?",
+         "options": [
+          "80°F or below",
+          "Above 80°F",
+          "Can't tell"
+         ]
+        },
+        {
+         "id": "risk",
+         "question": "Do young children or elderly people live in the home?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "Make sure the switch near the indoor unit (it looks like a light switch) is ON.",
+        "A full drain pan can trip the safety switch and shut the AC off. If you see water in the pan, go back and choose \"Water leaking or dripping.\""
+       ],
+       "answerTips": [
+        {
+         "question": "screen",
+         "answers": [
+          "No, it's blank"
+         ],
+         "tip": "Replace the thermostat batteries. Most thermostats pull off the wall plate and take 2 AA or AAA batteries."
+        },
+        {
+         "question": "brk",
+         "answers": [
+          "One was tripped"
+         ],
+         "tip": "Reset it once. If it trips again, leave it off. That needs a technician."
+        },
+        {
+         "question": "brk",
+         "answers": [
+          "Haven't checked"
+         ],
+         "tip": "Check the breaker panel for the AC and air handler breakers. Reset a tripped one once only."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "temp": [
+           "Above 80°F"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "It's above 80°F inside, so we're treating this as an emergency. Stay somewhere cool if you can."
+        },
+        {
+         "when": {
+          "risk": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "With young children or elderly people in the home, we're treating a cooling outage as an emergency."
+        }
+       ],
+       "photoHint": "Take a photo of the thermostat and the breaker panel",
+       "likelyCause": "Tripped breaker, dead thermostat batteries, or the safety switch from a full drain pan"
+      },
+      {
+       "id": "noise",
+       "label": "Strange noise or smell",
+       "basePriority": "Routine",
+       "questions": [
+        {
+         "id": "kind",
+         "question": "What are you noticing?",
+         "options": [
+          "Squealing or grinding",
+          "Banging or rattling",
+          "Buzzing or clicking",
+          "Musty smell",
+          "Burning smell"
+         ]
+        },
+        {
+         "id": "smoke",
+         "question": "Turn the system off at the thermostat. Do you see smoke, or is the burning smell still there a few minutes later?",
+         "options": [
+          "Yes",
+          "No"
+         ],
+         "showIf": {
+          "question": "kind",
+          "answers": [
+           "Burning smell"
+          ]
+         }
+        }
+       ],
+       "tips": [
+        "Don't reach inside the indoor or outdoor unit."
+       ],
+       "answerTips": [
+        {
+         "question": "kind",
+         "answers": [
+          "Burning smell"
+         ],
+         "tip": "Turn the system off at the thermostat and leave it off until a technician checks it."
+        },
+        {
+         "question": "kind",
+         "answers": [
+          "Squealing or grinding"
+         ],
+         "tip": "Squealing or grinding is usually a motor or fan bearing. Turn the AC off to prevent more damage.",
+         "priority": "Urgent"
+        },
+        {
+         "question": "kind",
+         "answers": [
+          "Musty smell"
+         ],
+         "tip": "A musty smell usually means a dirty filter or standing water in the drain pan. Change the filter if you have one."
+        },
+        {
+         "question": "kind",
+         "answers": [
+          "Banging or rattling"
+         ],
+         "tip": "Rattling can be a loose panel or debris in the outdoor unit. Turn the AC off if it's loud."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "kind": [
+           "Burning smell"
+          ],
+          "smoke": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency",
+         "showFireSafety": true
+        },
+        {
+         "when": {
+          "kind": [
+           "Burning smell"
+          ],
+          "smoke": [
+           "No"
+          ]
+         },
+         "priority": "Urgent"
+        }
+       ],
+       "photoHint": "Take a photo or short video of the unit making the noise"
+      }
+     ]
+    },
+    {
+     "id": "tstat",
+     "label": "Thermostat",
+     "symptoms": [
+      {
+       "id": "blank",
+       "label": "Screen blank or not responding",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Replace the batteries. Most thermostats pull off the wall plate and take 2 AA or AAA batteries.",
+        "Check the breaker for the air handler."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the thermostat"
+      }
+     ]
+    },
+    {
+     "id": "heat",
+     "label": "Heat",
+     "symptoms": [
+      {
+       "id": "noheat",
+       "label": "No heat",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "mode",
+         "question": "Is the thermostat set to Heat and above the room temperature?",
+         "options": [
+          "Yes",
+          "No",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "cold",
+         "question": "About how cold is it inside right now?",
+         "options": [
+          "Above 60°F",
+          "55–60°F",
+          "Below 55°F"
+         ]
+        }
+       ],
+       "tips": [
+        "Check the breaker panel for the air handler or heat strip breaker.",
+        "A dusty burning smell for the first 30 minutes of the season is normal. A smell that doesn't go away is not."
+       ],
+       "answerTips": [
+        {
+         "question": "mode",
+         "answers": [
+          "No",
+          "Not sure"
+         ],
+         "tip": "Switch it to Heat, a few degrees above room temperature, and give it 10 minutes."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "cold": [
+           "Below 55°F"
+          ]
+         },
+         "priority": "Emergency"
+        },
+        {
+         "when": {
+          "cold": [
+           "Above 60°F"
+          ]
+         },
+         "priority": "Routine"
+        }
+       ],
+       "photoHint": "Take a photo of the thermostat screen"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "plumbing",
+   "label": "Plumbing",
+   "sub": "Toilets, sinks, leaks, water heater",
+   "itemQuestion": "Where's the problem?",
+   "items": [
+    {
+     "id": "toilet",
+     "label": "Toilet",
+     "symptoms": [
+      {
+       "id": "clog",
+       "label": "Clogged or overflowing",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "over",
+         "question": "Is water overflowing right now?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        },
+        {
+         "id": "stop",
+         "question": "Turn the valve on the wall behind the toilet clockwise. Did the water stop?",
+         "options": [
+          "Yes",
+          "No",
+          "Can't find the valve"
+         ],
+         "showIf": {
+          "question": "over",
+          "answers": [
+           "Yes"
+          ]
+         }
+        },
+        {
+         "id": "only",
+         "question": "Is this the only toilet in your home?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "Don't flush again.",
+        "Try a flange plunger (the kind with a rubber sleeve on the bottom) with steady pushes for about 30 seconds.",
+        "Please don't use chemical drain cleaners. They can damage the pipes."
+       ],
+       "answerTips": [
+        {
+         "question": "over",
+         "answers": [
+          "Yes"
+         ],
+         "tip": "Turn the valve on the wall behind the toilet clockwise now to stop the water, then put towels down."
+        },
+        {
+         "question": "only",
+         "answers": [
+          "Yes"
+         ],
+         "tip": "Since it's your only toilet, we'll treat this as urgent."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "over": [
+           "Yes"
+          ],
+          "stop": [
+           "No",
+           "Can't find the valve"
+          ]
+         },
+         "priority": "Emergency"
+        },
+        {
+         "when": {
+          "over": [
+           "No"
+          ],
+          "only": [
+           "No"
+          ]
+         },
+         "priority": "Routine"
+        }
+       ],
+       "photoHint": "Take a photo of the toilet and the floor around it"
+      },
+      {
+       "id": "run",
+       "label": "Runs constantly",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Lift the tank lid and check that the chain on the flapper isn't tangled or too tight.",
+        "Jiggle the handle. If the flapper doesn't seal, it usually needs a new one (an inexpensive part)."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo inside the tank with the lid off",
+       "likelyCause": "Worn flapper or fill valve"
+      },
+      {
+       "id": "base",
+       "label": "Leaking at the base",
+       "basePriority": "Urgent",
+       "questions": [],
+       "tips": [
+        "Stop using that toilet if you can, and wipe up the water."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the base and the floor",
+       "likelyCause": "Failed wax seal under the toilet"
+      }
+     ]
+    },
+    {
+     "id": "sink",
+     "label": "Sink or faucet",
+     "symptoms": [
+      {
+       "id": "slow",
+       "label": "Clogged or draining slowly",
+       "basePriority": "Routine",
+       "questions": [
+        {
+         "id": "which",
+         "question": "Which sink?",
+         "options": [
+          "Kitchen",
+          "Bathroom",
+          "More than one"
+         ]
+        }
+       ],
+       "tips": [
+        "Try a sink plunger. In a bathroom sink, cover the overflow hole with a wet cloth first.",
+        "Please don't use chemical drain cleaners."
+       ],
+       "answerTips": [
+        {
+         "question": "which",
+         "answers": [
+          "More than one"
+         ],
+         "tip": "If more than one drain is slow, it may be the main line. We'll send a plumber.",
+         "priority": "Urgent"
+        },
+        {
+         "question": "which",
+         "answers": [
+          "Kitchen"
+         ],
+         "tip": "If the sink has a garbage disposal, run it with cold water first. A jammed disposal often backs up the sink."
+        },
+        {
+         "question": "which",
+         "answers": [
+          "Bathroom"
+         ],
+         "tip": "Pull out the stopper and clean it. Hair builds up there."
+        }
+       ],
+       "rules": [],
+       "photoHint": "Take a photo of the sink with the standing water"
+      },
+      {
+       "id": "under",
+       "label": "Leaking under the sink",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "active",
+         "question": "When does it drip?",
+         "options": [
+          "All the time",
+          "Only when the water runs",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "stop",
+         "question": "Can you stop the water? Turn the two valves under the sink clockwise.",
+         "options": [
+          "Yes, it stopped",
+          "No, it keeps coming",
+          "Can't find the valve"
+         ]
+        }
+       ],
+       "tips": [
+        "Turn off the two valves under the sink (clockwise) and put a bowl under the drip.",
+        "Move items out of the cabinet so it can dry."
+       ],
+       "answerTips": [
+        {
+         "question": "active",
+         "answers": [
+          "Only when the water runs"
+         ],
+         "tip": "A drip only while water runs usually means a drain fitting. Avoid using that sink until it's fixed."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "stop": [
+           "No, it keeps coming",
+           "Can't find the valve"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "Water that can't be stopped can damage your home and the units around you, so we're treating this as an emergency. Move valuables away from the water and call the office now."
+        }
+       ],
+       "photoHint": "Take a photo under the sink showing the pipes and the leak",
+       "likelyCause": "Loose drain fitting or worn supply line"
+      },
+      {
+       "id": "drip",
+       "label": "Faucet dripping",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Make sure the handle is turned fully off."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the faucet",
+       "likelyCause": "Worn faucet cartridge"
+      }
+     ]
+    },
+    {
+     "id": "sewer",
+     "label": "Sewage or drain backup",
+     "symptoms": [
+      {
+       "id": "backup",
+       "label": "Dirty water or sewage coming up",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "where",
+         "question": "Is dirty water or sewage coming up into a tub, shower, or onto the floor?",
+         "options": [
+          "Yes",
+          "No, just gurgling or slow"
+         ]
+        },
+        {
+         "id": "many",
+         "question": "Is it happening in more than one drain?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "Keep children and pets away from any sewage water."
+       ],
+       "answerTips": [],
+       "rules": [
+        {
+         "when": {
+          "where": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "Stop using all water (no flushing, showers, laundry or dishwasher) until a plumber clears the line."
+        },
+        {
+         "when": {
+          "where": [
+           "No, just gurgling or slow"
+          ],
+          "many": [
+           "No"
+          ]
+         },
+         "priority": "Routine"
+        }
+       ],
+       "photoHint": "Take a photo of the drain and any water that came up",
+       "likelyCause": "Blocked main sewer line"
+      }
+     ]
+    },
+    {
+     "id": "wh",
+     "label": "Water heater",
+     "symptoms": [
+      {
+       "id": "nohot",
+       "label": "No hot water",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "type",
+         "question": "Is your water heater electric or gas?",
+         "options": [
+          "Electric",
+          "Gas",
+          "Not sure"
+         ]
+        },
+        {
+         "id": "all",
+         "question": "Is it every faucet or just one?",
+         "options": [
+          "Every faucet",
+          "Just one"
+         ]
+        }
+       ],
+       "tips": [],
+       "answerTips": [
+        {
+         "question": "type",
+         "answers": [
+          "Electric",
+          "Not sure"
+         ],
+         "tip": "Check the breaker panel for the water heater breaker (usually a double-wide breaker) and reset it once."
+        },
+        {
+         "question": "type",
+         "answers": [
+          "Gas"
+         ],
+         "tip": "The pilot light may be out. Don't try to relight it if you smell gas."
+        },
+        {
+         "question": "all",
+         "answers": [
+          "Just one"
+         ],
+         "tip": "If only one faucet is cold, the problem is likely that faucet, not the water heater.",
+         "priority": "Routine"
+        }
+       ],
+       "rules": [],
+       "photoHint": "Take a photo of the water heater label and the area around it"
+      },
+      {
+       "id": "whleak",
+       "label": "Leaking",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "amt",
+         "question": "How much water is there?",
+         "options": [
+          "A few drips",
+          "A small puddle",
+          "Steady flow or spreading"
+         ]
+        },
+        {
+         "id": "stop",
+         "question": "Turn the cold water valve on top of the heater clockwise. Did the leak stop?",
+         "options": [
+          "Yes",
+          "No",
+          "Can't reach it"
+         ],
+         "showIf": {
+          "question": "amt",
+          "answers": [
+           "Steady flow or spreading"
+          ]
+         }
+        }
+       ],
+       "tips": [
+        "Put towels or a pan down.",
+        "If it's leaking heavily, turn the cold water valve on top of the heater clockwise to stop it."
+       ],
+       "answerTips": [],
+       "rules": [
+        {
+         "when": {
+          "amt": [
+           "Steady flow or spreading"
+          ],
+          "stop": [
+           "No",
+           "Can't reach it"
+          ]
+         },
+         "priority": "Emergency"
+        },
+        {
+         "when": {
+          "amt": [
+           "A few drips"
+          ]
+         },
+         "priority": "Routine"
+        }
+       ],
+       "photoHint": "Take a photo of the water heater and the water"
+      }
+     ]
+    },
+    {
+     "id": "ceil",
+     "label": "Leak from ceiling or wall",
+     "symptoms": [
+      {
+       "id": "cleak",
+       "label": "Water coming through the ceiling or wall",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "heavy",
+         "question": "How bad is it?",
+         "options": [
+          "Steady stream",
+          "Dripping",
+          "Dry stain only"
+         ]
+        },
+        {
+         "id": "elec",
+         "question": "Is the water near lights, outlets or electronics?",
+         "options": [
+          "Yes",
+          "No"
+         ],
+         "showIf": {
+          "question": "heavy",
+          "answers": [
+           "Steady stream",
+           "Dripping"
+          ]
+         }
+        }
+       ],
+       "tips": [
+        "Move belongings away and put a bucket under the drip."
+       ],
+       "answerTips": [
+        {
+         "question": "elec",
+         "answers": [
+          "Yes"
+         ],
+         "tip": "Turn off the breaker for that area and stay away from the water."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "heavy": [
+           "Steady stream"
+          ]
+         },
+         "priority": "Emergency"
+        },
+        {
+         "when": {
+          "heavy": [
+           "Dripping"
+          ],
+          "elec": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency"
+        },
+        {
+         "when": {
+          "heavy": [
+           "Dry stain only"
+          ]
+         },
+         "priority": "Routine"
+        }
+       ],
+       "photoHint": "Take a photo of the ceiling or wall and anything that's wet"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "appliance",
+   "label": "Appliance",
+   "sub": "Fridge, washer, stove and more",
+   "itemQuestion": "Which appliance?",
+   "items": [
+    {
+     "id": "fridge",
+     "label": "Refrigerator",
+     "symptoms": [
+      {
+       "id": "fwarm",
+       "label": "Not cooling",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "light",
+         "question": "Does the inside light come on?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        },
+        {
+         "id": "freezer",
+         "question": "Is the freezer still cold?",
+         "options": [
+          "Yes",
+          "No",
+          "Partly"
+         ]
+        }
+       ],
+       "tips": [
+        "Check the temperature controls: about 37°F for the fridge and 0°F for the freezer.",
+        "Make sure food isn't blocking the vents inside.",
+        "Check that the doors close and seal all the way around."
+       ],
+       "answerTips": [
+        {
+         "question": "light",
+         "answers": [
+          "No"
+         ],
+         "tip": "No light usually means no power. Check that it's plugged in, and check the breaker and any GFCI outlet nearby."
+        },
+        {
+         "question": "freezer",
+         "answers": [
+          "Yes",
+          "Partly"
+         ],
+         "tip": "A cold freezer with a warm fridge often means the vent between them is iced over."
+        }
+       ],
+       "rules": [],
+       "photoHint": "Take a photo of the inside and the temperature controls",
+       "likelyCause": "Iced-over vent or defrost problem, or a dirty condenser coil"
+      },
+      {
+       "id": "fleak",
+       "label": "Leaking water",
+       "basePriority": "Routine",
+       "questions": [
+        {
+         "id": "where",
+         "question": "Where is the water?",
+         "options": [
+          "Under the fridge",
+          "Inside the fridge",
+          "From the ice maker or dispenser"
+         ]
+        },
+        {
+         "id": "stop",
+         "question": "Can you stop the water? Unplug the fridge or turn off the water line valve behind it.",
+         "options": [
+          "Yes, it stopped",
+          "No, it keeps coming",
+          "Can't find the valve"
+         ]
+        }
+       ],
+       "tips": [
+        "Wipe up the water so it doesn't damage the floor."
+       ],
+       "answerTips": [
+        {
+         "question": "where",
+         "answers": [
+          "Inside the fridge"
+         ],
+         "tip": "Water pooling inside usually means a clogged defrost drain."
+        }
+       ],
+       "rules": [
+        {
+         "when": {
+          "stop": [
+           "No, it keeps coming",
+           "Can't find the valve"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "Water that can't be stopped can damage your home and the units around you, so we're treating this as an emergency. Move valuables away from the water and call the office now."
+        }
+       ],
+       "photoHint": "Take a photo of where the water is"
+      },
+      {
+       "id": "ice",
+       "label": "Ice maker not working",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Make sure the ice maker arm or switch is in the ON position.",
+        "A new or reset ice maker can take 24 hours to start making ice."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the ice maker"
+      }
+     ]
+    },
+    {
+     "id": "dw",
+     "label": "Dishwasher",
+     "symptoms": [
+      {
+       "id": "ddrain",
+       "label": "Not draining",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Remove and rinse the filter at the bottom of the dishwasher.",
+        "If you have a garbage disposal, run it first. The dishwasher drains through it."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the standing water inside",
+       "likelyCause": "Clogged filter or drain hose"
+      },
+      {
+       "id": "dstart",
+       "label": "Won't start",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Make sure the door is latched and the control lock isn't on.",
+        "Check the breaker, and the wall switch near the sink if there is one."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the control panel"
+      },
+      {
+       "id": "dleak",
+       "label": "Leaking",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "stop",
+         "question": "Can you stop the water? Turn off the dishwasher and the valve under the kitchen sink.",
+         "options": [
+          "Yes, it stopped",
+          "No, it keeps coming",
+          "Can't find the valve"
+         ]
+        }
+       ],
+       "tips": [
+        "Stop running it and wipe up the water.",
+        "Use only dishwasher detergent. Regular dish soap makes it overflow with suds."
+       ],
+       "answerTips": [],
+       "rules": [
+        {
+         "when": {
+          "stop": [
+           "No, it keeps coming",
+           "Can't find the valve"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "Water that can't be stopped can damage your home and the units around you, so we're treating this as an emergency. Move valuables away from the water and call the office now."
+        }
+       ],
+       "photoHint": "Take a photo of the floor and the door"
+      }
+     ]
+    },
+    {
+     "id": "washer",
+     "label": "Washer",
+     "symptoms": [
+      {
+       "id": "wdrain",
+       "label": "Won't drain or spin",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Make sure the load isn't too heavy or bunched to one side.",
+        "Make sure the lid or door is fully closed."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the washer and its display"
+      },
+      {
+       "id": "wleak",
+       "label": "Leaking",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "stop",
+         "question": "Can you stop the water? Turn off the hot and cold valves behind the washer.",
+         "options": [
+          "Yes, it stopped",
+          "No, it keeps coming",
+          "Can't find the valve"
+         ]
+        }
+       ],
+       "tips": [
+        "Turn off the hot and cold valves behind the washer and check the hoses for cracks."
+       ],
+       "answerTips": [],
+       "rules": [
+        {
+         "when": {
+          "stop": [
+           "No, it keeps coming",
+           "Can't find the valve"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "Water that can't be stopped can damage your home and the units around you, so we're treating this as an emergency. Move valuables away from the water and call the office now."
+        }
+       ],
+       "photoHint": "Take a photo of the hoses and the water"
+      }
+     ]
+    },
+    {
+     "id": "dryer",
+     "label": "Dryer",
+     "symptoms": [
+      {
+       "id": "dnoheat",
+       "label": "Not heating or takes too long",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Clean the lint screen.",
+        "Check that the vent outside opens and blows air while the dryer runs. A blocked vent is a fire risk.",
+        "Electric dryers use a double breaker. Make sure it's fully on."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the lint screen and the dryer",
+       "likelyCause": "Clogged vent or a failed heating element"
+      },
+      {
+       "id": "drstart",
+       "label": "Won't start",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Make sure the door shuts fully, and check the breaker."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the control panel"
+      }
+     ]
+    },
+    {
+     "id": "stove",
+     "label": "Stove or oven",
+     "symptoms": [
+      {
+       "id": "burner",
+       "label": "Burner not heating",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "For coil burners: with the stove off and cool, unplug the coil and plug it back in firmly."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the burner"
+      },
+      {
+       "id": "oven",
+       "label": "Oven not heating",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Make sure the oven isn't set to a timer, delay start or lock mode."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the oven controls"
+      },
+      {
+       "id": "gas",
+       "label": "I smell gas",
+       "basePriority": "Emergency",
+       "questions": [],
+       "tips": [],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Only once you're safe: take a photo of the stove",
+       "flags": {
+        "gas": true
+       },
+       "photosRequired": false
+      }
+     ]
+    },
+    {
+     "id": "disp",
+     "label": "Garbage disposal",
+     "symptoms": [
+      {
+       "id": "hum",
+       "label": "Hums but doesn't spin",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Turn it off. Never put your hand inside.",
+        "Put the hex key (Allen wrench) in the socket at the bottom center and work it back and forth, then press the red reset button on the bottom."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo under the sink showing the disposal",
+       "likelyCause": "Jammed disposal"
+      },
+      {
+       "id": "dead",
+       "label": "Does nothing",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Press the red reset button on the bottom of the disposal and try again.",
+        "Check the wall switch and the breaker."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo under the sink showing the disposal"
+      }
+     ]
+    },
+    {
+     "id": "micro",
+     "label": "Microwave",
+     "symptoms": [
+      {
+       "id": "mnot",
+       "label": "Not working",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Check that it's plugged in, and check the breaker."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the microwave"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "electrical",
+   "label": "Electrical",
+   "sub": "Outlets, lights, breakers",
+   "itemQuestion": "What's not working?",
+   "items": [
+    {
+     "id": "outlet",
+     "label": "Outlet",
+     "symptoms": [
+      {
+       "id": "odead",
+       "label": "Outlet not working",
+       "basePriority": "Routine",
+       "questions": [
+        {
+         "id": "room",
+         "question": "Where is it?",
+         "options": [
+          "Kitchen",
+          "Bathroom",
+          "Outside or garage",
+          "Other room"
+         ]
+        }
+       ],
+       "tips": [
+        "Check the breaker panel for a tripped breaker."
+       ],
+       "answerTips": [
+        {
+         "question": "room",
+         "answers": [
+          "Kitchen",
+          "Bathroom",
+          "Outside or garage"
+         ],
+         "tip": "Look for an outlet with TEST and RESET buttons nearby (it may be in another room). Press RESET firmly."
+        }
+       ],
+       "rules": [],
+       "photoHint": "Take a photo of the outlet"
+      }
+     ]
+    },
+    {
+     "id": "lights",
+     "label": "Lights",
+     "symptoms": [
+      {
+       "id": "lout",
+       "label": "Light not working",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Try a new bulb first.",
+        "Check the breaker."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the light fixture"
+      }
+     ]
+    },
+    {
+     "id": "breaker",
+     "label": "Breaker",
+     "symptoms": [
+      {
+       "id": "trips",
+       "label": "Breaker keeps tripping",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "smell",
+         "question": "Do you notice a burning smell, or an outlet or the panel that's hot or discolored?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "Unplug things on that circuit, reset the breaker once, then plug items back in one at a time.",
+        "If it trips with nothing plugged in, leave it off."
+       ],
+       "answerTips": [],
+       "rules": [
+        {
+         "when": {
+          "smell": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency",
+         "tip": "Leave that breaker off and don't use anything on that circuit."
+        }
+       ],
+       "photoHint": "Take a photo of the breaker panel"
+      }
+     ]
+    },
+    {
+     "id": "sparks",
+     "label": "Sparks, smoke or burning smell",
+     "symptoms": [
+      {
+       "id": "spark",
+       "label": "Sparks, smoke or burning smell",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "now",
+         "question": "Is there smoke or fire right now?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        },
+        {
+         "id": "hot",
+         "question": "Is the outlet, switch or fixture hot to the touch, scorched, or still sparking?",
+         "options": [
+          "Yes",
+          "No",
+          "Not sure"
+         ],
+         "showIf": {
+          "question": "now",
+          "answers": [
+           "No"
+          ]
+         }
+        }
+       ],
+       "tips": [
+        "Don't touch it or use it.",
+        "If it's safe, turn off the breaker for that area."
+       ],
+       "answerTips": [],
+       "rules": [
+        {
+         "when": {
+          "now": [
+           "Yes"
+          ]
+         },
+         "priority": "Emergency",
+         "showFireSafety": true
+        },
+        {
+         "when": {
+          "now": [
+           "No"
+          ],
+          "hot": [
+           "Yes",
+           "Not sure"
+          ]
+         },
+         "priority": "Emergency"
+        }
+       ],
+       "photoHint": "Only once you're safe: take a photo of the outlet or fixture"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "doors",
+   "label": "Doors, locks & windows",
+   "sub": "Locks, doors, windows",
+   "itemQuestion": "Which one?",
+   "items": [
+    {
+     "id": "lock",
+     "label": "Lock or key",
+     "symptoms": [
+      {
+       "id": "lockout",
+       "label": "Locked out",
+       "basePriority": "Urgent",
+       "questions": [],
+       "tips": [
+        "Call the office. We'll confirm your ID before letting you in."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the door"
+      },
+      {
+       "id": "broken",
+       "label": "Lock broken or sticking",
+       "basePriority": "Routine",
+       "questions": [
+        {
+         "id": "secure",
+         "question": "Can you still lock the door?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "Don't spray oil into the lock. A graphite lubricant works better."
+       ],
+       "answerTips": [
+        {
+         "question": "secure",
+         "answers": [
+          "No"
+         ],
+         "tip": "If your home can't be locked, call the office too.",
+         "priority": "Emergency"
+        }
+       ],
+       "rules": [],
+       "photoHint": "Take a photo of the lock"
+      }
+     ]
+    },
+    {
+     "id": "door",
+     "label": "Door",
+     "symptoms": [
+      {
+       "id": "slider",
+       "label": "Sliding door hard to open or off track",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Vacuum the bottom track. Dirt and debris are the usual cause."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the bottom track"
+      },
+      {
+       "id": "dmg",
+       "label": "Damaged or won't close",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the door"
+      }
+     ]
+    },
+    {
+     "id": "window",
+     "label": "Window or screen",
+     "symptoms": [
+      {
+       "id": "wclose",
+       "label": "Won't close or lock",
+       "basePriority": "Urgent",
+       "questions": [
+        {
+         "id": "reach",
+         "question": "Could someone reach this window from outside (ground floor, balcony or patio)?",
+         "options": [
+          "Yes",
+          "No"
+         ]
+        }
+       ],
+       "tips": [
+        "Check the track for anything blocking it."
+       ],
+       "answerTips": [],
+       "rules": [
+        {
+         "when": {
+          "reach": [
+           "No"
+          ]
+         },
+         "priority": "Routine"
+        }
+       ],
+       "photoHint": "Take a photo of the window"
+      },
+      {
+       "id": "screen",
+       "label": "Torn or missing screen",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the screen"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "pest",
+   "label": "Pests",
+   "sub": "Bugs and rodents",
+   "itemQuestion": "What are you seeing?",
+   "items": [
+    {
+     "id": "bugs",
+     "label": "Insects",
+     "symptoms": [
+      {
+       "id": "ants",
+       "label": "Ants",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Wipe the trail with soapy water and keep food sealed."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the ants and where they're coming in"
+      },
+      {
+       "id": "roach",
+       "label": "Roaches",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Keep food sealed and take out the trash daily while we schedule pest control."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of what you saw"
+      },
+      {
+       "id": "bedbug",
+       "label": "Bed bugs",
+       "basePriority": "Urgent",
+       "questions": [],
+       "tips": [
+        "Don't move furniture or bedding to other rooms. That spreads them."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the bugs or the mattress seams"
+      },
+      {
+       "id": "wasp",
+       "label": "Bees or wasps",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [
+        "Stay away from the nest and don't spray it yourself."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of the nest from a safe distance"
+      }
+     ]
+    },
+    {
+     "id": "rodent",
+     "label": "Mice or rats",
+     "symptoms": [
+      {
+       "id": "rats",
+       "label": "Seeing them or droppings",
+       "basePriority": "Urgent",
+       "questions": [],
+       "tips": [
+        "Store food in hard, sealed containers."
+       ],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a photo of droppings or where you saw them"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "other",
+   "label": "Something else",
+   "sub": "Anything else",
+   "itemQuestion": "",
+   "items": [
+    {
+     "id": "other",
+     "label": "Something else",
+     "symptoms": [
+      {
+       "id": "other",
+       "label": "Something else",
+       "basePriority": "Routine",
+       "questions": [],
+       "tips": [],
+       "answerTips": [],
+       "rules": [],
+       "photoHint": "Take a clear photo of the problem",
+       "flags": {
+        "descriptionRequired": true
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "rooms": [
+  "Kitchen",
+  "Bathroom",
+  "Bedroom",
+  "Living room",
+  "Laundry",
+  "Hallway or closet",
+  "Outside",
+  "Whole home"
+ ],
+ "falseEmergencyAcknowledgment": "My answers are accurate. If this turns out not to be an emergency, I agree to pay the vendor's emergency charge plus a {fee} fee.",
+ "technicianSummaryTemplate": "Priority: {priority}, set from the tenant's triage answers. {item}: {symptom}. {answers}. Likely cause: {likelyCause}. Tenant saw {tipCount} self-check steps and says the problem continues. Location: {room}. {photoCount} photos attached. {entry}. {pets}. Tenant note: {note}. {ackLine}"
+}

@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Leasing Agent</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#007852}a:hover{color:#043728}
+button{font-family:inherit}
+input{font-family:inherit}
+.ghost:hover{background:#efece6}
+.primary:hover{background:#006042 !important}
+.row:hover{background:#f4f1ec}
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: #f9f6f2; color: #14201c; font-family: 'Archivo', system-ui, sans-serif; font-size: 14px; line-height: 1.45; box-sizing: border-box; padding: 24px 24px 56px;">
+<div style="max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px;">
+
+  <!-- Header -->
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-weight: 600; font-size: 13px; padding: 8px 12px; border: 1px solid #d5d2cb; border-radius: 10px; background: #FFFFFF; color: #38352f; min-height: 20px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      Back to Manager
+    </a>
+    <div style="display: flex; flex-direction: column; gap: 2px; margin-right: auto;">
+      <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.015em;">AI Leasing Agent</h1>
+      <span style="font-size: 13px; color: #4f4b44;">Answers prospects on email, text and website chat, books showings, and texts {{co.escFirst}} anything it shouldn't decide.</span>
+    </div>
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: #fff1c8; color: #875814; font-size: 12px; font-weight: 600;">Sample conversations</span>
+    <span style="{{statusPill.style}}">
+      <span style="{{statusPill.dot}}"></span>
+      {{statusPill.label}}
+    </span>
+    <button class="ghost" onClick="{{toggleLive}}" style="border: 1px solid #d5d2cb; background: #FFFFFF; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #38352f; cursor: pointer; min-height: 44px;">{{liveBtn}}</button>
+  </div>
+
+  <!-- KPIs -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px;">
+    <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+      <div style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 13px; color: #4f4b44; font-weight: 500;">{{k.label}}</span>
+        <span style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">{{k.value}}</span>
+        <span style="font-size: 12px; color: #67635b;">{{k.sub}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" aria-label="Leasing agent sections" style="display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #e9e6e0; padding-bottom: 8px;">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+      <button role="tab" aria-selected="{{t.selected}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}<sc-if value="{{t.hasCount}}" hint-placeholder-val="{{ false }}"><span style="{{t.countStyle}}">{{t.count}}</span></sc-if></button>
+    </sc-for>
+  </div>
+
+  <!-- ============ SETUP ============ -->
+  <sc-if value="{{isSetup}}" hint-placeholder-val="{{ true }}">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 18px; align-items: start;">
+
+    <!-- AI connection: each company brings its own AI API key -->
+    <section style="grid-column: 1 / -1; background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 2px; margin-right: auto; max-width: 760px;">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700;">AI connection</h2>
+          <span style="font-size: 13px; color: #4f4b44;">The agent runs on your company’s own AI account. Add your API key here. AI usage is billed to you by your AI provider, separate from your subscription. The agent stays off until the connection passes a test.</span>
+        </div>
+        <span style="{{ai.pillStyle}}">{{ai.pill}}</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;" role="group" aria-label="AI provider">
+        <sc-for list="{{ai.providers}}" as="pv" hint-placeholder-count="4">
+          <button onClick="{{pv.pick}}" aria-pressed="{{pv.on}}" style="{{pv.style}}">{{pv.label}}</button>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+        <div style="display: flex; flex-direction: column; gap: 4px; flex: 2 1 300px;">
+          <label for="aikey" style="font-size: 13px; font-weight: 600;">API key</label>
+          <input id="aikey" type="password" autocomplete="off" value="{{ai.key}}" onChange="{{ai.onKey}}" placeholder="{{ai.keyHint}}" style="min-height: 44px; border: 1px solid #d5d2cb; border-radius: 10px; padding: 0 12px; font-size: 14px; box-sizing: border-box; width: 100%; background: #FFFFFF; color: #14201c;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 200px;">
+          <label for="aimodel" style="font-size: 13px; font-weight: 600;">Model</label>
+          <input id="aimodel" value="{{ai.model}}" onChange="{{ai.onModel}}" placeholder="Model name from your provider" style="min-height: 44px; border: 1px solid #d5d2cb; border-radius: 10px; padding: 0 12px; font-size: 14px; box-sizing: border-box; width: 100%; background: #FFFFFF; color: #14201c;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 160px;">
+          <label for="aicap" style="font-size: 13px; font-weight: 600;">Monthly spending limit ($)</label>
+          <input id="aicap" type="number" min="0" step="10" value="{{ai.cap}}" onChange="{{ai.onCap}}" style="min-height: 44px; border: 1px solid #d5d2cb; border-radius: 10px; padding: 0 12px; font-size: 14px; box-sizing: border-box; width: 100%; background: #FFFFFF; color: #14201c;">
+        </div>
+        <button onClick="{{ai.test}}" style="{{ai.testStyle}}">{{ai.testLabel}}</button>
+        <sc-if value="{{ai.isConnected}}" hint-placeholder-val="{{ false }}">
+          <button class="ghost" onClick="{{ai.disconnect}}" style="border: 1px solid #d5d2cb; background: #FFFFFF; border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #38352f; cursor: pointer; min-height: 44px;">Disconnect</button>
+        </sc-if>
+      </div>
+      <sc-if value="{{ai.hasMsg}}" hint-placeholder-val="{{ false }}">
+        <span style="{{ai.msgStyle}}">{{ai.msg}}</span>
+      </sc-if>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+        <sc-for list="{{ai.facts}}" as="f" hint-placeholder-count="3">
+          <div style="background: #f4f1ec; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #4f4b44; font-weight: 600;">{{f.k}}</span>
+            <span style="font-weight: 700;">{{f.v}}</span>
+            <span style="font-size: 12px; color: #67635b;">{{f.sub}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- Company settings: nothing about the agent is hard-coded to one company -->
+    <section style="grid-column: 1 / -1; background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Your company</h2>
+        <span style="font-size: 13px; color: #4f4b44;">How the agent introduces itself, who it texts when something needs a person, and whose calendar it books.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+        <sc-for list="{{coFields}}" as="cf" hint-placeholder-count="5">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label for="{{cf.id}}" style="font-size: 13px; font-weight: 600;">{{cf.label}}</label>
+            <sc-if value="{{cf.isText}}" hint-placeholder-val="{{ true }}">
+              <input id="{{cf.id}}" type="{{cf.type}}" value="{{cf.value}}" onChange="{{cf.onChange}}" style="min-height: 44px; border: 1px solid #d5d2cb; border-radius: 10px; padding: 0 12px; font-size: 14px; box-sizing: border-box; width: 100%; background: #FFFFFF; color: #14201c;">
+            </sc-if>
+            <sc-if value="{{cf.isSelect}}" hint-placeholder-val="{{ false }}">
+              <select id="{{cf.id}}" value="{{cf.value}}" onChange="{{cf.onChange}}" style="min-height: 44px; border: 1px solid #d5d2cb; border-radius: 10px; padding: 0 10px; font-size: 14px; box-sizing: border-box; width: 100%; background: #FFFFFF; color: #14201c;">
+                <sc-for list="{{cf.options}}" as="o" hint-placeholder-count="2"><option value="{{o}}">{{o}}</option></sc-for>
+              </select>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- Channels -->
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Channels</h2>
+        <span style="font-size: 13px; color: #4f4b44;">Where the agent answers prospects. Phone calls stay with Weblo.</span>
+      </div>
+      <sc-for list="{{channels}}" as="c" hint-placeholder-count="4">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #f0ede7;">
+          <div style="display: flex; flex-direction: column; gap: 1px; margin-right: auto;">
+            <span style="font-weight: 600;">{{c.label}}</span>
+            <span style="font-size: 12px; color: #67635b;">{{c.sub}}</span>
+          </div>
+          <sc-if value="{{c.locked}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 12px; font-weight: 600; color: #4f4b44; background: #efece6; padding: 4px 10px; border-radius: 999px;">Handled by Weblo</span>
+          </sc-if>
+          <sc-if value="{{c.toggleable}}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{c.toggle}}" aria-pressed="{{c.on}}" aria-label="{{c.aria}}" style="{{c.trackStyle}}"><span style="{{c.knobStyle}}"></span></button>
+          </sc-if>
+        </div>
+      </sc-for>
+    </section>
+
+    <!-- Behavior & escalation -->
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">How it works</h2>
+        <span style="font-size: 13px; color: #4f4b44;">Replies on its own around the clock. Anything on the escalation list gets texted to {{co.escFirst}} right away.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="background: #f4f1ec; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 12px; color: #4f4b44; font-weight: 600;">Reply mode</span>
+          <span style="font-weight: 700;">Automatic, 24/7</span>
+          <span style="font-size: 12px; color: #67635b;">First reply in under 1 minute</span>
+        </div>
+        <div style="background: #f4f1ec; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 12px; color: #4f4b44; font-weight: 600;">Escalate to</span>
+          <span style="font-weight: 700;">Text {{co.esc}}</span>
+          <span style="font-size: 12px; color: #67635b;">{{co.escPhone}}, with thread link</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700;">Always escalates — never decides on its own</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{escalateTriggers}}" as="e" hint-placeholder-count="6">
+            <span style="font-size: 12px; font-weight: 600; background: #ffe6e1; color: #b63325; padding: 4px 10px; border-radius: 999px;">{{e}}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; background: #d9f3ff; border-radius: 12px; padding: 12px 14px;">
+        <span style="font-size: 13px; font-weight: 700; color: #00406e;">Fair housing guardrails</span>
+        <span style="font-size: 13px; color: #00406e;">Same answers and same criteria for every prospect. Never describes neighborhoods by who lives there or steers to a unit. Assistance animal and accommodation requests go straight to {{co.escFirst}}.</span>
+      </div>
+    </section>
+
+    <!-- Qualification rules -->
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">What the agent tells prospects</h2>
+        <span style="font-size: 13px; color: #4f4b44;">Rental criteria and fees. Screening on the application uses these same rules.</span>
+      </div>
+      <sc-for list="{{rules}}" as="r" hint-placeholder-count="6">
+        <div style="display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 10px 0; border-top: 1px solid #f0ede7;">
+          <span style="flex: 0 0 150px; font-size: 13px; font-weight: 600; color: #4f4b44;">{{r.label}}</span>
+          <div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-weight: 600;">{{r.value}}</span>
+            <sc-if value="{{r.hasNote}}" hint-placeholder-val="{{ false }}">
+              <span style="font-size: 12px; color: #67635b;">{{r.note}}</span>
+            </sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+
+    <!-- Showings -->
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Showings</h2>
+        <span style="font-size: 13px; color: #4f4b44;">The agent books open slots on {{co.showerFirst}}’s {{co.cal}}. {{co.shower}} shows the unit.</span>
+      </div>
+      <sc-for list="{{showRules}}" as="r" hint-placeholder-count="6">
+        <div style="display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 10px 0; border-top: 1px solid #f0ede7;">
+          <span style="flex: 0 0 150px; font-size: 13px; font-weight: 600; color: #4f4b44;">{{r.label}}</span>
+          <span style="flex: 1 1 220px; font-weight: 600;">{{r.value}}</span>
+        </div>
+      </sc-for>
+    </section>
+
+    <!-- Open items -->
+    <section style="background: #fff8e6; border: 1px solid #f3dfa6; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #5c3d0c;">Still needed before go-live</h2>
+        <span style="font-size: 13px; color: #6b4a12;">Until these are set, the agent escalates the question instead of answering.</span>
+      </div>
+      <sc-for list="{{openItems}}" as="o" hint-placeholder-count="4">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <span style="flex: 0 0 auto; width: 22px; height: 22px; border-radius: 999px; background: #fff1c8; color: #875814; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{o.n}}</span>
+          <div style="display: flex; flex-direction: column; gap: 1px;">
+            <span style="font-weight: 600; color: #3d2a08;">{{o.title}}</span>
+            <span style="font-size: 12px; color: #6b4a12;">{{o.sub}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+
+    <!-- Test the agent -->
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 2px; margin-right: auto;">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Test the agent</h2>
+          <span style="font-size: 13px; color: #4f4b44;">Ask what a prospect would. Try pets, income, fees, a tour, or a lower rent.</span>
+        </div>
+        <button class="ghost" onClick="{{test.reset}}" style="border: 1px solid #d5d2cb; background: #FFFFFF; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #38352f; cursor: pointer; min-height: 44px;">Clear</button>
+      </div>
+      <div style="background: #f4f1ec; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto;">
+        <sc-for list="{{test.log}}" as="m" hint-placeholder-count="2">
+          <div style="{{m.wrap}}">
+            <div style="{{m.bubble}}">{{m.text}}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <label for="testmsg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Message to the agent</label>
+        <input id="testmsg" value="{{test.text}}" onChange="{{test.onInput}}" onKeyDown="{{test.onKey}}" placeholder="e.g. Do you allow dogs?" style="flex: 1 1 auto; min-width: 0; border: 1px solid #d5d2cb; border-radius: 10px; padding: 10px 12px; font-size: 14px; min-height: 44px; box-sizing: border-box; background: #FFFFFF; color: #14201c;">
+        <button class="primary" onClick="{{test.send}}" style="border: none; background: #007852; color: #FFFFFF; border-radius: 10px; padding: 10px 18px; font-size: 14px; font-weight: 700; cursor: pointer; min-height: 44px;">Send</button>
+      </div>
+    </section>
+
+  </div>
+  </sc-if>
+
+  <!-- ============ CONVERSATIONS ============ -->
+  <sc-if value="{{isConvos}}" hint-placeholder-val="{{ false }}">
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+    <section aria-label="Conversation list" style="flex: 1 1 320px; background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 2px;">
+      <sc-for list="{{threads}}" as="th" hint-placeholder-count="4">
+        <button class="row" onClick="{{th.pick}}" aria-current="{{th.selected}}" style="{{th.rowStyle}}">
+          <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+            <span style="font-weight: 700; margin-right: auto;">{{th.name}}</span>
+            <span style="font-size: 12px; color: #67635b;">{{th.time}}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 11px; font-weight: 700; background: #efece6; color: #38352f; padding: 2px 8px; border-radius: 999px;">{{th.channel}}</span>
+            <span style="font-size: 12px; color: #4f4b44;">{{th.unit}}</span>
+          </div>
+          <span style="{{th.statusStyle}}">{{th.status}}</span>
+        </button>
+      </sc-for>
+    </section>
+
+    <section aria-label="Conversation" style="flex: 2 1 520px; min-width: 0; background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 2px; margin-right: auto;">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700;">{{cur.name}}</h2>
+          <span style="font-size: 13px; color: #4f4b44;">{{cur.channel}} · {{cur.unit}} · {{cur.contact}}</span>
+        </div>
+        <button class="ghost" onClick="{{cur.takeOver}}" style="border: 1px solid #d5d2cb; background: #FFFFFF; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #38352f; cursor: pointer; min-height: 44px;">{{cur.takeOverLabel}}</button>
+        <a href="Apply.dc.html" style="display: inline-flex; align-items: center; text-decoration: none; background: #007852; color: #FFFFFF; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 700;">Send application</a>
+      </div>
+      <sc-if value="{{cur.isTaken}}" hint-placeholder-val="{{ false }}">
+        <div style="background: #fff1c8; color: #5c3d0c; border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 600;">You've taken over. The agent stays quiet in this thread until you hand it back.</div>
+      </sc-if>
+      <div style="background: #f4f1ec; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{cur.msgs}}" as="m" hint-placeholder-count="4">
+          <div style="{{m.wrap}}">
+            <div style="{{m.bubble}}">{{m.text}}</div>
+            <span style="{{m.metaStyle}}">{{m.meta}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 700;">What the agent did</span>
+        <sc-for list="{{cur.actions}}" as="a" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007852" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+            <span>{{a}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+  </sc-if>
+
+  <!-- ============ SHOWINGS ============ -->
+  <sc-if value="{{isShowings}}" hint-placeholder-val="{{ false }}">
+  <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+      <div style="display: flex; flex-direction: column; gap: 2px; margin-right: auto;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">This week's showings</h2>
+        <span style="font-size: 13px; color: #4f4b44;">Weekdays 10:00 AM – 6:00 PM, 30-minute slots, synced with {{co.showerFirst}}’s {{co.cal}}.</span>
+      </div>
+    </div>
+    <div style="overflow-x: auto;">
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(180px, 1fr)); gap: 12px; min-width: 940px;">
+        <sc-for list="{{week}}" as="d" hint-placeholder-count="5">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-weight: 700; font-size: 14px;">{{d.day}}</span>
+            <sc-for list="{{d.slots}}" as="s" hint-placeholder-count="2">
+              <div style="{{s.style}}">
+                <span style="font-size: 12px; font-weight: 700;">{{s.time}}</span>
+                <span style="font-size: 13px; font-weight: 600;">{{s.who}}</span>
+                <span style="font-size: 12px;">{{s.unit}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <span style="font-size: 12px; color: #67635b;">Prospects get a confirmation text right away and a reminder one hour before. A no-show gets one follow-up offering a new time.</span>
+  </section>
+  </sc-if>
+
+  <!-- ============ SCREENING ============ -->
+  <sc-if value="{{isScreen}}" hint-placeholder-val="{{ false }}">
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Screening provider</h2>
+        <span style="font-size: 13px; color: #4f4b44;">When an application is paid, the software orders credit, eviction and criminal reports through the provider's API and reads the results back automatically.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px;">
+        <sc-for list="{{providers}}" as="p" hint-placeholder-count="2">
+          <div style="{{p.cardStyle}}">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="font-weight: 700; font-size: 15px; margin-right: auto;">{{p.name}}</span>
+              <sc-if value="{{p.recommended}}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 11px; font-weight: 700; background: #ceefe1; color: #006042; padding: 2px 8px; border-radius: 999px;">Recommended</span>
+              </sc-if>
+              <span style="{{p.statusStyle}}">{{p.status}}</span>
+            </div>
+            <span style="font-size: 13px; color: #38352f;">{{p.desc}}</span>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <sc-for list="{{p.points}}" as="pt" hint-placeholder-count="3">
+                <div style="display: flex; gap: 8px; font-size: 13px; color: #38352f;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007852" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 auto; margin-top: 2px;"><path d="M5 12l5 5 9-10"></path></svg>
+                  <span>{{pt}}</span>
+                </div>
+              </sc-for>
+            </div>
+            <button onClick="{{p.pick}}" style="{{p.btnStyle}}">{{p.btn}}</button>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{connected}}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; background: #f4f1ec; border-radius: 12px; padding: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; font-weight: 600; color: #4f4b44;">API credentials</span>
+            <span style="font-weight: 700;">[ADD API KEY FROM PROVIDER]</span>
+            <span style="font-size: 12px; color: #67635b;">Stored encrypted. Never shown to staff.</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; font-weight: 600; color: #4f4b44;">Results webhook</span>
+            <span style="font-weight: 700;">Reports post back to the application</span>
+            <span style="font-size: 12px; color: #67635b;">Decision runs the moment results arrive.</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; font-weight: 600; color: #4f4b44;">Who pays</span>
+            <span style="font-weight: 700;">Covered by the $75 application fee</span>
+            <span style="font-size: 12px; color: #67635b;">Ordered per adult applicant.</span>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Automatic decision rules</h2>
+        <span style="font-size: 13px; color: #4f4b44;">Applied the same way to every applicant. Anything other than a clean approval waits for {{co.escFirst}} to confirm.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+        <sc-for list="{{outcomes}}" as="o" hint-placeholder-count="3">
+          <div style="{{o.style}}">
+            <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.02em;">{{o.tag}}</span>
+            <span style="font-weight: 700; font-size: 15px;">{{o.title}}</span>
+            <span style="font-size: 13px;">{{o.when}}</span>
+            <span style="font-size: 13px; font-weight: 600;">{{o.then}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Recent results</h2>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; min-width: 860px; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr style="text-align: left; color: #4f4b44;">
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e9e6e0; font-weight: 600;">Applicant</th>
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e9e6e0; font-weight: 600;">Unit · rent</th>
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e9e6e0; font-weight: 600;">Credit</th>
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e9e6e0; font-weight: 600;">Income</th>
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e9e6e0; font-weight: 600;">Rental history</th>
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e9e6e0; font-weight: 600;">Result</th>
+              <th style="padding: 8px 10px; border-bottom: 1px solid #e9e6e0; font-weight: 600;">Deposit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{results}}" as="r" hint-placeholder-count="3">
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #f0ede7; font-weight: 700;">{{r.name}}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f0ede7;">{{r.unit}}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f0ede7; font-variant-numeric: tabular-nums;">{{r.score}}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f0ede7;">{{r.income}}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f0ede7;">{{r.history}}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f0ede7;"><span style="{{r.resultStyle}}">{{r.result}}</span></td>
+                <td style="padding: 10px; border-bottom: 1px solid #f0ede7; font-weight: 600;">{{r.deposit}}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <span style="font-size: 12px; color: #67635b;">Denials and higher-deposit approvals based on a credit report need an adverse action notice under the FCRA. The software creates one from the screening report and sends it to the applicant.</span>
+    </section>
+
+  </div>
+  </sc-if>
+
+  <!-- ============ ESCALATIONS ============ -->
+  <sc-if value="{{isEsc}}" hint-placeholder-val="{{ false }}">
+  <section style="background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px; padding: 8px 20px; display: flex; flex-direction: column;">
+    <sc-for list="{{escalations}}" as="e" hint-placeholder-count="3">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 14px 0; border-bottom: 1px solid #f0ede7;">
+        <div style="flex: 1 1 360px; display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-weight: 700;">{{e.name}}</span>
+            <span style="font-size: 11px; font-weight: 700; background: #ffe6e1; color: #b63325; padding: 2px 8px; border-radius: 999px;">{{e.reason}}</span>
+            <span style="font-size: 12px; color: #4f4b44;">{{e.unit}}</span>
+          </div>
+          <span style="font-size: 13px; color: #38352f;">{{e.summary}}</span>
+          <span style="font-size: 12px; color: #67635b;">{{e.texted}}</span>
+        </div>
+        <button class="ghost" onClick="{{e.open}}" style="border: 1px solid #d5d2cb; background: #FFFFFF; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #38352f; cursor: pointer; min-height: 44px;">Open thread</button>
+        <button onClick="{{e.resolve}}" style="{{e.resolveStyle}}">{{e.resolveLabel}}</button>
+      </div>
+    </sc-for>
+  </section>
+  </sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'setup',
+      live: false,
+      ai: { provider: 'anthropic', key: '', model: 'claude-sonnet-5-5', cap: '100', status: 'none', msg: '' },
+      channels: { email: true, sms: true, chat: true },
+      sel: 't1',
+      taken: {},
+      resolved: {},
+      testText: '',
+      testLog: [this.greet()],
+      provider: ''
+    };
+  }
+
+  co() {
+    const c = { name: 'SIM REI', esc: 'Wesley Owen', escPhone: '(352) 434-9441', shower: 'Wesley Owen', cal: 'Google Calendar', ...((this.state && this.state.co) || {}) };
+    const first = (n) => (n || '').trim().split(' ').slice(0, 1).join('') || 'our team';
+    return { ...c, escFirst: first(c.esc), showerFirst: first(c.shower) };
+  }
+
+  greet() {
+    const C = this.co();
+    return { from: 'agent', text: "Hi! I'm the " + C.name + " leasing assistant. I can help with availability, rent, pets, requirements, or booking a tour with " + C.showerFirst + "." };
+  }
+
+  reply(q) {
+    const C = this.co();
+    const t = q.toLowerCase();
+    const has = (...w) => w.some((x) => t.indexOf(x) !== -1);
+    if (has('support animal', 'service animal', 'esa', 'emotional support', 'disab', 'accommodat')) {
+      return [{ from: 'agent', text: "Assistance animals aren't pets, so pet fees and pet limits don't apply. I've sent your request to " + C.escFirst + " to help with the accommodation directly." }, { from: 'sys', text: 'Escalated: accommodation request. Texted ' + C.esc + ' at ' + C.escPhone + '.' }];
+    }
+    if (has('lower', 'discount', 'less', 'negotiat', 'deal', 'cheaper', 'instead of', 'waive')) {
+      return [{ from: 'agent', text: "I can't change rent or fees myself, but I've passed your offer to " + C.escFirst + ", who will get back to you directly." }, { from: 'sys', text: 'Escalated: price negotiation. Texted ' + C.esc + ' at ' + C.escPhone + '.' }];
+    }
+    if (has('criminal', 'background', 'felony', 'record', 'misdemeanor', 'arrest')) {
+      return [{ from: 'agent', text: "Background history is reviewed case by case. It doesn't automatically disqualify anyone. I've let " + C.escFirst + " know so they can answer any specifics directly." }, { from: 'sys', text: 'Escalated: background question. Texted ' + C.esc + '.' }];
+    }
+    const breeds = [['pit bull', 'Pit Bulls'], ['pitbull', 'Pit Bulls'], ['pittie', 'Pit Bulls'], ['doberman', 'Doberman Pinschers'], ['rottweiler', 'Rottweilers'], ['great dane', 'Great Danes'], ['presa', 'Presa Canarios'], ['chow chow', 'Chow Chows'], ['german shepherd', 'German Shepherds'], ['malamute', 'Alaskan Malamutes'], ['akita', 'Akitas'], ['cane corso', 'Cane Corsos'], ['corso', 'Cane Corsos'], ['mastiff', 'Bull Mastiffs'], ['wolf', 'wolf hybrids']];
+    const hit = breeds.find((b) => t.indexOf(b[0]) !== -1);
+    if (hit) {
+      return [{ from: 'agent', text: "I'm sorry, " + hit[1] + " and mixes of that breed aren't permitted at our properties because of our insurance. Other dogs and cats are welcome, up to 2 pets: $350 one-time pet fee plus $25/month per pet." }];
+    }
+    if (/\blease\b/.test(t) || has('how long', 'month to month', 'month-to-month', 'short term', 'short-term', '6 month', 'six month')) {
+      return [{ from: 'agent', text: "Leases run 7 to 14 months. Anything under 12 months adds $50/month to the rent, so a 12- to 14-month lease is the best value." }];
+    }
+    if (has('pet', 'dog', 'cat', 'animal', 'breed')) {
+      return [{ from: 'agent', text: "Pets are welcome, up to 2 per home. There's a one-time $350 pet fee plus $25/month per pet. We can't accept Pit Bulls, Dobermans, Rottweilers, Great Danes, Presa Canarios, Chow Chows, German Shepherds, Malamutes, Akitas, Cane Corsos, Bull Mastiffs, wolf hybrids, or mixes of those. What kind of pet do you have?" }];
+    }
+    if (has('income', 'make', 'salary', 'earn', 'qualify', 'requirement')) {
+      return [{ from: 'agent', text: "Household income needs to be at least 2.5x the monthly rent. For a $1,200 home that's $3,000/month. There's no minimum credit score: 620+ means a one-month deposit, and under 620 means a 1.5x–2x deposit. We also look for no evictions in the last 5 years and no money owed to a past landlord." }];
+    }
+    if (has('credit', 'score', 'deposit')) {
+      return [{ from: 'agent', text: "There's no minimum credit score, and we don't hold credit cards, medical bills or student loans against you. With a 620+ score the deposit is one month's rent; under 620 it's 1.5x to 2x one month's rent, based on your credit and rental history. We do look closely at late utilities or car payments, evictions in the last 5 years, and money owed to a past landlord." }];
+    }
+    if (has('fee', 'cost', 'apply', 'application', 'refund')) {
+      return [{ from: 'agent', text: "It's a $75 application fee per adult plus an $85 admin fee, both paid by card when you apply. If your application is denied, the $85 admin fee is refunded. Want me to send you the application link?" }];
+    }
+    if (has('tour', 'show', 'see', 'visit', 'view', 'look at')) {
+      return [{ from: 'agent', text: "I can book you with " + C.showerFirst + ". Open times: Mon Nov 2 at 2:00 PM, Tue Nov 3 at 3:30 PM, or Wed Nov 4 at 11:00 AM. Which works best?" }];
+    }
+    if (has('available', 'vacan', 'open', 'rent', 'price', 'how much')) {
+      return [{ from: 'agent', text: "Right now we have homes at The Grove Tower, 420 S Palmetto and 1026 W Line St. Which one are you interested in? I'll send the rent, move-in date and photos." }];
+    }
+    return [{ from: 'agent', text: "Happy to help! I can answer questions about availability, rent, pets, rental requirements and fees, or book a tour with " + C.showerFirst + ". What would you like to know?" }];
+  }
+
+  bubble(from) {
+    if (from === 'prospect') {
+      return { wrap: 'display: flex; flex-direction: column; align-items: flex-start; gap: 3px;', bubble: 'max-width: 80%; background: #FFFFFF; border: 1px solid #e9e6e0; border-radius: 14px 14px 14px 4px; padding: 10px 12px; font-size: 14px; color: #14201c;', metaStyle: 'font-size: 11px; color: #67635b; padding-left: 4px;' };
+    }
+    if (from === 'sys') {
+      return { wrap: 'display: flex; flex-direction: column; align-items: center; gap: 3px;', bubble: 'background: #ffe6e1; color: #8f2318; border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600;', metaStyle: 'font-size: 11px; color: #67635b;' };
+    }
+    if (from === 'wesley') {
+      return { wrap: 'display: flex; flex-direction: column; align-items: flex-end; gap: 3px;', bubble: 'max-width: 80%; background: #14201c; color: #FFFFFF; border-radius: 14px 14px 4px 14px; padding: 10px 12px; font-size: 14px;', metaStyle: 'font-size: 11px; color: #67635b; padding-right: 4px;' };
+    }
+    return { wrap: 'display: flex; flex-direction: column; align-items: flex-end; gap: 3px;', bubble: 'max-width: 80%; background: #007852; color: #FFFFFF; border-radius: 14px 14px 4px 14px; padding: 10px 12px; font-size: 14px;', metaStyle: 'font-size: 11px; color: #67635b; padding-right: 4px;' };
+  }
+
+  threadData() {
+    const C = this.co();
+    return [
+      { id: 't1', name: 'Marcus T.', channel: 'Email · Zillow lead', unit: 'The Grove Tower #304', contact: 'marcus.t@email.com', time: '9:12 PM', status: 'Showing booked', tone: 'green',
+        msgs: [
+          ['prospect', 'Is #304 still available? I have a dog.', 'Fri 8:47 PM'],
+          ['agent', 'Yes, #304 is available Nov 15 at $1,350/month. Dogs are welcome: a one-time $350 pet fee plus $25/month, up to 2 pets. Some aggressive breeds aren’t permitted. What breed is your dog, and about how much does it weigh?', 'Agent · Fri 8:47 PM'],
+          ['prospect', 'Lab mix, about 60 lbs. Could I see it Tuesday?', 'Fri 9:05 PM'],
+          ['agent', 'A lab mix is fine. I can book you with ' + C.showerFirst + ' on Tue Nov 3 at 11:00 AM or 3:30 PM. Which works?', 'Agent · Fri 9:05 PM'],
+          ['prospect', '11 works.', 'Fri 9:11 PM'],
+          ['agent', 'You’re confirmed for Tue Nov 3 at 11:00 AM at The Grove Tower #304 with ' + C.shower + '. I’ll text a reminder an hour before.', 'Agent · Fri 9:12 PM']
+        ],
+        actions: ['Created guest card for Marcus T.', 'Booked Tue Nov 3, 11:00 AM on ' + C.showerFirst + '’s calendar', 'Scheduled reminder text for 10:00 AM'] },
+      { id: 't2', name: 'Danielle R.', channel: 'Text', unit: '420 S Palmetto', contact: '(352) 555-0148', time: '9:42 PM', status: 'Escalated · negotiation', tone: 'red',
+        msgs: [
+          ['prospect', 'Hi, would you take $1,100 instead of $1,250 if I sign for 18 months?', 'Fri 9:41 PM'],
+          ['agent', 'Thanks for the offer! I can’t change rent myself, but I’ve passed it to ' + C.escFirst + ', who will get back to you directly.', 'Agent · Fri 9:42 PM'],
+          ['sys', 'Texted ' + C.esc + ' at ' + C.escPhone, 'Fri 9:42 PM']
+        ],
+        actions: ['Created guest card for Danielle R.', 'Texted ' + C.escFirst + ' the offer with a link to this thread'] },
+      { id: 't3', name: 'Website visitor', channel: 'Website chat', unit: '1026 W Line St', contact: 'keisha.l@email.com (added in chat)', time: '4:20 PM', status: 'Application sent', tone: 'blue',
+        msgs: [
+          ['prospect', 'What do I need to make to qualify?', 'Fri 4:12 PM'],
+          ['agent', 'Household income needs to be at least 2.5x the monthly rent. For 1026 W Line St at $1,195, that’s $2,987.50/month. A 620+ credit score qualifies with a one-month deposit ($1,195); under 620 may qualify with a deposit of 1.5x–2x rent. We also look for no evictions in the last 5 years, and no money owed to a past landlord.', 'Agent · Fri 4:12 PM'],
+          ['prospect', 'What are the fees?', 'Fri 4:15 PM'],
+          ['agent', '$75 application fee per adult plus an $85 admin fee, both paid by card when you apply. If the application is denied, the $85 admin fee is refunded.', 'Agent · Fri 4:15 PM'],
+          ['prospect', 'OK send me the link. keisha.l@email.com', 'Fri 4:19 PM'],
+          ['agent', 'Sent! Check your email for your application link for 1026 W Line St. It’s the residential application since this is a residential unit.', 'Agent · Fri 4:20 PM']
+        ],
+        actions: ['Created guest card for Keisha L.', 'Sent residential application link tied to the guest card'] },
+      { id: 't4', name: 'Jorge M.', channel: 'Text', unit: 'Grove Park', contact: '(407) 555-0192', time: '2:15 PM', status: 'Escalated · accommodation', tone: 'red',
+        msgs: [
+          ['prospect', 'I have an emotional support animal. Is there a pet fee?', 'Fri 2:14 PM'],
+          ['agent', 'Assistance animals aren’t pets, so pet fees and pet limits don’t apply. I’ve sent your request to ' + C.escFirst + ' to help with the accommodation directly.', 'Agent · Fri 2:15 PM'],
+          ['sys', 'Texted ' + C.esc + ' at ' + C.escPhone, 'Fri 2:15 PM']
+        ],
+        actions: ['Created guest card for Jorge M.', 'Flagged as accommodation request; no pet fees on the guest card'] }
+    ];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const C = this.co();
+    const tabBase = 'border: none; background: transparent; padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; color: #4f4b44;';
+    const tabOn = 'border: none; background: #ceefe1; padding: 10px 14px; font-size: 14px; font-weight: 700; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; color: #043728;';
+    const threads = this.threadData();
+    const escOpen = threads.filter((t) => t.tone === 'red' && !s.resolved[t.id]).length;
+    const tabDefs = [
+      { id: 'setup', label: 'Setup' },
+      { id: 'convos', label: 'Conversations', count: threads.length },
+      { id: 'showings', label: 'Showings', count: 4 },
+      { id: 'screen', label: 'Screening' },
+      { id: 'esc', label: 'Escalations', count: escOpen }
+    ];
+    const tabs = tabDefs.map((t) => ({
+      label: t.label,
+      selected: s.tab === t.id,
+      style: s.tab === t.id ? tabOn : tabBase,
+      hasCount: typeof t.count === 'number' && t.count > 0,
+      count: t.count,
+      countStyle: t.id === 'esc' ? 'background: #ffe6e1; color: #b63325; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px;' : 'background: #efece6; color: #38352f; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px;',
+      pick: () => this.setState({ tab: t.id })
+    }));
+
+    const track = (on) => 'border: none; cursor: pointer; width: 48px; height: 28px; border-radius: 999px; padding: 3px; display: flex; align-items: center; box-sizing: border-box; background: ' + (on ? '#007852' : '#cfcbc3') + '; justify-content: ' + (on ? 'flex-end' : 'flex-start') + ';';
+    const knob = 'width: 22px; height: 22px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,.25); display: block;';
+    const chDefs = [
+      { id: 'email', label: 'Email inquiries', sub: 'Zillow and listing-site leads, plus direct emails to leasing@' },
+      { id: 'sms', label: 'Text / SMS', sub: 'Two-way texting from the ' + C.name + ' leasing number' },
+      { id: 'chat', label: 'Website chat', sub: 'Chat widget on vacancy listings and simrei.com' }
+    ];
+    const channels = chDefs.map((c) => {
+      const on = !!s.channels[c.id];
+      return { label: c.label, sub: on ? c.sub : 'Off: inquiries here go to the Leasing inbox for staff', locked: false, toggleable: true, on: on, aria: c.label + (on ? ' on' : ' off'), trackStyle: track(on), knobStyle: knob,
+        toggle: () => this.setState({ channels: Object.assign({}, s.channels, { [c.id]: !on }) }) };
+    });
+    channels.push({ label: 'Phone calls', sub: 'Weblo answers and emails call summaries to wowen@ and nikki@', locked: true, toggleable: false, on: false, aria: '', trackStyle: '', knobStyle: '', toggle: () => {} });
+
+    // ----- AI connection (bring your own API key)
+    const A = s.ai || { provider: 'anthropic', key: '', model: '', cap: '100', status: 'none', msg: '' };
+    const setA = (patch) => this.setState({ ai: { ...A, ...patch } });
+    const aiOn = A.status === 'ok';
+    const PROV = [
+      { id: 'anthropic', label: 'Anthropic (Claude)', hint: 'sk-ant-…', model: 'claude-sonnet-5-5' },
+      { id: 'openai', label: 'OpenAI', hint: 'sk-…', model: '' },
+      { id: 'google', label: 'Google Gemini', hint: 'Your Gemini API key', model: '' },
+      { id: 'custom', label: 'Other (OpenAI-compatible)', hint: 'API key from your provider', model: '' }
+    ];
+    const prov = PROV.find((x) => x.id === A.provider) || PROV.at(0);
+    const masked = A.key ? A.key.slice(0, 6) + '••••' + A.key.slice(-4) : '';
+    const ai = {
+      providers: PROV.map((x) => ({ label: x.label, on: x.id === prov.id, pick: () => setA({ provider: x.id, model: x.model, status: 'none', msg: '' }),
+        style: 'cursor:pointer;padding:9px 14px;border-radius:999px;font-size:13px;font-weight:600;min-height:40px;' + (x.id === prov.id ? 'background:#14201c;color:#FFFFFF;border:1px solid #14201c;' : 'background:#FFFFFF;color:#38352f;border:1px solid #d5d2cb;') })),
+      key: A.key, keyHint: prov.hint, onKey: (e) => setA({ key: e.target.value, status: 'none', msg: '' }),
+      model: A.model, onModel: (e) => setA({ model: e.target.value, status: 'none', msg: '' }),
+      cap: A.cap, onCap: (e) => setA({ cap: e.target.value }),
+      isConnected: aiOn,
+      testLabel: aiOn ? 'Connected ✓' : 'Test connection',
+      testStyle: 'border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;min-height:44px;cursor:pointer;' + (aiOn ? 'background:#ceefe1;color:#043728;' : 'background:#007852;color:#FFFFFF;'),
+      test: () => { const k = (A.key || '').trim(); if (k.length < 20) { setA({ status: 'err', msg: 'That key looks incomplete. Copy the full key from your ' + prov.label + ' account and try again.' }); return; }
+        if (!(A.model || '').trim()) { setA({ status: 'err', msg: 'Enter the model name your provider gave you.' }); return; }
+        setA({ status: 'ok', msg: 'Connected to ' + prov.label + ' using ' + A.model.trim() + '. Test reply received. You can turn the agent on.' }); },
+      disconnect: () => { setA({ key: '', status: 'none', msg: 'Disconnected. The key was deleted and the agent is off.' }); this.setState({ live: false }); },
+      hasMsg: !!A.msg, msg: A.msg,
+      msgStyle: 'font-size:13px;font-weight:600;border-radius:10px;padding:10px 12px;' + (A.status === 'err' ? 'background:#ffe6e1;color:#8f2318;' : A.status === 'ok' ? 'background:#eaf6f0;color:#043728;' : 'background:#f4f1ec;color:#38352f;'),
+      pill: aiOn ? 'Connected · ' + prov.label : 'Not connected',
+      pillStyle: 'display:inline-flex;align-items:center;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;' + (aiOn ? 'background:#ceefe1;color:#043728;' : 'background:#fff1c8;color:#875814;'),
+      facts: [
+        { k: 'Key storage', v: aiOn ? masked : 'No key saved', sub: 'Encrypted, never shown again after saving, only used for your company’s agent' },
+        { k: 'Spending limit', v: '$' + (parseFloat(A.cap) || 0).toLocaleString('en-US') + ' / month', sub: 'At the limit the agent pauses and new inquiries go to your team' },
+        { k: 'Usage this month', v: aiOn ? '0 conversations' : '—', sub: 'Your provider bills you directly for AI usage' }
+      ]
+    };
+    const coSet = (k) => (e) => this.setState({ co: { ...(s.co || {}), [k]: e.target.value } });
+    const coFields = [
+      { id: 'coname', label: 'Company name', type: 'text', value: C.name, key: 'name' },
+      { id: 'coesc', label: 'Escalation contact', type: 'text', value: C.esc, key: 'esc' },
+      { id: 'coescph', label: 'Escalation mobile (gets texts)', type: 'tel', value: C.escPhone, key: 'escPhone' },
+      { id: 'coshow', label: 'Who runs showings', type: 'text', value: C.shower, key: 'shower' },
+      { id: 'cocal', label: 'Showing calendar', type: 'select', value: C.cal, key: 'cal', options: ['Google Calendar', 'Microsoft Outlook'] }
+    ].map((f) => ({ ...f, isText: f.type !== 'select', isSelect: f.type === 'select', options: f.options || [], onChange: coSet(f.key) }));
+    const statusPill = !aiOn
+      ? { label: 'Off: connect your AI account', style: 'display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: #fff1c8; color: #875814; font-size: 13px; font-weight: 700;', dot: 'width: 8px; height: 8px; border-radius: 999px; background: #c98a1b; display: inline-block;' }
+      : s.live
+      ? { label: 'Live, replying 24/7', style: 'display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: #ceefe1; color: #043728; font-size: 13px; font-weight: 700;', dot: 'width: 8px; height: 8px; border-radius: 999px; background: #007852; display: inline-block;' }
+      : { label: 'Paused: inquiries wait for staff', style: 'display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: #efece6; color: #38352f; font-size: 13px; font-weight: 700;', dot: 'width: 8px; height: 8px; border-radius: 999px; background: #9a968e; display: inline-block;' };
+
+    const toneStyle = {
+      green: 'align-self: flex-start; font-size: 12px; font-weight: 700; color: #006042;',
+      red: 'align-self: flex-start; font-size: 12px; font-weight: 700; color: #b63325;',
+      blue: 'align-self: flex-start; font-size: 12px; font-weight: 700; color: #005998;'
+    };
+    const rowBase = 'all: unset; box-sizing: border-box; cursor: pointer; width: 100%; padding: 12px; border-radius: 10px; display: flex; flex-direction: column; gap: 4px;';
+    const threadList = threads.map((t) => ({
+      name: t.name, channel: t.channel, unit: t.unit, time: t.time,
+      status: s.resolved[t.id] ? 'Handled by ' + C.escFirst : t.status,
+      statusStyle: s.resolved[t.id] ? toneStyle.green : toneStyle[t.tone],
+      selected: s.sel === t.id,
+      rowStyle: rowBase + (s.sel === t.id ? ' background: #eaf6f0; outline: 2px solid #007852; outline-offset: -2px;' : ''),
+      pick: () => this.setState({ sel: t.id })
+    }));
+    const c = threads.find((t) => t.id === s.sel) || threads[0];
+    const isTaken = !!s.taken[c.id];
+    const cur = {
+      name: c.name, channel: c.channel, unit: c.unit, contact: c.contact,
+      isTaken: isTaken,
+      takeOverLabel: isTaken ? 'Hand back to agent' : 'Take over',
+      takeOver: () => this.setState({ taken: Object.assign({}, s.taken, { [c.id]: !isTaken }) }),
+      msgs: c.msgs.map((m) => Object.assign({ text: m[1], meta: m[2] }, this.bubble(m[0]))),
+      actions: c.actions
+    };
+
+    const slotOpen = 'border: 1px dashed #cfcbc3; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 1px; color: #67635b; background: #FFFFFF;';
+    const slotBooked = 'border: 1px solid #a7dcc4; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 1px; color: #043728; background: #eaf6f0;';
+    const slot = (time, who, unit) => ({ time: time, who: who || 'Open', unit: unit || 'Agent can book', style: who ? slotBooked : slotOpen });
+    const week = [
+      { day: 'Mon, Nov 2', slots: [slot('2:00 PM'), slot('4:30 PM', 'Alicia P.', 'Grove Park')] },
+      { day: 'Tue, Nov 3', slots: [slot('11:00 AM', 'Marcus T.', 'The Grove Tower #304'), slot('3:30 PM')] },
+      { day: 'Wed, Nov 4', slots: [slot('10:30 AM', 'Keisha L.', '1026 W Line St'), slot('11:00 AM')] },
+      { day: 'Thu, Nov 5', slots: [slot('1:00 PM'), slot('5:00 PM', 'Tom & Rae B.', '420 S Palmetto')] },
+      { day: 'Fri, Nov 6', slots: [slot('10:00 AM'), slot('2:30 PM')] }
+    ];
+
+    const escalations = threads.filter((t) => t.tone === 'red').map((t) => {
+      const done = !!s.resolved[t.id];
+      return {
+        name: t.name, unit: t.unit,
+        reason: t.id === 't2' ? 'Price negotiation' : 'Accommodation request',
+        summary: t.id === 't2' ? 'Offered $1,100/month (listed at $1,250) for an 18-month lease.' : 'Asked about pet fees for an emotional support animal. Agent said no pet fees apply and handed off.',
+        texted: 'Texted to ' + C.esc + ' at ' + t.time + ' Friday',
+        open: () => this.setState({ tab: 'convos', sel: t.id }),
+        resolveLabel: done ? 'Handled' : 'Mark handled',
+        resolveStyle: done
+          ? 'border: none; background: #ceefe1; color: #043728; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 44px;'
+          : 'border: none; background: #007852; color: #FFFFFF; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 44px;',
+        resolve: () => this.setState({ resolved: Object.assign({}, s.resolved, { [t.id]: !done }) })
+      };
+    });
+    escalations.push({
+      name: 'Brandon K.', unit: 'The Grove Tower', reason: 'Background question',
+      summary: 'Asked whether a past misdemeanor would disqualify him. Agent explained it’s reviewed case by case and handed off.',
+      texted: 'Texted to ' + C.esc + ' at 11:03 AM Friday',
+      open: () => this.setState({ tab: 'convos' }),
+      resolveLabel: s.resolved.bk ? 'Handled' : 'Mark handled',
+      resolveStyle: s.resolved.bk
+        ? 'border: none; background: #ceefe1; color: #043728; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 44px;'
+        : 'border: none; background: #007852; color: #FFFFFF; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 44px;',
+      resolve: () => this.setState({ resolved: Object.assign({}, s.resolved, { bk: !s.resolved.bk }) })
+    });
+
+    const sendTest = () => {
+      const q = (this.state.testText || '').trim();
+      if (!q) return;
+      this.setState({ testText: '', testLog: this.state.testLog.concat([{ from: 'prospect', text: q }], this.reply(q)) });
+    };
+
+    const provDefs = [
+      { id: 'tu', name: 'TransUnion ShareAble for Rentals', recommended: true,
+        desc: 'TransUnion’s screening API built for rental software. The applicant authorizes and verifies their own identity, so your company never handles their SSN.',
+        points: ['Credit report, eviction and criminal checks', 'Applicant identity verification built in', 'One API for the whole screening'] },
+      { id: 'crs', name: 'CRS Credit API', recommended: false,
+        desc: 'Credit, criminal and eviction data returned in one FCRA-regulated API call, designed to embed in a rental application.',
+        points: ['All three credit bureaus available', 'Soft or hard credit pulls', 'Pay-per-report developer setup'] }
+    ];
+    const providers = provDefs.map((p) => {
+      const on = s.provider === p.id;
+      return Object.assign({}, p, {
+        status: on ? 'Selected · awaiting API key' : 'Not connected',
+        statusStyle: on ? 'font-size: 11px; font-weight: 700; background: #fff1c8; color: #875814; padding: 2px 8px; border-radius: 999px;' : 'font-size: 11px; font-weight: 700; background: #efece6; color: #38352f; padding: 2px 8px; border-radius: 999px;',
+        cardStyle: 'border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; ' + (on ? 'border: 2px solid #007852; background: #f3fbf7;' : 'border: 1px solid #e9e6e0; background: #FFFFFF;'),
+        btn: on ? 'Selected' : 'Use this provider',
+        btnStyle: on ? 'align-self: flex-start; border: none; background: #ceefe1; color: #043728; border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 44px;' : 'align-self: flex-start; border: none; background: #007852; color: #FFFFFF; border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 44px;',
+        pick: () => this.setState({ provider: on ? '' : p.id })
+      });
+    });
+    const okStyle = 'background: #ceefe1; color: #043728; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px;';
+    const condStyle = 'background: #fff1c8; color: #875814; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px;';
+    const noStyle = 'background: #ffe6e1; color: #b63325; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px;';
+
+    return {
+      isScreen: s.tab === 'screen',
+      providers: providers,
+      connected: s.provider !== '',
+      outcomes: [
+        { tag: 'APPROVE', title: 'Standard approval', when: 'Credit 620+, income at least 2.5x rent, no evictions in 5 years, no landlord balance owed, no utility or car-payment problems.', then: 'Deposit: 1 month’s rent. Lease goes out for e-sign automatically.', style: 'background: #eaf6f0; color: #043728; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px;' },
+        { tag: 'CONDITIONAL', title: 'Approve with higher deposit', when: 'Credit under 620, everything else passes. Credit card, medical and student loan accounts are ignored.', then: 'Deposit: 1.5x–2x rent. AI suggests the amount from credit and rental history; ' + C.escFirst + ' confirms with one tap.', style: 'background: #fff8e6; color: #5c3d0c; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px;' },
+        { tag: C.escFirst.toUpperCase() + ' REVIEWS', title: 'Case-by-case review', when: 'Late or unpaid utilities or car payments, or anything on the criminal background report.', then: 'Sent to ' + C.escFirst + ' with the report summary to approve, set the deposit, or decline.', style: 'background: #e8f4fb; color: #00406e; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px;' },
+        { tag: 'DECLINE', title: 'Does not qualify', when: 'Income under 2.5x, an eviction in 5 years, or a balance owed to a past landlord.', then: C.escFirst + ' reviews, then the adverse action notice goes out and the $85 admin fee is refunded.', style: 'background: #fff0ed; color: #6e1a12; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px;' }
+      ],
+      results: [
+        { name: 'Keisha L.', unit: '1026 W Line St · $1,195', score: '688', income: '3.1x', history: 'Clean, 4 yrs', result: 'Approved', resultStyle: okStyle, deposit: '$1,195 (1 mo)' },
+        { name: 'Marcus T.', unit: 'Grove Tower #304 · $1,350', score: '604', income: '2.8x', history: 'Clean, 4 yrs · low score from credit cards (ignored)', result: 'Conditional', resultStyle: condStyle, deposit: '$2,025 (1.5x) suggested' },
+        { name: 'Alicia P.', unit: 'Grove Park · $1,275', score: '571', income: '2.6x', history: 'Thin, 1 yr · medical collections (ignored)', result: 'Conditional', resultStyle: condStyle, deposit: '$2,550 (2x) suggested' },
+        { name: 'Tanya W.', unit: '420 S Palmetto · $1,250', score: '588', income: '3.0x', history: 'Car loan 60 days late, utility collection', result: C.escFirst + ' reviews', resultStyle: 'background: #d9f3ff; color: #005998; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px;', deposit: C.escFirst + ' sets' },
+        { name: 'Derek S.', unit: '420 S Palmetto · $1,250', score: '645', income: '2.1x', history: 'Clean', result: 'Declined: income', resultStyle: noStyle, deposit: '—' }
+      ],
+      isSetup: s.tab === 'setup',
+      isConvos: s.tab === 'convos',
+      isShowings: s.tab === 'showings',
+      isEsc: s.tab === 'esc',
+      tabs: tabs,
+      statusPill: statusPill,
+      liveBtn: !aiOn ? 'Connect AI to turn on' : s.live ? 'Pause agent' : 'Turn agent on',
+      toggleLive: () => { if (!aiOn) { this.setState({ tab: 'setup' }); return; } this.setState({ live: !s.live }); },
+      ai, coFields, co: C,
+      kpis: [
+        { label: 'Inquiries this week', value: '23', sub: 'Email 11 · Text 8 · Chat 4' },
+        { label: 'Median first reply', value: '38 sec', sub: 'Including nights and weekends' },
+        { label: 'Showings booked', value: '4', sub: 'On ' + C.showerFirst + '’s calendar this week' },
+        { label: 'Applications sent', value: '6', sub: 'Each tied to a guest card' }
+      ],
+      channels: channels,
+      escalateTriggers: ['Rent or fee negotiation', 'Complaints', 'Accommodation and assistance animals', 'Fair housing questions', 'Legal or lease-term questions', 'Background history questions', 'Asks for a person', 'Upset or urgent'],
+      rules: [
+        { label: 'Income', value: 'At least 2.5x monthly rent', note: 'Hard minimum. Household gross income.', hasNote: true },
+        { label: 'Credit', value: 'No minimum score', note: 'Credit cards, medical bills and student loans are not held against applicants. Late or unpaid utilities or car payments are a problem and go to ' + C.escFirst + '.', hasNote: true },
+        { label: 'Security deposit', value: '620+: 1 month’s rent · Under 620: 1.5x–2x month’s rent', note: 'The under-620 amount is set from credit and rental history after screening. The agent quotes the range, never a final number.', hasNote: true },
+        { label: 'Background', value: 'Case-by-case review by ' + C.esc, note: 'No automatic denials for criminal history.', hasNote: true },
+        { label: 'Lease term', value: '7–14 months', note: 'Terms under 12 months add $50/month to the rent.', hasNote: true },
+        { label: 'Rental history', value: 'No evictions in the last 5 years and no balance owed to a past landlord', note: '', hasNote: false },
+        { label: 'Application fees', value: '$75 per adult + $85 admin fee', note: 'Both paid by card when applying. The $85 admin fee is refunded if denied.', hasNote: true },
+        { label: 'Pets', value: '$350 one-time pet fee + $25/month per pet, max 2', note: 'Assistance animals are not pets: no fees or limits.', hasNote: true },
+        { label: 'Restricted breeds', value: 'Pit Bull, Doberman Pinscher, Rottweiler, Great Dane, Presa Canario, Chow Chow, German Shepherd, Alaskan Malamute, Akita, Cane Corso, Bull Mastiff, Wolf Hybrid', note: 'Mixes of these breeds are restricted too.', hasNote: true },
+        { label: 'Application type', value: 'Picked automatically from the unit', note: 'Residential units get the residential application; commercial units get the commercial one.', hasNote: true }
+      ],
+      showRules: [
+        { label: 'Who shows', value: C.shower },
+        { label: 'Hours', value: 'Weekdays, 10:00 AM – 6:00 PM' },
+        { label: 'Slot length', value: '30 minutes, 15-minute buffer between showings' },
+        { label: 'Calendar', value: C.cal + ': only books around existing events' },
+        { label: 'Before booking', value: 'Name, phone, move-in date and number of occupants' },
+        { label: 'Reminders', value: 'Confirmation text right away, reminder 1 hour before' }
+      ],
+      openItems: [
+        { n: '1', title: 'Screening provider', sub: 'Pick TransUnion ShareAble or CRS on the Screening tab and get API credentials from them.' },
+        { n: '2', title: 'Leasing phone number and email', sub: 'The number prospects text and the address listing sites send leads to.' },
+        { n: '3', title: 'Check the breed list against your insurance', sub: 'Make sure your landlord policy doesn’t exclude any breed missing from this list.' }
+      ],
+      threads: threadList,
+      cur: cur,
+      week: week,
+      escalations: escalations,
+      test: {
+        text: s.testText,
+        log: s.testLog.map((m) => Object.assign({ text: m.text }, this.bubble(m.from))),
+        onInput: (e) => this.setState({ testText: e.target.value }),
+        onKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); sendTest(); } },
+        send: sendTest,
+        reset: () => this.setState({ testText: '', testLog: [this.greet()] })
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
