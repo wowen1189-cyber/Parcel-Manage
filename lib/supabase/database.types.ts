@@ -2163,6 +2163,201 @@ export type Database = {
           },
         ]
       }
+      signature_event: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: number
+          ip: string | null
+          kind: string
+          request_id: string
+          signer_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: never
+          ip?: string | null
+          kind: string
+          request_id: string
+          signer_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: never
+          ip?: string | null
+          kind?: string
+          request_id?: string
+          signer_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_event_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_event_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "signature_request"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_event_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "signature_signer"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signature_request: {
+        Row: {
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          lease_id: string | null
+          signed_document_id: string | null
+          snapshot: Json
+          snapshot_sha256: string
+          status: string
+          title: string
+        }
+        Insert: {
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lease_id?: string | null
+          signed_document_id?: string | null
+          snapshot: Json
+          snapshot_sha256: string
+          status?: string
+          title: string
+        }
+        Update: {
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lease_id?: string | null
+          signed_document_id?: string | null
+          snapshot?: Json
+          snapshot_sha256?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_request_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_request_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_request_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_request_signed_document_id_fkey"
+            columns: ["signed_document_id"]
+            isOneToOne: false
+            referencedRelation: "document"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signature_signer: {
+        Row: {
+          company_id: string
+          consented_at: string | null
+          email: string
+          id: string
+          initials: string | null
+          ip: string | null
+          name: string
+          request_id: string
+          role: string
+          sign_order: number
+          signed_at: string | null
+          status: string
+          token_hash: string | null
+          typed_signature: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          company_id: string
+          consented_at?: string | null
+          email: string
+          id?: string
+          initials?: string | null
+          ip?: string | null
+          name: string
+          request_id: string
+          role: string
+          sign_order: number
+          signed_at?: string | null
+          status?: string
+          token_hash?: string | null
+          typed_signature?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          company_id?: string
+          consented_at?: string | null
+          email?: string
+          id?: string
+          initials?: string | null
+          ip?: string | null
+          name?: string
+          request_id?: string
+          role?: string
+          sign_order?: number
+          signed_at?: string | null
+          status?: string
+          token_hash?: string | null
+          typed_signature?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_signer_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_signer_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "signature_request"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       unit: {
         Row: {
           access_notes: string | null

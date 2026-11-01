@@ -10,6 +10,8 @@ import { fillCommercialLease, fillLease } from "@/lib/documents/fill";
 import { contactName, date, money } from "@/lib/format";
 import { missingCommercialTerms, readCommercialTerms } from "@/lib/commercial-terms";
 import { CommercialTermsForm } from "../../commercial-terms";
+import { voidSignatureRequest } from "../../esign-actions";
+import { SendForSignature } from "./esign";
 import { readLeaseSettings } from "@/lib/property-lease-settings";
 import { requireCompany } from "@/lib/session";
 
@@ -60,6 +62,14 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
   const blanks = Object.entries(values).filter(([k, v]) => !v && JSON.stringify(doc.sections).includes(`{{${k}}}`)).length;
   const primary = [...l.lease_tenant].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))[0];
   const missingTerms = commercial ? missingCommercialTerms(terms) : [];
+  const { data: requests } = await supabase
+    .from("signature_request")
+    .select("id, title, status, created_at, completed_at, signed_document_id, signature_signer(id, name, role, status, signed_at, sign_order)")
+    .eq("lease_id", id)
+    .eq("company_id", company.id)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const esign = requests?.[0];
 
   return (
     <>
@@ -79,6 +89,36 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
           <CommercialTermsForm leaseId={id} terms={terms} canEdit={canEdit} />
         </Card>
       )}
+      <Card className="mb-4 print:hidden">
+        <CardHeader
+          title="E-signature"
+          description={esign ? `${esign.status === "completed" ? "Signed by everyone" : esign.status === "voided" ? "Voided" : "Out for signature"} · sent ${date(esign.created_at.slice(0, 10))}` : "Send the lease and disclosures to sign online. Tenants sign first, then any guarantor, then you."}
+          action={esign?.status === "completed" ? <Pill tone="success">Signed</Pill> : esign?.status === "sent" ? <Pill tone="info">Waiting</Pill> : undefined}
+        />
+        <div className="space-y-3 px-5 py-4">
+          {esign && (
+            <ol className="space-y-1 text-[14px]">
+              {[...esign.signature_signer]
+                .sort((a, b) => a.sign_order - b.sign_order)
+                .map((x) => (
+                  <li key={x.id} className="flex flex-wrap justify-between gap-2">
+                    <span>
+                      {x.sign_order}. {x.name} <span className="text-subtle">({x.role === "agent" ? "landlord's agent" : x.role})</span>
+                    </span>
+                    <Pill tone={x.status === "signed" ? "success" : x.status === "declined" ? "danger" : x.status === "viewed" ? "info" : "neutral"}>{x.status === "signed" ? `Signed ${date(x.signed_at?.slice(0, 10))}` : x.status}</Pill>
+                  </li>
+                ))}
+            </ol>
+          )}
+          {canEdit && (!esign || esign.status !== "sent") && <SendForSignature leaseId={id} />}
+          {canEdit && esign?.status === "sent" && (
+            <form action={voidSignatureRequest}>
+              <input type="hidden" name="request_id" value={esign.id} />
+              <button className="text-[13px] font-semibold text-danger">Void and start over</button>
+            </form>
+          )}
+        </div>
+      </Card>
       <div className="my-4 flex flex-wrap gap-2 print:hidden">
         {docs.map((t) => (
           <Link key={t.id} href={`/tenants/${id}/lease?doc=${t.id}`} className={buttonClass(t.id === doc.id ? "primary" : "secondary", true)}>
