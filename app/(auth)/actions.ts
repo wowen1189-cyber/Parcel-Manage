@@ -89,7 +89,7 @@ export async function createCompany(_: FormState, form: FormData): Promise<FormS
         .string()
         .trim()
         .toLowerCase()
-        .refine(isValidSubdomain, "Use lowercase letters, numbers and hyphens (no spaces), for example simreipm."),
+        .refine(isValidSubdomain, "Use lowercase letters, numbers and hyphens (no spaces), for example sunrisepm."),
       timeZone: z.string().min(1),
     })
     .safeParse({ name: form.get("name"), subdomain: form.get("subdomain"), timeZone: form.get("timeZone") });

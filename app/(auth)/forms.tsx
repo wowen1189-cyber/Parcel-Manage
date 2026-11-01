@@ -97,7 +97,7 @@ export function CompanyForm({ rootDomain }: { rootDomain: string }) {
     <form action={action} className="space-y-4">
       {state.error && <Notice tone="danger">{state.error}</Notice>}
       <Field label="Company name">
-        <Input name="name" required defaultValue={state.fields?.name} placeholder="SIM REI Property Management" />
+        <Input name="name" required defaultValue={state.fields?.name} placeholder="Sunrise Property Management" />
       </Field>
       <Field label="Web address" hint={`Your team and tenants sign in at ${subdomain || "yourcompany"}.${rootDomain}`}>
         <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export function CompanyForm({ rootDomain }: { rootDomain: string }) {
             required
             value={subdomain}
             onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-            placeholder="simreipm"
+            placeholder="sunrisepm"
             aria-describedby="root-domain"
           />
           <span id="root-domain" className="shrink-0 text-muted">

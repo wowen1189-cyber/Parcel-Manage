@@ -6,15 +6,18 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { ROOT_DOMAIN } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
-import { companyUrl } from "@/lib/tenant";
+import { companyUrl, subdomainFromHost } from "@/lib/tenant";
 
 export type Company = Database["public"]["Tables"]["company"]["Row"];
 export type Membership = Database["public"]["Tables"]["membership"]["Row"];
 export type PublicCompany = { id: string; name: string; office_phone: string | null };
 
 // The company subdomain this request arrived on (set by proxy.ts), or null on the main site.
+// Falls back to reading the host: the page rendered right after a server action's redirect
+// doesn't always carry the header proxy.ts added.
 export const getRequestSubdomain = cache(async (): Promise<string | null> => {
-  return (await headers()).get("x-company-subdomain");
+  const h = await headers();
+  return h.get("x-company-subdomain") ?? subdomainFromHost(h.get("x-forwarded-host") ?? h.get("host"), ROOT_DOMAIN);
 });
 
 // Company shown on this subdomain before sign-in (only its id, name and office phone).
