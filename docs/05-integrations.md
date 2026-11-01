@@ -5,7 +5,7 @@ Each integration lives in `lib/integrations/<name>/` behind a small interface, s
 | Service | Purpose | Phase | Level | What Wesley needs to do |
 |---|---|---|---|---|
 | **Supabase** | Database, auth, storage, RLS, scheduled jobs, Vault for secrets | 0 | Platform | Create a new project `parcel-manage`; give Claude Code the project URL, anon key and service role key |
-| **Vercel** | Hosting, preview deploys, cron, company subdomains (wildcard `*.<parcel-domain>`) | 0 | Platform | Sign in with GitHub; import the repo; add the Parcel Manage domain and its wildcard, and point the DNS records Vercel shows at Vercel |
+| **Vercel** | Hosting, preview deploys, cron, company subdomains (wildcard `*.{ROOT_DOMAIN}`) | 0 | Platform | Sign in with GitHub; import the repo; add the Parcel Manage domain and its wildcard, and point the DNS records Vercel shows at Vercel |
 | **GitHub** | Code repository | 0 | Platform | Create private repo `parcel-manage` |
 | **AI provider (BYOK)** | All AI features | 1 | Per company | SIM REI: create an Anthropic API key at console.anthropic.com and paste it in Settings › AI connection (not in code) |
 | **Resend** | Transactional email (notices, receipts, statements, scheduled reports), inbound email for invoices and Weblo summaries | 1 | Platform (+ per-company sending domain) | Verify the sending domain (e.g. simreipm.com) with DNS records |
