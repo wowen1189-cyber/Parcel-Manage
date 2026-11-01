@@ -732,6 +732,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          reserve_cents: number
           tax_id_last4: string | null
           updated_at: string
         }
@@ -746,6 +747,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          reserve_cents?: number
           tax_id_last4?: string | null
           updated_at?: string
         }
@@ -760,6 +762,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          reserve_cents?: number
           tax_id_last4?: string | null
           updated_at?: string
         }
@@ -1430,6 +1433,157 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_distribution: {
+        Row: {
+          amount_cents: number
+          company_id: string
+          created_at: string
+          entity_id: string
+          id: string
+          journal_entry_id: string | null
+          method: string | null
+          ownership_pct: number
+          paid_on: string | null
+          payee_contact_id: string | null
+          payee_name: string
+          reference: string | null
+          statement_id: string
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          company_id: string
+          created_at?: string
+          entity_id: string
+          id?: string
+          journal_entry_id?: string | null
+          method?: string | null
+          ownership_pct: number
+          paid_on?: string | null
+          payee_contact_id?: string | null
+          payee_name: string
+          reference?: string | null
+          statement_id: string
+          status?: string
+        }
+        Update: {
+          amount_cents?: number
+          company_id?: string
+          created_at?: string
+          entity_id?: string
+          id?: string
+          journal_entry_id?: string | null
+          method?: string | null
+          ownership_pct?: number
+          paid_on?: string | null
+          payee_contact_id?: string | null
+          payee_name?: string
+          reference?: string | null
+          statement_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_distribution_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_distribution_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_distribution_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_distribution_payee_contact_id_fkey"
+            columns: ["payee_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_distribution_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "owner_statement"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_statement: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          fee_entry_ids: string[]
+          id: string
+          lines: Json
+          period_end: string
+          period_start: string
+          sent_at: string | null
+          totals: Json
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          fee_entry_ids?: string[]
+          id?: string
+          lines?: Json
+          period_end: string
+          period_start: string
+          sent_at?: string | null
+          totals: Json
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          fee_entry_ids?: string[]
+          id?: string
+          lines?: Json
+          period_end?: string
+          period_start?: string
+          sent_at?: string | null
+          totals?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_statement_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_statement_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_statement_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
             referencedColumns: ["id"]
           },
         ]

@@ -134,6 +134,17 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
       </Card>
 
       {!unassigned && (
+        <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+          <span>
+            <span className="font-semibold">Statements and distributions</span>
+            <span className="block text-[13px] text-subtle">Close a month: post fees from rent collected, send the statement, record payouts.</span>
+          </span>
+          <Link href={`/owners/${owner.id}/statements`} className="min-h-11 rounded-[var(--radius-control)] bg-accent px-4 py-2.5 text-sm font-semibold text-white">
+            Open statements
+          </Link>
+        </Card>
+      )}
+      {!unassigned && (
         <Card className="mt-6">
           <CardHeader title="Management agreement" description="The management, leasing and renewal fees you charge this owner. Every property they own uses them unless that property has its own." />
           <FeeForm scope="owner" targetId={owner.id} fee={agreement.fee} custom={agreement.source === "owner"} inheritLabel={`Use the company default (${describeFee(companyFee)})`} canEdit={canEdit} />
