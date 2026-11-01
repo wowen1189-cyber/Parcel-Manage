@@ -3,9 +3,9 @@ export function Logo({ companyName }: { companyName?: string | null }) {
     <div className="flex items-center gap-2.5">
       <span
         aria-hidden
-        className="grid size-9 place-items-center rounded-[10px] bg-accent text-base font-extrabold text-white"
+        className="grid size-9 place-items-center rounded-[10px] bg-accent text-[13px] font-extrabold tracking-[-0.02em] text-white"
       >
-        P
+        PM
       </span>
       <span className="leading-tight">
         <span className="block text-[15px] font-extrabold tracking-[-0.01em]">Parcel Manage</span>

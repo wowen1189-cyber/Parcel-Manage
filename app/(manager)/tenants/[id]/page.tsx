@@ -6,7 +6,7 @@ import { readBusinessRules } from "@/lib/business-rules";
 import { bedBath, contactName, date, money, todayIn } from "@/lib/format";
 import { lateFeeText, leaseTiming } from "@/lib/leases";
 import { requireCompany } from "@/lib/session";
-import { LeaseNotesForm, LeaseTermsForm, TenantContactForm } from "../forms";
+import { LeaseNotesForm, BillingSettingsForm, TenantContactForm } from "../forms";
 import { HouseholdCard } from "./household";
 
 export async function generateMetadata({ params }: PageProps<"/tenants/[id]">) {
@@ -101,34 +101,45 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
                   {money(c.amount_cents)} <span className="text-subtle">{c.description}</span>
                 </Row>
               ))}
-              <Row label="Late fee">
-                {lateFee.text}{" "}
-                <span className="text-subtle">{lateFee.source === "lease" ? "(this lease)" : "(company default)"}</span>
+              <Row label="Deposit">
+                {money(l.deposit_cents)} held
+                {l.deposit_pending_cents > 0 && `, ${money(l.deposit_pending_cents)} pending`}
               </Row>
+              {l.commercial_lease_type && <Row label="Lease type">{l.commercial_lease_type}</Row>}
+              {l.unit.amenities.length > 0 && <Row label="Amenities">{l.unit.amenities.join(", ")}</Row>}
+            </dl>
+          </Card>
+
+          <Card>
+            <CardHeader title="Automatic billing" description="What the system charges and sends on its own each month." />
+            <dl className="divide-y divide-line px-5 py-2 text-sm">
+              <Row label="Late fee policy">
+                {lateFee.text}{" "}
+                <span className="text-subtle">{lateFee.source === "lease" ? "(custom for this tenant)" : "(company default)"}</span>
+              </Row>
+              <Row label="Returned payment">{l.nsf_fee_cents != null ? `${money(l.nsf_fee_cents)} fee` : <span className="text-subtle">No fee charged</span>}</Row>
+              <Row label="Accepts">
+                {l.certified_funds_only ? (
+                  <>
+                    <Pill tone="warn">Certified funds only</Pill> <span className="text-subtle">money order or cashier&apos;s check</span>
+                  </>
+                ) : (
+                  "All payment methods"
+                )}
+              </Row>
+              <Row label="Rent reminders">{l.rent_reminders ? "On" : "Off"}</Row>
               {l.next_rent_increase_on && (
                 <Row label="Next increase">
                   {l.next_rent_cents ? `${money(l.next_rent_cents)} from ` : "Due "}
                   {date(l.next_rent_increase_on)}
                 </Row>
               )}
-              <Row label="Deposit">
-                {money(l.deposit_cents)} held
-                {l.deposit_pending_cents > 0 && `, ${money(l.deposit_pending_cents)} pending`}
-              </Row>
-              {l.nsf_fee_cents != null && <Row label="Returned payment">{money(l.nsf_fee_cents)} fee</Row>}
-              {l.certified_funds_only && (
-                <Row label="Payments">
-                  <Pill tone="warn">Certified funds only</Pill> <span className="text-subtle">money order or cashier&apos;s check</span>
-                </Row>
-              )}
-              {l.commercial_lease_type && <Row label="Lease type">{l.commercial_lease_type}</Row>}
-              {l.unit.amenities.length > 0 && <Row label="Amenities">{l.unit.amenities.join(", ")}</Row>}
             </dl>
             {canEdit && (
               <details className="border-t border-line px-5 py-4">
-                <summary className="cursor-pointer text-[13px] font-semibold text-accent">Edit late fee and payment terms</summary>
+                <summary className="cursor-pointer text-[13px] font-semibold text-accent">Edit billing settings</summary>
                 <div className="mt-3">
-                  <LeaseTermsForm
+                  <BillingSettingsForm
                     leaseId={l.id}
                     companyDefault={`${lateFeeText({ late_fee_grace_days: null, late_fee_flat_cents: null, late_fee_pct: null }, rules).text} (from Settings)`}
                     canEdit={canEdit}

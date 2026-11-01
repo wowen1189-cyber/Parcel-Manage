@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button, Field, Input, Notice, Select, Textarea } from "@/components/ui";
-import { saveHouseholdItem, updateLeaseNotes, updateLeaseTerms, updateTenantContact, type FormState } from "./actions";
+import { saveHouseholdItem, updateLeaseNotes, updateBillingSettings, updateTenantContact, type FormState } from "./actions";
 
 const empty: FormState = {};
 
@@ -107,9 +107,9 @@ export function LeaseNotesForm({ leaseId, unitId, notes, accessNotes, canEdit }:
   );
 }
 
-// ---------- lease terms ----------
+// ---------- automatic billing settings ----------
 
-export type LeaseTermsValues = {
+export type BillingSettingsValues = {
   late_fee_grace_days: number | null;
   late_fee_flat_cents: number | null;
   late_fee_pct: number | null;
@@ -137,8 +137,8 @@ function Check({ name, label, hint, defaultChecked }: { name: string; label: str
   );
 }
 
-export function LeaseTermsForm({ leaseId, terms, companyDefault, canEdit }: { leaseId: string; terms: LeaseTermsValues; companyDefault: string; canEdit: boolean }) {
-  const [state, action, pending] = useActionState(updateLeaseTerms, empty);
+export function BillingSettingsForm({ leaseId, terms, companyDefault, canEdit }: { leaseId: string; terms: BillingSettingsValues; companyDefault: string; canEdit: boolean }) {
+  const [state, action, pending] = useActionState(updateBillingSettings, empty);
   const own = terms.late_fee_grace_days != null;
   const [source, setSource] = useState(state.values?.late_fee_source ?? (own ? "lease" : "company"));
   const initialType = terms.late_fee_pct != null ? (terms.late_fee_basis === "all_charges" ? "pct_all" : "pct_rent") : "flat";
@@ -152,11 +152,11 @@ export function LeaseTermsForm({ leaseId, terms, companyDefault, canEdit }: { le
       <fieldset disabled={!canEdit} className="space-y-4">
         <Status state={state} />
         <fieldset>
-          <legend className="mb-1.5 text-[13px] font-semibold text-ink-2">Late fee</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-ink-2">Late fee policy for automatic billing</legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {[
               ["company", "Company default", companyDefault],
-              ["lease", "This lease's own terms", "Old lease, or a lease that came with a property"],
+              ["lease", "Custom for this tenant", "An older lease, a special arrangement, or a lease that came with a property"],
             ].map(([value, label, hint]) => (
               <label key={value} className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border px-3 py-2.5 ${source === value ? "border-accent bg-accent-softer" : "border-line-strong"}`}>
                 <input type="radio" name="late_fee_source" value={value} checked={source === value} onChange={() => setSource(value)} className="mt-0.5 size-4 accent-[var(--color-accent)]" />
@@ -221,10 +221,10 @@ export function LeaseTermsForm({ leaseId, terms, companyDefault, canEdit }: { le
           <Check name="certified_funds_only" label="Certified funds only" hint="Money order or cashier's check" defaultChecked={b("certified_funds_only", terms.certified_funds_only)} />
           <Check name="rent_reminders" label="Send rent reminders" defaultChecked={b("rent_reminders", terms.rent_reminders)} />
         </div>
-        <p className="text-[13px] text-subtle">Enter the terms the tenant actually signed. Florida law sets no late-fee amount for homes; the signed lease controls.</p>
+        <p className="text-[13px] text-subtle">This only changes what the system bills automatically, not the lease. For homes and apartments, Florida law only lets you charge a late fee the signed lease allows, so keep it at or below the lease&apos;s terms.</p>
         <div className="flex justify-end">
           <Button type="submit" small disabled={pending}>
-            {pending ? "Saving…" : "Save terms"}
+            {pending ? "Saving…" : "Save billing settings"}
           </Button>
         </div>
       </fieldset>

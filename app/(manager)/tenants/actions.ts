@@ -84,7 +84,7 @@ export async function updateLeaseNotes(_: FormState, form: FormData): Promise<Fo
   return { message: "Saved." };
 }
 
-// ---------- lease terms ----------
+// ---------- automatic billing settings ----------
 
 const money = (label: string) =>
   z
@@ -100,11 +100,12 @@ const optionalDate = z
   .transform((v) => v || null);
 
 /**
- * Late fee, returned-payment fee and payment rules for one lease. "company" clears the lease's own terms so the
- * company's business rules apply. Florida residential law (ch. 83 Part II) sets no late-fee amount; whatever the
- * signed lease states applies (83.43 lets it be designated rent), so these must match the lease the tenant signed.
+ * What the system bills automatically for one tenancy: the late fee policy, returned-payment fee and payment
+ * rules. "company" clears the custom policy so the company's business rules apply. This never edits the lease
+ * document. Fla. Stat. ch. 83 Part II sets no late-fee amount, but a fee is only collectible if the signed lease
+ * provides for it (83.43 lets the lease designate it as rent), so the policy should not exceed the lease.
  */
-export async function updateLeaseTerms(_: FormState, form: FormData): Promise<FormState> {
+export async function updateBillingSettings(_: FormState, form: FormData): Promise<FormState> {
   const { supabase, company, membership } = await requireCompany();
   if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
   const parsed = z

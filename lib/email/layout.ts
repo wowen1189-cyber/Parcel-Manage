@@ -1,5 +1,5 @@
 // One look for every email Parcel Manage sends: sign-in links (Supabase), invites and notices (Resend).
-// Email clients ignore most CSS, so this is table-based HTML with inline styles, no images (the mark is a
+// Email clients ignore most CSS, so this is table-based HTML with inline styles, no images (the "PM" mark is a
 // colored cell, so it shows even when images are blocked), and a 600px column that shrinks on phones.
 
 const C = {
@@ -55,7 +55,7 @@ export function emailHtml(e: EmailContent): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
     <tr><td style="padding:0 4px 20px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;background:${C.accent};border-radius:11px;font:800 19px/40px ${FONT};color:#ffffff;">P</td>
+        <td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;background:${C.accent};border-radius:11px;font:800 15px/40px ${FONT};color:#ffffff;letter-spacing:-0.02em;">PM</td>
         <td style="padding-left:12px;">
           <div style="font:800 17px/1.2 ${FONT};color:${C.ink};letter-spacing:-0.01em;">Parcel Manage</div>
           ${e.fromLine ? `<div style="font:13px/1.3 ${FONT};color:${C.subtle};">${e.fromLine}</div>` : ""}
