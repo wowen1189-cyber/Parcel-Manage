@@ -1,0 +1,34 @@
+import Link from "next/link";
+import { Card, PageHeader } from "@/components/ui";
+import { EXPENSE_ACCOUNTS } from "@/lib/bills";
+import { contactName, todayIn } from "@/lib/format";
+import { requireCompany } from "@/lib/session";
+import { NewBillForm } from "../forms";
+
+export const metadata = { title: "New bill" };
+
+export default async function NewBillPage() {
+  const { supabase, company } = await requireCompany();
+  const [{ data: vendors }, { data: properties }] = await Promise.all([
+    supabase.from("vendor").select("id, contact(kind, first_name, last_name, business_name)").eq("company_id", company.id).eq("is_active", true),
+    supabase.from("property").select("id, name").eq("company_id", company.id).order("name"),
+  ]);
+  return (
+    <>
+      <p className="mb-2 text-[13px]">
+        <Link href="/bills" className="font-semibold text-accent hover:underline">
+          ← Bills
+        </Link>
+      </p>
+      <PageHeader title="New bill" subtitle="Enter a vendor invoice. It posts when approved." />
+      <Card className="max-w-3xl">
+        <NewBillForm
+          vendors={(vendors ?? []).map((v) => ({ id: v.id, name: contactName(v.contact) })).sort((a, b) => a.name.localeCompare(b.name))}
+          properties={properties ?? []}
+          accounts={EXPENSE_ACCOUNTS}
+          today={todayIn(company.time_zone)}
+        />
+      </Card>
+    </>
+  );
+}

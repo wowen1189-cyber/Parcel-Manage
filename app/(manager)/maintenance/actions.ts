@@ -7,6 +7,9 @@ import { readBusinessRules } from "@/lib/business-rules";
 import { emailHtml, emailText } from "@/lib/email/layout";
 import { contactName, oneLineAddress } from "@/lib/format";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
+import { ROOT_DOMAIN } from "@/lib/env";
+import { companyUrl } from "@/lib/tenant";
+import { newToken } from "@/lib/vendor-requests";
 import { requireCompany } from "@/lib/session";
 import { findSymptom, PRIORITY_DB, SAFETY_OPTIONS, technicianSummary, triagePriority } from "@/lib/triage";
 import { vendorCompliance } from "@/lib/vendors";
@@ -151,9 +154,12 @@ export async function assignVendor(_: FormState, form: FormData): Promise<FormSt
   const compliance = vendorCompliance(vendor, today);
   if (!compliance.canDispatch) return { error: `${contactName(vendor.contact)} can't be sent work orders yet: ${compliance.issues.join(", ")}. Add their paperwork on the vendor page, or ask an admin to allow it.` };
 
+  // The vendor's private job link (accept, schedule, finish, invoice). A new link replaces any earlier one.
+  const link = newToken();
+  const jobUrl = company.subdomain ? companyUrl(company.subdomain, ROOT_DOMAIN, `/vendor/jobs/${link.token}`) : null;
   const { error } = await supabase
     .from("work_order")
-    .update({ vendor_id: vendor.id, status: wo.status === "scheduled" ? "scheduled" : "assigned" })
+    .update({ vendor_id: vendor.id, status: wo.status === "scheduled" ? "scheduled" : "assigned", vendor_token_hash: link.hash, vendor_accepted_at: null, vendor_declined_at: null, vendor_decline_reason: null })
     .eq("id", wo.id)
     .eq("company_id", company.id);
   if (error) return { error: error.message };
@@ -163,7 +169,7 @@ export async function assignVendor(_: FormState, form: FormData): Promise<FormSt
   if (p.data.email_vendor) {
     if (!vendor.contact.email) note = " They have no email on file, so call or text them.";
     else {
-      const sent = await emailVendor(ctx, wo, vendor.contact.email, contactName(vendor.contact));
+      const sent = await emailVendor(ctx, wo, vendor.contact.email, contactName(vendor.contact), jobUrl);
       await logEvent(ctx, wo.id, "notified", { to: vendor.contact.email, channel: "email", sent });
       if (sent) await supabase.from("work_order").update({ vendor_notified_at: new Date().toISOString() }).eq("id", wo.id);
       note = sent ? ` Emailed to ${vendor.contact.email}.` : " The email didn't send; call or text them.";
@@ -174,7 +180,7 @@ export async function assignVendor(_: FormState, form: FormData): Promise<FormSt
   return { message: `Assigned to ${contactName(vendor.contact)}.${note}` };
 }
 
-async function emailVendor(ctx: Ctx, wo: NonNullable<Awaited<ReturnType<typeof loadWorkOrder>>>, to: string, vendorName: string) {
+async function emailVendor(ctx: Ctx, wo: NonNullable<Awaited<ReturnType<typeof loadWorkOrder>>>, to: string, vendorName: string, jobUrl: string | null) {
   const { company } = ctx;
   const where = [wo.property.name, wo.unit?.label && wo.unit.label !== "Home" ? `Unit ${wo.unit.label}` : null].filter(Boolean).join(", ");
   const address = oneLineAddress(wo.property);
@@ -189,8 +195,11 @@ async function emailVendor(ctx: Ctx, wo: NonNullable<Awaited<ReturnType<typeof l
       `<strong>${escapeHtml(wo.title)}</strong><br>${escapeHtml(wo.ai_summary ?? "")}`,
       wo.priority === "emergency"
         ? "This is an emergency. Please call the office right away to confirm you're on the way."
-        : "Please reply with the day and time you can go. Florida law requires 24 hours' notice to the tenant before a repair visit (7:30 a.m. to 8:00 p.m.), so the office will confirm the time with them.",
+        : jobUrl
+          ? "Use the button to accept the job and pick a time. Florida law requires 24 hours' notice to the tenant before a repair visit (7:30 a.m. to 8:00 p.m.); we'll notify the tenant when you schedule."
+          : "Please reply with the day and time you can go. Florida law requires 24 hours' notice to the tenant before a repair visit (7:30 a.m. to 8:00 p.m.), so the office will confirm the time with them.",
     ],
+    ...(jobUrl ? { button: { label: "Accept and schedule", url: jobUrl } } : {}),
     note: company.office_phone ? `Office: ${escapeHtml(company.office_phone)}. Reply to this email to answer.` : "Reply to this email to answer.",
     footer: [escapeHtml(company.name), company.office_phone && escapeHtml(company.office_phone)].filter(Boolean).join(" · "),
   };

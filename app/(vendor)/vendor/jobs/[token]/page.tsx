@@ -1,0 +1,121 @@
+import type { Metadata } from "next";
+import { Logo } from "@/components/logo";
+import { Card, CardHeader, Pill } from "@/components/ui";
+import { readBusinessRules } from "@/lib/business-rules";
+import { contactName, oneLineAddress } from "@/lib/format";
+import { loadJob } from "@/lib/vendor-jobs";
+import { dateToZoned, earliestNoticeEntry, formatWhen, WO_PRIORITY } from "@/lib/work-orders";
+import { AcceptDecline, FinishForm, ScheduleForm } from "./job-forms";
+
+export const metadata: Metadata = { title: "Work order", robots: { index: false, follow: false } };
+
+// The vendor's private job page, from the work order e-mail: details, accept or decline, schedule, finish.
+export default async function VendorJobPage({ params }: PageProps<"/vendor/jobs/[token]">) {
+  const { token } = await params;
+  const found = await loadJob(token);
+  if (!found) {
+    return (
+      <Shell>
+        <h1 className="text-[26px] font-extrabold">This link no longer works</h1>
+        <p className="mt-2 text-muted">The job may have been reassigned or canceled. Call the office if you have questions.</p>
+      </Shell>
+    );
+  }
+  const { db, wo } = found;
+  const tz = wo.company.time_zone;
+  const lease = wo.unit?.lease.find((l) => l.status === "active" || l.status === "notice");
+  const tenants = (lease?.lease_tenant ?? []).filter((t) => t.role === "tenant");
+  const { data: photos } = await db.from("document").select("storage_path").eq("company_id", wo.company_id).eq("work_order_id", wo.id).eq("category", "photo");
+  const signed = photos?.length ? ((await db.storage.from("documents").createSignedUrls(photos.map((p) => p.storage_path), 600)).data ?? []) : [];
+  const earliest = dateToZoned(earliestNoticeEntry(new Date(), readBusinessRules(wo.company.settings)), tz).slice(0, 16);
+  const emergency = wo.priority === "emergency";
+  const done = Boolean(wo.completed_at);
+
+  return (
+    <Shell company={wo.company.name}>
+      <p className="text-[14px] text-subtle">Work order #{wo.number}</p>
+      <h1 className="text-[26px] font-extrabold leading-tight">{wo.title}</h1>
+      <p className="mt-2 flex flex-wrap gap-2">
+        <Pill tone={WO_PRIORITY[wo.priority]?.tone ?? "neutral"}>{WO_PRIORITY[wo.priority]?.label}</Pill>
+        {done ? <Pill tone="success">Done</Pill> : wo.scheduled_start ? <Pill tone="info">Scheduled {formatWhen(wo.scheduled_start, tz)}</Pill> : wo.vendor_accepted_at ? <Pill tone="info">Accepted</Pill> : null}
+      </p>
+
+      <Card className="mt-5 p-5 text-[15px]">
+        <p className="font-semibold">
+          {wo.property.name}
+          {wo.unit && wo.unit.label !== "Home" ? `, Unit ${wo.unit.label}` : ""}
+        </p>
+        <p className="text-muted">{oneLineAddress(wo.property)}</p>
+        {wo.ai_summary && <p className="mt-3 whitespace-pre-wrap">{wo.ai_summary}</p>}
+        <ul className="mt-3 space-y-1 text-[14px] text-muted">
+          {wo.room && <li>Room: {wo.room}</li>}
+          {wo.entry_ok != null && <li>{wo.entry_ok ? "OK to enter if no one is home (after notice)." : "Tenant wants to be home."}</li>}
+          {wo.pets_in_home && <li>Pets in the home.</li>}
+          {tenants.map((t, i) => (
+            <li key={i}>
+              Tenant: {contactName(t.contact)}
+              {t.contact.mobile || t.contact.phone ? ` · ${t.contact.mobile ?? t.contact.phone}` : ""}
+            </li>
+          ))}
+        </ul>
+        {signed.length > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {signed.map((s) =>
+              s.signedUrl ? (
+                <a key={s.path} href={s.signedUrl} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.signedUrl} alt="Photo of the problem" className="aspect-square w-full rounded-[10px] object-cover" />
+                </a>
+              ) : null,
+            )}
+          </div>
+        )}
+      </Card>
+
+      {!done && !wo.vendor_accepted_at && (
+        <Card className="mt-4 p-5">
+          <AcceptDecline token={token} />
+        </Card>
+      )}
+      {!done && wo.vendor_accepted_at && (
+        <Card className="mt-4">
+          <CardHeader title={wo.scheduled_start ? "Change the visit time" : "Pick a time"} />
+          <div className="px-5 py-4">
+            <ScheduleForm token={token} earliest={earliest} emergency={emergency} />
+          </div>
+        </Card>
+      )}
+      {!done && wo.vendor_accepted_at && (
+        <Card className="mt-4">
+          <CardHeader title="Finished?" description="Tell us what you did, add photos, and upload your invoice." />
+          <div className="px-5 py-4">
+            <FinishForm token={token} />
+          </div>
+        </Card>
+      )}
+      {done && (
+        <Card className="mt-4 p-5">
+          <p className="font-semibold">Marked done. Thank you!</p>
+          {wo.resolution && <p className="mt-1 text-muted">{wo.resolution}</p>}
+        </Card>
+      )}
+      <p className="mt-8 text-[14px] text-subtle">
+        Questions? Call {wo.company.name}
+        {wo.company.office_phone ? ` at ${wo.company.office_phone}` : ""}.
+      </p>
+    </Shell>
+  );
+}
+
+function Shell({ company, children }: { company?: string; children: React.ReactNode }) {
+  return (
+    <main className="min-h-screen bg-bg">
+      <div className="mx-auto max-w-[640px] px-4 py-8">
+        <div className="mb-6">
+          <Logo companyName={company} />
+        </div>
+        {children}
+      </div>
+    </main>
+  );
+}

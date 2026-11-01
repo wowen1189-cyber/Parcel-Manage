@@ -197,6 +197,161 @@ export type Database = {
           },
         ]
       }
+      bill: {
+        Row: {
+          amount_cents: number
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string
+          created_at: string
+          document_id: string | null
+          due_date: string | null
+          entity_id: string | null
+          expense_account: string
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          journal_entry_id: string | null
+          memo: string | null
+          paid_entry_id: string | null
+          paid_on: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          property_id: string | null
+          source: string
+          status: string
+          unit_id: string | null
+          updated_at: string
+          vendor_id: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id: string
+          created_at?: string
+          document_id?: string | null
+          due_date?: string | null
+          entity_id?: string | null
+          expense_account?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          journal_entry_id?: string | null
+          memo?: string | null
+          paid_entry_id?: string | null
+          paid_on?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          property_id?: string | null
+          source?: string
+          status?: string
+          unit_id?: string | null
+          updated_at?: string
+          vendor_id?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string
+          created_at?: string
+          document_id?: string | null
+          due_date?: string | null
+          entity_id?: string | null
+          expense_account?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          journal_entry_id?: string | null
+          memo?: string | null
+          paid_entry_id?: string | null
+          paid_on?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          property_id?: string | null
+          source?: string
+          status?: string
+          unit_id?: string | null
+          updated_at?: string
+          vendor_id?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bill_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "document"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_paid_entry_id_fkey"
+            columns: ["paid_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "unit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_order"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       charge: {
         Row: {
           amount_cents: number
@@ -408,6 +563,7 @@ export type Database = {
       }
       document: {
         Row: {
+          bill_id: string | null
           category: string
           company_id: string
           contact_id: string | null
@@ -424,6 +580,7 @@ export type Database = {
           work_order_id: string | null
         }
         Insert: {
+          bill_id?: string | null
           category?: string
           company_id: string
           contact_id?: string | null
@@ -440,6 +597,7 @@ export type Database = {
           work_order_id?: string | null
         }
         Update: {
+          bill_id?: string | null
           category?: string
           company_id?: string
           contact_id?: string | null
@@ -456,6 +614,13 @@ export type Database = {
           work_order_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "document_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bill"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "document_company_id_fkey"
             columns: ["company_id"]
@@ -2055,8 +2220,13 @@ export type Database = {
           triage_symptom: string | null
           unit_id: string | null
           updated_at: string
+          vendor_accepted_at: string | null
+          vendor_completed_at: string | null
+          vendor_decline_reason: string | null
+          vendor_declined_at: string | null
           vendor_id: string | null
           vendor_notified_at: string | null
+          vendor_token_hash: string | null
         }
         Insert: {
           ai_summary?: string | null
@@ -2092,8 +2262,13 @@ export type Database = {
           triage_symptom?: string | null
           unit_id?: string | null
           updated_at?: string
+          vendor_accepted_at?: string | null
+          vendor_completed_at?: string | null
+          vendor_decline_reason?: string | null
+          vendor_declined_at?: string | null
           vendor_id?: string | null
           vendor_notified_at?: string | null
+          vendor_token_hash?: string | null
         }
         Update: {
           ai_summary?: string | null
@@ -2129,8 +2304,13 @@ export type Database = {
           triage_symptom?: string | null
           unit_id?: string | null
           updated_at?: string
+          vendor_accepted_at?: string | null
+          vendor_completed_at?: string | null
+          vendor_decline_reason?: string | null
+          vendor_declined_at?: string | null
           vendor_id?: string | null
           vendor_notified_at?: string | null
+          vendor_token_hash?: string | null
         }
         Relationships: [
           {

@@ -33,6 +33,9 @@ const EVENT_LABEL: Record<string, string> = {
   created: "Request received",
   assigned: "Vendor assigned",
   notified: "Vendor emailed",
+  accepted: "Vendor accepted",
+  declined: "Vendor declined",
+  tenant_message: "Tenant added a note",
   scheduled: "Visit scheduled",
   tenant_notified: "Tenants emailed",
   completed: "Completed",
@@ -146,7 +149,7 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
                     {formatWhen(w.scheduled_start, tz)} to {w.scheduled_end ? new Date(w.scheduled_end).toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }) : "?"}
                   </Row>
                   <Row label="Entry">
-                    {ENTRY_BASIS_LABEL[w.entry_basis ?? ""] ?? "—"}
+                    {w.entry_basis === "notice" && !w.entry_notice_method ? <span className="font-semibold text-warn">Notice not recorded yet: post or hand-deliver the 24-hour notice, then save the visit with how it was given</span> : (ENTRY_BASIS_LABEL[w.entry_basis ?? ""] ?? "—")}
                     {w.entry_notice_method && (
                       <span className="text-subtle">
                         {" "}
@@ -237,7 +240,7 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
                     e.kind === "assigned" ? String(d.vendor ?? "") :
                     e.kind === "notified" ? `${d.sent ? "Sent to" : "Failed to send to"} ${String(d.to ?? "")}` :
                     e.kind === "tenant_notified" ? `${d.sent ? "Sent to" : "Failed to send to"} ${(d.to as string[] | undefined)?.join(", ") ?? ""}` :
-                    e.kind === "scheduled" ? `${formatWhen(String(d.start), tz)} · ${ENTRY_BASIS_LABEL[String(d.entry_basis)] ?? ""}` :
+                    e.kind === "scheduled" ? `${formatWhen(String(d.start), tz)}${d.by === "vendor" ? " · by the vendor" : ""} · ${d.entry_basis === "notice" && d.by === "vendor" && !w.entry_notice_method ? "24-hour notice still to post or hand-deliver" : (ENTRY_BASIS_LABEL[String(d.entry_basis)] ?? "")}` :
                     e.kind === "completed" ? String(d.resolution ?? "") :
                     e.kind === "priority" ? `${String(d.priority)}: ${String(d.reason ?? "")}` :
                     e.kind === "canceled" ? String(d.reason ?? "") :
