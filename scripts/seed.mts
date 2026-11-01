@@ -67,7 +67,7 @@ async function main() {
   const cid = company.id;
 
   // Team: Wesley signs in with his own email (sign-in link or a password he sets).
-  const wesleyId = await findOrCreateUser("wowen1189@gmail.com", "Wesley Owen");
+  const wesleyId = await findOrCreateUser("wowen@simrei.com", "Wesley Owen");
   await must("profile", db.from("profile").update({ full_name: "Wesley Owen" }).eq("id", wesleyId).select("id"));
   await must(
     "membership",
@@ -92,7 +92,7 @@ async function main() {
     db
       .from("contact")
       .insert([
-        { company_id: cid, kind: "person", first_name: "Wesley", last_name: "Owen", mobile: "(352) 434-9441", email: "wowen1189@gmail.com" },
+        { company_id: cid, kind: "person", first_name: "Wesley", last_name: "Owen", mobile: "(352) 434-9441", email: "wowen@simrei.com" },
         { company_id: cid, kind: "person", first_name: "Daniel", last_name: "DiVenanzo" },
         { company_id: cid, kind: "person", first_name: "Rick", last_name: "Nelson" },
       ])
@@ -212,7 +212,7 @@ async function main() {
   }
 
   console.log(`Seeded SIM REI: ${properties.length} properties, ${tenantIndex} tenants on ${occupiedCount} leased units.`);
-  console.log(`Wesley Owen (wowen1189@gmail.com) is the admin. Sign in at simreipm.<root domain> with "Email me a link".`);
+  console.log(`Wesley Owen (wowen@simrei.com) is the admin. Sign in at simreipm.<root domain> with "Email me a link".`);
 }
 
 main().catch((err) => {
