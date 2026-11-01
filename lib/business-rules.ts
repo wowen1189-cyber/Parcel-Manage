@@ -18,6 +18,7 @@ export const FLORIDA_LAW = {
 } as const;
 
 const cents = z.coerce.number().int().min(0);
+export const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] as const;
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 10:00");
 
 export const businessRulesSchema = z
@@ -49,6 +50,21 @@ export const businessRulesSchema = z
       maxTermMonths: z.coerce.number().int().min(1).max(60),
       shortTermUnderMonths: z.coerce.number().int().min(1).max(36),
       shortTermSurchargeCents: cents,
+      // Leases longer than 12 months: yearly rent step written into the lease (a fixed-term lease can't be changed mid-term).
+      longTermYearlyIncreasePercent: z.coerce.number().min(0).max(25),
+    }),
+    // Lease expiration management: keep move-outs spread across the year.
+    expirations: z.object({
+      maxSharePercent: z.coerce.number().min(1).max(100),
+      avoidMonths: z
+        .array(
+          z.preprocess(
+            (v) => (typeof v === "string" ? (MONTH_NAMES.find((m) => m.toLowerCase().startsWith(v.trim().toLowerCase().slice(0, 3))) ?? v) : v),
+            z.enum(MONTH_NAMES, { error: "Use month names, like November." }),
+          ),
+        )
+        .max(11, "Leave at least one month open."),
+      renewalOfferDays: z.coerce.number().int().min(30).max(180),
     }),
     pets: z.object({
       maxPets: z.coerce.number().int().min(0).max(10),
@@ -135,7 +151,9 @@ export const DEFAULT_BUSINESS_RULES: BusinessRules = {
     reviewUtilityOrCarPaymentProblems: true,
   },
   fees: { applicationFeePerAdultCents: 7500, adminFeeCents: 8500, refundAdminFeeIfDenied: true },
-  lease: { minTermMonths: 7, maxTermMonths: 14, shortTermUnderMonths: 12, shortTermSurchargeCents: 5000 },
+  lease: { minTermMonths: 7, maxTermMonths: 24, shortTermUnderMonths: 12, shortTermSurchargeCents: 5000, longTermYearlyIncreasePercent: 3 },
+  // Central Florida demand peaks in late spring and summer; holiday months are slow to re-lease.
+  expirations: { maxSharePercent: 12, avoidMonths: ["November", "December", "January"], renewalOfferDays: 90 },
   pets: {
     maxPets: 2,
     petFeeCents: 35000,

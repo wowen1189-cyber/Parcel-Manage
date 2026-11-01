@@ -1,4 +1,5 @@
-import { Card, EmptyState, PageHeader, Pill } from "@/components/ui";
+import Link from "next/link";
+import { buttonClass, Card, EmptyState, PageHeader, Pill } from "@/components/ui";
 import { exportLink, ListFilters, param } from "@/components/list-filters";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money, todayIn } from "@/lib/format";
@@ -20,7 +21,16 @@ export default async function TenantsPage({ searchParams }: PageProps<"/tenants"
 
   return (
     <>
-      <PageHeader title="Tenants & leases" subtitle="Everyone renting from you, their lease and what they owe." />
+      <PageHeader title="Tenants & leases" subtitle="Everyone renting from you, their lease and what they owe." action={
+          <div className="flex gap-2">
+            <Link href="/tenants/lease-template" className={buttonClass("secondary", true)}>
+              Lease template
+            </Link>
+            <Link href="/tenants/expirations" className={buttonClass("secondary", true)}>
+              Lease expirations
+            </Link>
+          </div>
+        } />
       <Card className="overflow-hidden">
         <ListFilters
           action="/tenants"

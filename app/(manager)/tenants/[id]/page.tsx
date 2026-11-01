@@ -221,7 +221,7 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
             canEdit={canEdit}
           />
           <Card>
-            <CardHeader title="Documents" />
+            <CardHeader title="Documents" action={<Link href={`/tenants/${l.id}/lease`} className="text-[13px] font-semibold text-accent hover:underline">Lease document</Link>} />
             <EmptyState title="No documents yet">Upload the signed lease and addenda here once document storage is on.</EmptyState>
           </Card>
         </div>

@@ -43,6 +43,16 @@ export const RULE_SECTIONS: RuleSection[] = [
       { path: "lease.maxTermMonths", label: "Longest lease (months)", type: "number" },
       { path: "lease.shortTermUnderMonths", label: "Short-term surcharge applies under (months)", type: "number" },
       { path: "lease.shortTermSurchargeCents", label: "Short-term surcharge per month", type: "money" },
+      { path: "lease.longTermYearlyIncreasePercent", label: "Leases over 12 months: rent increase each year", type: "percent", hint: "Written into the lease. Florida law sets no maximum lease length; leases over a year need the flood disclosure." },
+    ],
+  },
+  {
+    title: "Lease expirations",
+    description: "Parcel Manage suggests lease lengths that keep move-outs spread out, so you never have too many units turning over in one month.",
+    fields: [
+      { path: "expirations.maxSharePercent", label: "Most leases ending in one month (% of units)", type: "percent", hint: "Applied to the whole portfolio and to each property (at least 1 unit)." },
+      { path: "expirations.avoidMonths", label: "Months to avoid for lease endings (one per line)", type: "list", hint: "e.g. November, December, January: slow months to re-lease." },
+      { path: "expirations.renewalOfferDays", label: "Start renewal offers (days before the lease ends)", type: "number" },
     ],
   },
   {
