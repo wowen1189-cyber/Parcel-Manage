@@ -607,7 +607,7 @@ create policy membership_admin on public.membership for all using (public.has_ro
 do $$
 declare t text;
 begin
-  foreach t in array array['contact','entity','property','property_owner','unit','lease','lease_tenant','emergency_contact','vehicle','renters_insurance','gl_account','journal_entry','journal_line','charge','payment','vendor','work_order','work_order_event','document','message','ai_usage','approval_item','scheduled_report','metric_target','metric_snapshot','audit_log'] loop
+  foreach t in array array['contact','entity','property','property_owner','unit','lease','lease_tenant','emergency_contact','vehicle','renters_insurance','gl_account','journal_entry','journal_line','charge','payment','vendor','work_order','work_order_event','document','message','ai_usage','approval_item','scheduled_report','metric_target','metric_snapshot'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('create policy %I_member_all on public.%I for all using (public.is_member(company_id)) with check (public.is_member(company_id))', t, t);
   end loop;
@@ -630,8 +630,8 @@ create policy ai_connection_admin on public.ai_connection for all
   using (public.has_role(company_id, array['admin']::public.member_role[]))
   with check (public.has_role(company_id, array['admin']::public.member_role[]));
 
--- Audit log is append-only for users.
-drop policy if exists audit_log_member_all on public.audit_log;
+-- Audit log: members read it; only the audit trigger writes it (users can't insert, edit or delete).
+alter table public.audit_log enable row level security;
 create policy audit_log_read on public.audit_log for select using (public.is_member(company_id));
 
 -- Helpful indexes
