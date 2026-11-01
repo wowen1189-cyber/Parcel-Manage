@@ -1,6 +1,7 @@
 // Seeds SIM REI (company #1) with its team, entities, properties, units, owners and sample tenants.
 // Run: npm run seed            (stops if SIM REI already exists)
-//      npm run seed -- --reset (deletes SIM REI and everything under it, then seeds again)
+//      npm run seed -- --reset --delete-real-data (deletes SIM REI and everything under it, then seeds again)
+// SIM REI now holds its real portfolio (imported with npm run import:appfolio), so --reset alone is refused.
 // Addresses and LLC names marked "sample" are placeholders for Wesley to correct in the app.
 
 import { createClient } from "@supabase/supabase-js";
@@ -13,6 +14,9 @@ if (!url || !serviceKey) throw new Error("Missing Supabase settings. Run with --
 
 const db = createClient<Database>(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const reset = process.argv.includes("--reset");
+if (reset && !process.argv.includes("--delete-real-data")) {
+  throw new Error("SIM REI holds real data now. --reset would delete it. Add --delete-real-data if you truly mean that.");
+}
 
 async function must<T>(label: string, p: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<NonNullable<T>> {
   const { data, error } = await p;
@@ -40,7 +44,7 @@ async function main() {
   const existing = await db.from("company").select("id").eq("subdomain", "simreipm").maybeSingle();
   if (existing.data) {
     if (!reset) {
-      console.log("SIM REI is already seeded. Run `npm run seed -- --reset` to start over.");
+      console.log("SIM REI is already seeded. Its real data was imported from AppFolio; see scripts/import-appfolio.mts.");
       return;
     }
     await must("delete SIM REI", db.from("company").delete().eq("id", existing.data.id).select("id"));

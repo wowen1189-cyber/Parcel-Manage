@@ -302,7 +302,10 @@ export type Database = {
       }
       contact: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
           business_name: string | null
+          city: string | null
           company_id: string
           created_at: string
           email: string | null
@@ -314,14 +317,20 @@ export type Database = {
           notes: string | null
           phone: string | null
           portal_profile_id: string | null
+          postal_code: string | null
           preferred_contact: string | null
           sms_opt_in: boolean
           sms_opt_in_at: string | null
           sms_opt_out_at: string | null
+          state: string | null
+          tags: string[]
           updated_at: string
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
           business_name?: string | null
+          city?: string | null
           company_id: string
           created_at?: string
           email?: string | null
@@ -333,14 +342,20 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           portal_profile_id?: string | null
+          postal_code?: string | null
           preferred_contact?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
           sms_opt_out_at?: string | null
+          state?: string | null
+          tags?: string[]
           updated_at?: string
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
           business_name?: string | null
+          city?: string | null
           company_id?: string
           created_at?: string
           email?: string | null
@@ -352,10 +367,13 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           portal_profile_id?: string | null
+          postal_code?: string | null
           preferred_contact?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
           sms_opt_out_at?: string | null
+          state?: string | null
+          tags?: string[]
           updated_at?: string
         }
         Relationships: [
@@ -803,8 +821,19 @@ export type Database = {
           company_id: string
           created_at: string
           deposit_cents: number
+          deposit_pending_cents: number
           end_date: string | null
           id: string
+          late_fee_flat_cents: number | null
+          late_fee_grace_days: number | null
+          late_fee_pct: number | null
+          move_in_on: string | null
+          move_out_on: string | null
+          next_rent_cents: number | null
+          next_rent_increase_on: string | null
+          notes: string | null
+          opening_balance_as_of: string | null
+          opening_balance_cents: number | null
           rent_cents: number
           short_term_surcharge_cents: number
           start_date: string
@@ -818,8 +847,19 @@ export type Database = {
           company_id: string
           created_at?: string
           deposit_cents?: number
+          deposit_pending_cents?: number
           end_date?: string | null
           id?: string
+          late_fee_flat_cents?: number | null
+          late_fee_grace_days?: number | null
+          late_fee_pct?: number | null
+          move_in_on?: string | null
+          move_out_on?: string | null
+          next_rent_cents?: number | null
+          next_rent_increase_on?: string | null
+          notes?: string | null
+          opening_balance_as_of?: string | null
+          opening_balance_cents?: number | null
           rent_cents: number
           short_term_surcharge_cents?: number
           start_date: string
@@ -833,8 +873,19 @@ export type Database = {
           company_id?: string
           created_at?: string
           deposit_cents?: number
+          deposit_pending_cents?: number
           end_date?: string | null
           id?: string
+          late_fee_flat_cents?: number | null
+          late_fee_grace_days?: number | null
+          late_fee_pct?: number | null
+          move_in_on?: string | null
+          move_out_on?: string | null
+          next_rent_cents?: number | null
+          next_rent_increase_on?: string | null
+          notes?: string | null
+          opening_balance_as_of?: string | null
+          opening_balance_cents?: number | null
           rent_cents?: number
           short_term_surcharge_cents?: number
           start_date?: string
@@ -866,18 +917,21 @@ export type Database = {
           contact_id: string
           is_primary: boolean
           lease_id: string
+          role: string
         }
         Insert: {
           company_id: string
           contact_id: string
           is_primary?: boolean
           lease_id: string
+          role?: string
         }
         Update: {
           company_id?: string
           contact_id?: string
           is_primary?: boolean
           lease_id?: string
+          role?: string
         }
         Relationships: [
           {
@@ -1203,6 +1257,8 @@ export type Database = {
       property: {
         Row: {
           address_line1: string | null
+          address_line2: string | null
+          amenities: string[]
           city: string | null
           company_id: string
           county: string | null
@@ -1211,13 +1267,17 @@ export type Database = {
           id: string
           kind: string
           name: string
+          notes: string | null
           postal_code: string | null
+          property_type: string | null
           state: string | null
           updated_at: string
           year_built: number | null
         }
         Insert: {
           address_line1?: string | null
+          address_line2?: string | null
+          amenities?: string[]
           city?: string | null
           company_id: string
           county?: string | null
@@ -1226,13 +1286,17 @@ export type Database = {
           id?: string
           kind: string
           name: string
+          notes?: string | null
           postal_code?: string | null
+          property_type?: string | null
           state?: string | null
           updated_at?: string
           year_built?: number | null
         }
         Update: {
           address_line1?: string | null
+          address_line2?: string | null
+          amenities?: string[]
           city?: string | null
           company_id?: string
           county?: string | null
@@ -1241,7 +1305,9 @@ export type Database = {
           id?: string
           kind?: string
           name?: string
+          notes?: string | null
           postal_code?: string | null
+          property_type?: string | null
           state?: string | null
           updated_at?: string
           year_built?: number | null
@@ -1305,6 +1371,60 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_charge: {
+        Row: {
+          amount_cents: number
+          charge_type: string
+          company_id: string
+          created_at: string
+          description: string
+          ends_on: string | null
+          id: string
+          lease_id: string
+          starts_on: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          charge_type?: string
+          company_id: string
+          created_at?: string
+          description: string
+          ends_on?: string | null
+          id?: string
+          lease_id: string
+          starts_on?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          charge_type?: string
+          company_id?: string
+          created_at?: string
+          description?: string
+          ends_on?: string | null
+          id?: string
+          lease_id?: string
+          starts_on?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_charge_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_charge_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
             referencedColumns: ["id"]
           },
         ]
@@ -1440,6 +1560,8 @@ export type Database = {
       }
       unit: {
         Row: {
+          access_notes: string | null
+          amenities: string[]
           baths: number | null
           beds: number | null
           company_id: string
@@ -1448,11 +1570,15 @@ export type Database = {
           kind: string
           label: string
           market_rent_cents: number | null
+          notes: string | null
           property_id: string
           sqft: number | null
           status: string
+          updated_at: string
         }
         Insert: {
+          access_notes?: string | null
+          amenities?: string[]
           baths?: number | null
           beds?: number | null
           company_id: string
@@ -1461,11 +1587,15 @@ export type Database = {
           kind: string
           label: string
           market_rent_cents?: number | null
+          notes?: string | null
           property_id: string
           sqft?: number | null
           status?: string
+          updated_at?: string
         }
         Update: {
+          access_notes?: string | null
+          amenities?: string[]
           baths?: number | null
           beds?: number | null
           company_id?: string
@@ -1474,9 +1604,11 @@ export type Database = {
           kind?: string
           label?: string
           market_rent_cents?: number | null
+          notes?: string | null
           property_id?: string
           sqft?: number | null
           status?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1561,37 +1693,73 @@ export type Database = {
       }
       vendor: {
         Row: {
+          auto_insurance_expires_on: string | null
           coi_expires_on: string | null
           company_id: string
           contact_id: string
+          contract_expires_on: string | null
           created_at: string
+          dispatch_override: boolean
+          epa_cert_expires_on: string | null
           id: string
           is_1099: boolean
+          is_active: boolean
           is_in_house: boolean
+          last_paid_on: string | null
+          license_expires_on: string | null
+          notes: string | null
+          payment_method: string | null
           trade: string | null
+          updated_at: string
           w9_on_file: boolean
+          w9_received_on: string | null
+          workers_comp_expires_on: string | null
         }
         Insert: {
+          auto_insurance_expires_on?: string | null
           coi_expires_on?: string | null
           company_id: string
           contact_id: string
+          contract_expires_on?: string | null
           created_at?: string
+          dispatch_override?: boolean
+          epa_cert_expires_on?: string | null
           id?: string
           is_1099?: boolean
+          is_active?: boolean
           is_in_house?: boolean
+          last_paid_on?: string | null
+          license_expires_on?: string | null
+          notes?: string | null
+          payment_method?: string | null
           trade?: string | null
+          updated_at?: string
           w9_on_file?: boolean
+          w9_received_on?: string | null
+          workers_comp_expires_on?: string | null
         }
         Update: {
+          auto_insurance_expires_on?: string | null
           coi_expires_on?: string | null
           company_id?: string
           contact_id?: string
+          contract_expires_on?: string | null
           created_at?: string
+          dispatch_override?: boolean
+          epa_cert_expires_on?: string | null
           id?: string
           is_1099?: boolean
+          is_active?: boolean
           is_in_house?: boolean
+          last_paid_on?: string | null
+          license_expires_on?: string | null
+          notes?: string | null
+          payment_method?: string | null
           trade?: string | null
+          updated_at?: string
           w9_on_file?: boolean
+          w9_received_on?: string | null
+          workers_comp_expires_on?: string | null
         }
         Relationships: [
           {
@@ -1966,4 +2134,3 @@ export const Constants = {
     },
   },
 } as const
-

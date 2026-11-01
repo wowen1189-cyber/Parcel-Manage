@@ -11,7 +11,8 @@
     "test": "vitest run tests/unit",
     "test:db": "vitest run tests/db",
     "seed": "node --env-file=.env.local scripts/seed.mts",
-    "db:types": "sh scripts/db-types.sh"
+    "db:types": "sh scripts/db-types.sh",
+    "import:appfolio": "node --env-file=.env.local scripts/import-appfolio.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
