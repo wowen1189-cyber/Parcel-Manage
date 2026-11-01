@@ -5,3 +5,12 @@ node_modules/
 .vercel/
 supabase/.temp/
 .DS_Store
+/coverage
+/out/
+/build
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+/playwright-report/
+/test-results/

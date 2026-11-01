@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Parcel design tokens (docs/06-design-system.md). Use them as Tailwind colors: bg-surface, text-muted, border-line... */
+@theme {
+  --color-bg: #f9f6f2;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f2ed;
+  --color-surface-sunk: #efece6;
+  --color-line: #e9e6e0;
+  --color-line-strong: #d5d2cb;
+  --color-ink: #14201c;
+  --color-ink-2: #38352f;
+  --color-muted: #4f4b44;
+  --color-subtle: #67635b;
+  --color-accent: #007852;
+  --color-accent-hover: #006042;
+  --color-accent-deep: #043728;
+  --color-accent-soft: #ceefe1;
+  --color-accent-softer: #e7f8f1;
+  --color-info-bg: #d9f3ff;
+  --color-info: #005998;
+  --color-warn-bg: #fff1c8;
+  --color-warn: #875814;
+  --color-danger-bg: #ffe6e1;
+  --color-danger: #b63325;
+  --color-dark: #14201c;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-script: var(--font-caveat), cursive;
+
+  --radius-card: 14px;
+  --radius-control: 11px;
+  --radius-dialog: 18px;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
