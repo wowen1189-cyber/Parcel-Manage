@@ -1,26 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
-import type { EmailOtpType } from "@supabase/supabase-js";
-import { safeNext } from "@/lib/request";
+import { getOrigin, safeNext } from "@/lib/request";
 import { createClient } from "@/lib/supabase/server";
 
 // Where emailed links land (sign-in link, email confirmation, password reset).
-// Trades the one-time code in the link for a signed-in session, then continues to `next`.
+// Emails carry a token_hash, which works in any browser or device. We don't use it here:
+// some email systems open every link to scan it, which would use up the one-time token.
+// Instead we send the person to /continue, where they tap a button to finish.
+// `code` links (from OAuth or older emails) only work in the browser that started the sign-in.
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const next = safeNext(url.searchParams.get("next"));
-  const supabase = await createClient();
+  const origin = await getOrigin(); // keeps the company subdomain (nextUrl.origin can drop it locally)
 
-  const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type") as EmailOtpType | null;
-
-  let ok = false;
-  if (code) {
-    ok = !(await supabase.auth.exchangeCodeForSession(code)).error;
-  } else if (tokenHash && type) {
-    ok = !(await supabase.auth.verifyOtp({ token_hash: tokenHash, type })).error;
+  const type = url.searchParams.get("type");
+  if (tokenHash && type) {
+    const target = new URL("/continue", origin);
+    target.search = new URLSearchParams({ token_hash: tokenHash, type, next }).toString();
+    return NextResponse.redirect(target);
   }
 
-  const target = new URL(ok ? next : "/sign-in?link=expired", url.origin);
-  return NextResponse.redirect(target);
+  const code = url.searchParams.get("code");
+  const ok = code ? !(await (await createClient()).auth.exchangeCodeForSession(code)).error : false;
+  return NextResponse.redirect(new URL(ok ? next : "/sign-in?link=expired", origin));
 }

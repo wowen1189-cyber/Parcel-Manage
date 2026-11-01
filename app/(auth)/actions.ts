@@ -34,8 +34,24 @@ export async function sendSignInLink(_: FormState, form: FormData): Promise<Form
     options: { shouldCreateUser: false, emailRedirectTo: `${await getOrigin()}/auth/callback?next=${encodeURIComponent(next)}` },
   });
   // Same answer whether or not the account exists, so the form can't be used to check who has one.
+  // 429: a link went to this address less than a minute ago.
+  if (error?.status === 429) return { error: "A link was just sent to that address. Use the newest email, or wait a minute and ask again." };
   if (error && error.status !== 400 && error.status !== 422) return { error: "We couldn't send the link just now. Try again in a minute." };
   return { message: `If ${parsed.data} has an account, a sign-in link is on its way. It works for one hour.` };
+}
+
+const EMAIL_LINK_TYPES = ["email", "magiclink", "signup", "recovery", "email_change", "invite"] as const;
+
+// The "One more tap" button on /continue: trades the emailed token for a signed-in session.
+export async function confirmEmailLink(form: FormData): Promise<void> {
+  const tokenHash = String(form.get("token_hash") ?? "");
+  const type = z.enum(EMAIL_LINK_TYPES).safeParse(form.get("type"));
+  const next = safeNext(form.get("next"));
+  if (!tokenHash || !type.success) redirect("/sign-in?link=expired");
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type.data });
+  redirect(error ? "/sign-in?link=expired" : next);
 }
 
 export async function signUp(_: FormState, form: FormData): Promise<FormState> {
