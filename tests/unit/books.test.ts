@@ -20,3 +20,15 @@ describe("books", () => {
     expect(checkEntry([{ account: "", debit: 1000, credit: 0 }, { account: "1000", debit: 0, credit: 1000 }])).toMatch(/Choose an account/);
   });
 });
+
+import { cardFeeCents, parseStripeSignature } from "@/lib/integrations/stripe/fees";
+describe("online payments", () => {
+  it("adds the card fee only to card payments, rounded to the cent", () => {
+    expect(cardFeeCents(150000, 3)).toBe(4500);
+    expect(cardFeeCents(123456, 3)).toBe(3704);
+  });
+  it("reads Stripe's signature header", () => {
+    expect(parseStripeSignature("t=1700000000,v1=abc,v1=def,v0=zzz")).toEqual({ t: 1700000000, v1: ["abc", "def"] });
+    expect(parseStripeSignature(null)).toBeNull();
+  });
+});

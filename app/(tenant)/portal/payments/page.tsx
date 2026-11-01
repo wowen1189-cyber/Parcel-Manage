@@ -1,12 +1,14 @@
-import { Card, CardHeader, EmptyState, Notice } from "@/components/ui";
+import Link from "next/link";
+import { buttonClass, Card, CardHeader, EmptyState, Notice } from "@/components/ui";
 import { date, money } from "@/lib/format";
 import { buildLedger } from "@/lib/ledger";
 import { requireTenant } from "@/lib/portal";
 
 export const metadata = { title: "Payments" };
 
-export default async function PaymentsPage() {
-  const { supabase, company, lease } = await requireTenant();
+export default async function PaymentsPage({ searchParams }: PageProps<"/portal/payments">) {
+  const sp = await searchParams;
+  const { supabase, lease } = await requireTenant();
   const [{ data: charges }, { data: payments }, { data: full }] = await Promise.all([
     supabase.from("charge").select("id, charge_type, description, amount_cents, due_date, created_at").eq("lease_id", lease.id),
     supabase.from("payment").select("id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at").eq("lease_id", lease.id),
@@ -18,14 +20,14 @@ export default async function PaymentsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-[26px] font-extrabold">Payments</h1>
+      {sp.paid && <Notice tone="success">Thanks! Your payment is processing. It shows here once it clears (bank transfers take 3–5 business days).</Notice>}
       <Card className="p-5">
         <p className="text-[13px] font-semibold text-subtle">{ledger.balanceCents < 0 ? "Credit on your account" : "You owe"}</p>
         <p className={`mt-1 text-[34px] font-extrabold ${ledger.balanceCents > 0 ? "text-danger" : ""}`}>{money(Math.abs(ledger.balanceCents))}</p>
         <div className="mt-3">
-          <Notice>
-            Online payments are coming soon (bank transfer free, card with a fee shown before you pay). For now, pay {full?.certified_funds_only ? "by money order or cashier's check" : "by check or money order"} to {company.name}
-            {company.office_phone ? `, or call ${company.office_phone} with questions` : ""}.
-          </Notice>
+          <Link href="/portal/pay" className={buttonClass("primary")}>
+            Pay now
+          </Link>
         </div>
       </Card>
       <Card className="overflow-hidden">

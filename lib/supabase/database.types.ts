@@ -434,6 +434,8 @@ export type Database = {
           office_email: string | null
           office_phone: string | null
           settings: Json
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
           subdomain: string | null
           time_zone: string
           updated_at: string
@@ -448,6 +450,8 @@ export type Database = {
           office_email?: string | null
           office_phone?: string | null
           settings?: Json
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
           subdomain?: string | null
           time_zone?: string
           updated_at?: string
@@ -462,6 +466,8 @@ export type Database = {
           office_email?: string | null
           office_phone?: string | null
           settings?: Json
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
           subdomain?: string | null
           time_zone?: string
           updated_at?: string
@@ -2354,6 +2360,35 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "signature_request"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_event: {
+        Row: {
+          company_id: string | null
+          id: string
+          received_at: string
+          type: string
+        }
+        Insert: {
+          company_id?: string | null
+          id: string
+          received_at?: string
+          type: string
+        }
+        Update: {
+          company_id?: string | null
+          id?: string
+          received_at?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_event_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
         ]

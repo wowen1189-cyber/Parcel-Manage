@@ -30,7 +30,7 @@ export default async function PortalHome() {
         <p className={`mt-1 text-[34px] font-extrabold ${balanceCents > 0 ? "text-danger" : ""}`}>{money(Math.abs(balanceCents))}</p>
         <p className="text-[14px] text-muted">Rent {money(lease.rent_cents)} a month, due on the 1st.</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link href="/portal/payments" className={buttonClass("primary")}>
+          <Link href="/portal/pay" className={buttonClass("primary")}>
             Pay rent
           </Link>
           <Link href="/portal/payments" className={buttonClass("secondary")}>
