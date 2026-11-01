@@ -37,6 +37,27 @@ export default async function NewLeasePage({ searchParams }: PageProps<"/tenants
     .sort((a, b) => a.propertyName.localeCompare(b.propertyName) || a.label.localeCompare(b.label, undefined, { numeric: true }));
   const leaseEnds: LeaseEnd[] = (leases ?? []).map((l) => ({ leaseId: l.id, propertyId: l.unit.property_id, endDate: l.end_date, status: l.status, moveOutOn: l.move_out_on }));
   const requested = param(sp, "unit");
+  // Coming from an approved application: fill in what the applicants already gave us.
+  const applicationId = param(sp, "application");
+  const { data: app } = applicationId
+    ? await supabase.from("application").select("rent_cents, deposit_cents, desired_move_in, application_member(role, first_name, last_name, email, phone)").eq("id", applicationId).eq("company_id", company.id).eq("status", "approved").maybeSingle()
+    : { data: null };
+  const prefill: Record<string, string> = {};
+  if (app) {
+    prefill.rent = (app.rent_cents / 100).toFixed(2);
+    if (app.deposit_cents !== null) prefill.deposit = (app.deposit_cents / 100).toFixed(2);
+    if (app.desired_move_in) prefill.start_date = app.desired_move_in;
+    app.application_member
+      .sort((a, b) => (a.role === "applicant" ? -1 : b.role === "applicant" ? 1 : 0))
+      .slice(0, 6)
+      .forEach((m, i) => {
+        prefill[`p${i}_role`] = m.role === "guarantor" ? "guarantor" : "tenant";
+        prefill[`p${i}_first_name`] = m.first_name;
+        prefill[`p${i}_last_name`] = m.last_name;
+        prefill[`p${i}_email`] = m.email ?? "";
+        prefill[`p${i}_mobile`] = m.phone ?? "";
+      });
+  }
 
   return (
     <>
@@ -55,6 +76,7 @@ export default async function NewLeasePage({ searchParams }: PageProps<"/tenants
           rules={readBusinessRules(company.settings)}
           defaultUnitId={options.some((u) => u.id === requested) ? requested : ""}
           defaultStart={`${addMonths(monthOf(today), 1)}-01`}
+          prefill={prefill}
         />
       </div>
     </>

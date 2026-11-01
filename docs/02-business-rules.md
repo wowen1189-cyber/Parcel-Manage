@@ -24,7 +24,7 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 | Lease term | **7–14 months.** Terms under 12 months add **$50/month** to rent. |
 | Application type | From the unit type (residential vs commercial), never chosen by the applicant. |
 
-**Decision outcomes** (screening results arrive by API):
+**Decision outcomes** (screening results arrive by API; until the screening company is connected, the office enters each adult's results). As built: the lowest credit score in the household sets the deposit tier, household incomes combine, income alone never triggers an adverse action notice (it isn't from a consumer report), and every adult pays their own application fee while the main applicant also pays the admin fee:
 1. Approve — 620+, income ≥ 2.5×, no eviction in 5 yrs, no landlord balance, no utility/car-payment problems → 1-month deposit; lease goes to e-sign.
 2. Approve with higher deposit — under 620, everything else passes → 1.5×–2× (person confirms). **Adverse action notice required (law, FCRA).**
 3. Escalate for review — utility or car-payment problems, or anything on the criminal report → person decides.

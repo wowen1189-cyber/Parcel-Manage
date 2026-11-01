@@ -39,6 +39,12 @@ export async function POST(request: NextRequest) {
       day_of_month: Math.min(28, Math.max(1, Number(s.metadata.day) || 1)),
       max_cents: Number(s.metadata.max_cents) || null,
     });
+  } else if (event.type === "checkout.session.completed" && (event.data.object as Session).metadata?.application_id) {
+    // Application fees paid (card). The main applicant's payment is the one the admin fee is refunded from.
+    const s = event.data.object as Session & { amount_total?: number };
+    if (s.metadata.company_id !== company.id || s.payment_status !== "paid") return NextResponse.json({ received: true });
+    const { data: a } = await db.from("application").select("id, fees_paid_cents, payment_ref").eq("id", s.metadata.application_id).eq("company_id", company.id).maybeSingle();
+    if (a) await db.from("application").update({ fees_paid_cents: a.fees_paid_cents + (s.amount_total ?? 0), payment_ref: s.metadata.role === "applicant" ? s.payment_intent : a.payment_ref }).eq("id", a.id);
   } else if (event.type === "payment_intent.succeeded" && (event.data.object as Intent).metadata?.autopay) {
     const pi = event.data.object as Intent;
     if (pi.metadata.company_id !== company.id) return NextResponse.json({ received: true });

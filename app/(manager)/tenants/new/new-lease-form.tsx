@@ -26,6 +26,7 @@ export function NewLeaseForm({
   rules,
   defaultUnitId,
   defaultStart,
+  prefill = {},
 }: {
   units: UnitOption[];
   leaseEnds: LeaseEnd[];
@@ -34,9 +35,11 @@ export function NewLeaseForm({
   rules: BusinessRules;
   defaultUnitId: string;
   defaultStart: string;
+  /** Values from an approved application: rent, deposit, start and people. */
+  prefill?: Record<string, string>;
 }) {
   const [state, action, pending] = useActionState(createLease, empty);
-  const v = (k: string, d = "") => state.values?.[k] ?? d;
+  const v = (k: string, d = "") => state.values?.[k] ?? prefill[k] ?? d;
   const [unitId, setUnitId] = useState(v("unit_id", defaultUnitId));
   const [start, setStart] = useState(v("start_date", defaultStart));
   const unit = units.find((u) => u.id === unitId);
@@ -55,7 +58,7 @@ export function NewLeaseForm({
   const chosen = options.find((o) => o.months === months);
   const [rent, setRent] = useState(v("rent", unit?.marketRentCents ? (unit.marketRentCents / 100).toFixed(2) : ""));
   const rentCents = Math.round(Number(rent.replace(/[$,]/g, "")) * 100) || 0;
-  const [people, setPeople] = useState(Math.max(1, ...Array.from({ length: 6 }, (_, i) => (state.values?.[`p${i}_first_name`] ? i + 1 : 0))));
+  const [people, setPeople] = useState(Math.max(1, ...Array.from({ length: 6 }, (_, i) => ((state.values ?? prefill)[`p${i}_first_name`] ? i + 1 : 0))));
   const byProperty = units.reduce<Record<string, UnitOption[]>>((acc, u) => ((acc[u.propertyName] ??= []).push(u), acc), {});
 
   return (

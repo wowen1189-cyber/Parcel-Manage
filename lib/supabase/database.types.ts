@@ -96,6 +96,195 @@ export type Database = {
           },
         ]
       }
+      application: {
+        Row: {
+          admin_fee_refunded_cents: number
+          adverse_action_sent_at: string | null
+          adverse_agency: Json | null
+          answers: Json
+          company_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision: string | null
+          decision_note: string | null
+          deposit_cents: number | null
+          desired_move_in: string | null
+          fees_due_cents: number
+          fees_paid_cents: number
+          guest_card_id: string | null
+          id: string
+          kind: string
+          lease_id: string | null
+          payment_ref: string | null
+          recommendation: Json | null
+          rent_cents: number
+          status: string
+          submitted_at: string | null
+          unit_id: string
+        }
+        Insert: {
+          admin_fee_refunded_cents?: number
+          adverse_action_sent_at?: string | null
+          adverse_agency?: Json | null
+          answers?: Json
+          company_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string | null
+          decision_note?: string | null
+          deposit_cents?: number | null
+          desired_move_in?: string | null
+          fees_due_cents?: number
+          fees_paid_cents?: number
+          guest_card_id?: string | null
+          id?: string
+          kind: string
+          lease_id?: string | null
+          payment_ref?: string | null
+          recommendation?: Json | null
+          rent_cents: number
+          status?: string
+          submitted_at?: string | null
+          unit_id: string
+        }
+        Update: {
+          admin_fee_refunded_cents?: number
+          adverse_action_sent_at?: string | null
+          adverse_agency?: Json | null
+          answers?: Json
+          company_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string | null
+          decision_note?: string | null
+          deposit_cents?: number | null
+          desired_move_in?: string | null
+          fees_due_cents?: number
+          fees_paid_cents?: number
+          guest_card_id?: string | null
+          id?: string
+          kind?: string
+          lease_id?: string | null
+          payment_ref?: string | null
+          recommendation?: Json | null
+          rent_cents?: number
+          status?: string
+          submitted_at?: string | null
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_guest_card_id_fkey"
+            columns: ["guest_card_id"]
+            isOneToOne: false
+            referencedRelation: "guest_card"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "unit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      application_member: {
+        Row: {
+          answers: Json
+          application_id: string
+          applied_at: string | null
+          company_id: string
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          invited_at: string
+          last_name: string
+          monthly_income_cents: number
+          opened_at: string | null
+          phone: string | null
+          role: string
+          status: string
+          token_hash: string | null
+        }
+        Insert: {
+          answers?: Json
+          application_id: string
+          applied_at?: string | null
+          company_id: string
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          invited_at?: string
+          last_name?: string
+          monthly_income_cents?: number
+          opened_at?: string | null
+          phone?: string | null
+          role?: string
+          status?: string
+          token_hash?: string | null
+        }
+        Update: {
+          answers?: Json
+          application_id?: string
+          applied_at?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          invited_at?: string
+          last_name?: string
+          monthly_income_cents?: number
+          opened_at?: string | null
+          phone?: string | null
+          role?: string
+          status?: string
+          token_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_member_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "application"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_member_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_item: {
         Row: {
           agent: string
@@ -1036,6 +1225,69 @@ export type Database = {
           },
         ]
       }
+      guest_card: {
+        Row: {
+          company_id: string
+          created_at: string
+          desired_move_in: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          notes: string
+          phone: string | null
+          sms_opt_in: boolean
+          source: string
+          status: string
+          unit_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          desired_move_in?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name?: string
+          notes?: string
+          phone?: string | null
+          sms_opt_in?: boolean
+          source?: string
+          status?: string
+          unit_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          desired_move_in?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string
+          phone?: string | null
+          sms_opt_in?: boolean
+          source?: string
+          status?: string
+          unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_card_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_card_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "unit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitation: {
         Row: {
           accepted_at: string | null
@@ -1417,6 +1669,75 @@ export type Database = {
             columns: ["lease_id"]
             isOneToOne: false
             referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listing: {
+        Row: {
+          amenities: string[]
+          available_on: string | null
+          company_id: string
+          created_at: string
+          deposit_cents: number | null
+          description: string
+          headline: string
+          id: string
+          pets_allowed: boolean
+          photos: string[]
+          published_at: string | null
+          rent_cents: number
+          status: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          amenities?: string[]
+          available_on?: string | null
+          company_id: string
+          created_at?: string
+          deposit_cents?: number | null
+          description?: string
+          headline: string
+          id?: string
+          pets_allowed?: boolean
+          photos?: string[]
+          published_at?: string | null
+          rent_cents: number
+          status?: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          amenities?: string[]
+          available_on?: string | null
+          company_id?: string
+          created_at?: string
+          deposit_cents?: number | null
+          description?: string
+          headline?: string
+          id?: string
+          pets_allowed?: boolean
+          photos?: string[]
+          published_at?: string | null
+          rent_cents?: number
+          status?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: true
+            referencedRelation: "unit"
             referencedColumns: ["id"]
           },
         ]
@@ -2503,6 +2824,131 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      screening_report: {
+        Row: {
+          agency_name: string | null
+          application_member_id: string
+          company_id: string
+          credit_score: number | null
+          criminal_records: boolean
+          entered_by: string | null
+          eviction_years_ago: number | null
+          id: string
+          owes_landlord: boolean
+          provider: string
+          received_at: string
+          report_ref: string | null
+          utility_or_car_problems: boolean
+        }
+        Insert: {
+          agency_name?: string | null
+          application_member_id: string
+          company_id: string
+          credit_score?: number | null
+          criminal_records?: boolean
+          entered_by?: string | null
+          eviction_years_ago?: number | null
+          id?: string
+          owes_landlord?: boolean
+          provider?: string
+          received_at?: string
+          report_ref?: string | null
+          utility_or_car_problems?: boolean
+        }
+        Update: {
+          agency_name?: string | null
+          application_member_id?: string
+          company_id?: string
+          credit_score?: number | null
+          criminal_records?: boolean
+          entered_by?: string | null
+          eviction_years_ago?: number | null
+          id?: string
+          owes_landlord?: boolean
+          provider?: string
+          received_at?: string
+          report_ref?: string | null
+          utility_or_car_problems?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screening_report_application_member_id_fkey"
+            columns: ["application_member_id"]
+            isOneToOne: true
+            referencedRelation: "application_member"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screening_report_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screening_report_entered_by_fkey"
+            columns: ["entered_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      showing: {
+        Row: {
+          company_id: string
+          created_at: string
+          guest_card_id: string
+          id: string
+          notes: string
+          starts_at: string
+          status: string
+          unit_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          guest_card_id: string
+          id?: string
+          notes?: string
+          starts_at: string
+          status?: string
+          unit_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          guest_card_id?: string
+          id?: string
+          notes?: string
+          starts_at?: string
+          status?: string
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showing_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "showing_guest_card_id_fkey"
+            columns: ["guest_card_id"]
+            isOneToOne: false
+            referencedRelation: "guest_card"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "showing_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "unit"
             referencedColumns: ["id"]
           },
         ]
