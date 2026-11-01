@@ -11,7 +11,7 @@ Build in order. Each phase ends with a demo Wesley can click through, tests pass
 - [x] Company settings screen: profile (name, phones incl. tenant-facing office phone, address, time zone) and Business rules form seeded with SIM REI defaults from `02-business-rules.md`
 - [x] Audit log writes; RLS verified with a test that a second company can't see the first company's rows; database tests that a posted journal entry can't be edited, un-posted or deleted, that an invite only works for the invited email, and that work order numbers start at 1 for each company
 - [x] Seed script: SIM REI with its entities, properties (The Grove Tower 20 units, Grove Park mixed-use, 420 S Palmetto, 1026 W Line St, 6 Forest Lane) and sample tenants
-- [ ] GitHub repo + Vercel project with preview deploys
+- [x] GitHub repo + Vercel project with preview deploys (live at simreipm.parcelmanage.com; every upload to GitHub publishes automatically)
 **Done when:** Wesley signs in, sees the shell with SIM REI's properties seeded, edits a business rule, and a second test company sees none of SIM REI's data.
 
 ## Phase 1 — Daily operations (replace AppFolio day to day)
