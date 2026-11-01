@@ -1,23 +1,27 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo } from "@/components/logo";
 import { buttonClass } from "@/components/ui";
-import { NAV_ITEMS, NEW_MENU } from "@/lib/nav";
+import { SidebarNav, type SidebarGroup } from "@/components/sidebar-nav";
+import { NEW_MENU } from "@/lib/nav";
 
 export function AppShell({
   companyName,
   userName,
   userTitle,
   signOutAction,
+  navGroups,
+  saveNav,
   children,
 }: {
   companyName: string;
   userName: string;
   userTitle: string | null;
   signOutAction: () => Promise<void>;
+  navGroups: SidebarGroup[];
+  saveNav: Parameters<typeof SidebarNav>[0]["saveNav"];
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -42,25 +46,9 @@ export function AppShell({
         <div className="border-b border-line px-4 py-4">
           <Logo companyName={companyName} />
         </div>
-        <nav className="flex-1 overflow-y-auto px-2 py-3">
-          <ul className="space-y-0.5">
-            {NAV_ITEMS.map((item) => {
-              const href = `/${item.slug}`;
-              const active = pathname === href || pathname.startsWith(`${href}/`);
-              return (
-                <li key={item.slug}>
-                  <Link
-                    href={href}
-                    aria-current={active ? "page" : undefined}
-                    className={`flex min-h-11 items-center rounded-[10px] px-3 text-[14px] font-medium lg:min-h-9 ${active ? "bg-accent-softer font-semibold text-accent-deep" : "text-ink-2 hover:bg-surface-sunk"}`}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        <div className="flex-1 overflow-y-auto">
+          <SidebarNav groups={navGroups} saveNav={saveNav} />
+        </div>
         <div className="border-t border-line px-4 py-3">
           <p className="truncate text-[13px] font-semibold">{userName}</p>
           {userTitle && <p className="truncate text-[12px] text-subtle">{userTitle}</p>}

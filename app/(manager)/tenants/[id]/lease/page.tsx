@@ -21,14 +21,17 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "start_date, end_date, term_months, rent_cents, deposit_cents, unit(label, kind, property(name, property_type, address_line1, address_line2, city, state, postal_code, year_built, entity(name))), lease_tenant(role, is_primary, contact(kind, first_name, last_name, business_name, email)), pet(kind, name, is_assistance_animal), recurring_charge(description, amount_cents)",
+      "start_date, end_date, term_months, rent_cents, deposit_cents, unit(label, kind, property_id, property(name, property_type, address_line1, address_line2, city, state, postal_code, year_built, entity(name))), lease_tenant(role, is_primary, contact(kind, first_name, last_name, business_name, email)), pet(kind, name, is_assistance_animal), recurring_charge(description, amount_cents)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
     .maybeSingle();
   if (!l) notFound();
 
-  const doc = TEMPLATES.find((t) => t.id === param(sp, "doc")) ?? TEMPLATES[0];
+  // Lead paint disclosure only for homes built before 1978 (federal rule); never offered when the year is unknown.
+  const pre1978 = l.unit.property.year_built != null && l.unit.property.year_built < 1978;
+  const docs = TEMPLATES.filter((t) => t.id !== "lead-paint-disclosure" || pre1978);
+  const doc = docs.find((t) => t.id === param(sp, "doc")) ?? TEMPLATES[0];
   const showChanges = param(sp, "changes") === "1";
   const { values, conditions, parties, yearBuiltUnknown } = fillLease(
     doc,
@@ -51,7 +54,6 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
   const blanks = Object.entries(values).filter(([k, v]) => !v && JSON.stringify(doc.sections).includes(`{{${k}}}`)).length;
   const primary = [...l.lease_tenant].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))[0];
   const commercial = l.unit.kind === "commercial";
-  const docs = TEMPLATES.filter((t) => t.id !== "lead-paint-disclosure" || conditions.has("pre_1978") || yearBuiltUnknown);
 
   return (
     <>
@@ -83,9 +85,15 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
           </Notice>
         </div>
       )}
-      {yearBuiltUnknown && doc.id === "lead-paint-disclosure" && (
+      {yearBuiltUnknown && !commercial && (
         <div className="mb-4 print:hidden">
-          <Notice>This property&apos;s year built isn&apos;t set. The lead paint disclosure is only needed for homes built before 1978; add the year on the property page.</Notice>
+          <Notice>
+            This property&apos;s year built isn&apos;t set, so the lead paint disclosure is hidden. It&apos;s required only for homes built before 1978: add the year on the{" "}
+            <Link href={`/properties/${l.unit.property_id}`} className="font-semibold underline">
+              property page
+            </Link>
+            .
+          </Notice>
         </div>
       )}
       <Card className="mx-auto max-w-[860px] px-6 py-8 sm:px-12 print:max-w-none print:border-0 print:p-0">

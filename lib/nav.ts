@@ -1,10 +1,15 @@
-// Manager app navigation (docs/01-product-spec.md §2). `phase` is when the screen gets built.
-export type NavItem = { slug: string; label: string; phase: number; description: string };
+// Manager app navigation (docs/01-product-spec.md §2), grouped into dropdown menus.
+// `phase` is when a screen gets built; unbuilt screens show a placeholder (app/(manager)/[section]).
+// Each person can reorder groups and the items inside them (profile.preferences.nav).
+
+export type NavItem = { slug: string; label: string; phase: number; description: string; href?: string };
 
 export const NAV_ITEMS: NavItem[] = [
   { slug: "dashboard", label: "Dashboard", phase: 0, description: "Your key numbers and what needs attention." },
   { slug: "properties", label: "Properties", phase: 0, description: "Buildings, units and who owns them." },
   { slug: "tenants", label: "Tenants & leases", phase: 1, description: "Tenant profiles, ledgers, leases and households." },
+  { slug: "expirations", label: "Lease expirations", phase: 1, description: "Keep lease endings spread across the year.", href: "/tenants/expirations" },
+  { slug: "lease-template", label: "Lease template", phase: 1, description: "The lease and disclosures, with every Florida law change marked.", href: "/tenants/lease-template" },
   { slug: "leasing", label: "Leasing", phase: 3, description: "Vacancies, listings, guest cards and applicants." },
   { slug: "leasing-agent", label: "AI leasing agent", phase: 3, description: "Answers prospects 24/7, books showings and escalates to you." },
   { slug: "communications", label: "Communications", phase: 1, description: "Letters, notices, templates and the sent log." },
@@ -24,8 +29,44 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: "import", label: "Import data", phase: 1, description: "Bring in rent rolls, tenants, vendors and AppFolio exports." },
 ];
 
+export type NavGroup = { id: string; label: string; items: string[] };
+
+/** Default grouping. A group with one item shows as a plain link, not a dropdown. */
+export const NAV_GROUPS: NavGroup[] = [
+  { id: "home", label: "Dashboard", items: ["dashboard"] },
+  { id: "leasing", label: "Leasing", items: ["tenants", "leasing", "expirations", "lease-template", "leasing-agent", "e-sign"] },
+  { id: "portfolio", label: "Properties", items: ["properties", "owners", "vendors"] },
+  { id: "maintenance", label: "Maintenance", items: ["maintenance", "inspections"] },
+  { id: "money", label: "Accounting", items: ["accounting", "bills", "recurring-bills", "journal-entries", "bank-accounts"] },
+  { id: "insights", label: "Reports", items: ["reports", "metrics"] },
+  { id: "communications", label: "Communications", items: ["communications"] },
+  { id: "admin", label: "Admin", items: ["settings", "import"] },
+];
+
 export const NEW_MENU = ["Property", "Tenant and lease", "Owner", "Work order", "Vendor"] as const;
 
 export function navItem(slug: string) {
   return NAV_ITEMS.find((item) => item.slug === slug);
+}
+
+export function navHref(item: NavItem) {
+  return item.href ?? `/${item.slug}`;
+}
+
+/** Saved order: group ids, and item slugs per group. */
+export type NavPrefs = { groups?: string[]; items?: Record<string, string[]> };
+
+/**
+ * The menu in the person's saved order. Anything saved that no longer exists is dropped; anything new
+ * (added in a later release) keeps its default place at the end, so a saved order never hides a screen.
+ */
+export function orderedNav(prefs: NavPrefs | null | undefined): (NavGroup & { entries: NavItem[] })[] {
+  const byId = new Map(NAV_GROUPS.map((g) => [g.id, g]));
+  const groupOrder = [...(prefs?.groups ?? []).filter((id) => byId.has(id)), ...NAV_GROUPS.map((g) => g.id).filter((id) => !prefs?.groups?.includes(id))];
+  return groupOrder.map((id) => {
+    const g = byId.get(id)!;
+    const saved = (prefs?.items?.[id] ?? []).filter((slug) => g.items.includes(slug));
+    const slugs = [...saved, ...g.items.filter((slug) => !saved.includes(slug))];
+    return { ...g, items: slugs, entries: slugs.map((slug) => navItem(slug)!).filter(Boolean) };
+  });
 }

@@ -80,7 +80,12 @@ export function fillLease(template: DocumentTemplate, l: LeaseForDocument, compa
   const conditions = new Set<Condition>();
   const single = l.property.property_type === "single_family";
   conditions.add(single ? "single_family" : "multi_unit");
-  if (single) conditions.add("tenant_lawn_care");
+  // SIM REI: every single-family home carries the $150 repair deductible (owner decision, Nov 1, 2026).
+  if (single) {
+    conditions.add("tenant_lawn_care");
+    conditions.add("repair_deductible");
+    values.repair_deductible_applies = "responsible";
+  }
   if (pets.length) conditions.add("has_pets");
   if (l.property.year_built != null && l.property.year_built < 1978) conditions.add("pre_1978");
   if (guarantors.length) conditions.add("has_guarantor");

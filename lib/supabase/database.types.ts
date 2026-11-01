@@ -1315,6 +1315,7 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          preferences: Json
         }
         Insert: {
           created_at?: string
@@ -1322,6 +1323,7 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
+          preferences?: Json
         }
         Update: {
           created_at?: string
@@ -1329,6 +1331,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          preferences?: Json
         }
         Relationships: []
       }

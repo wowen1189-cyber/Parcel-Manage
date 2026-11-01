@@ -25,7 +25,7 @@ export const OPEN_QUESTIONS: string[] = [
   "Insurance model: §1.6 requires a renter's policy naming the landlord as additional insured; §9 and the welcome letter use the LLIP / interested-party model. Pick one (review F17); the template keeps both wordings until you decide.",
   "Property mix: which properties are not single-family homes or duplexes? The repair deductible (§3.2) and other duty shifts are allowed only for single-family homes and duplexes under 83.51(1). Should the app block the deductible on other units?",
   "Personal property after move-out: add the 83.67(5) legend (no landlord liability for storage or disposition), or keep following ch. 715? Not added in this draft.",
-  "Jury trial waiver (§4.3) and repair deductible (§3.2) were kept as written: attorney to decide.",
+  "Decided Nov 1, 2026: keep the jury waiver (§4.3) and the $150 repair deductible (§3.2) on all single-family homes. Attorney to confirm both are enforceable.",
   "Guarantors: the original lease has no guaranty terms. The template only adds a guarantor signature block when a lease has a guarantor; attorney to supply the guaranty wording.",
   "Items outside the saved statute for the attorney: NSF fee cap and returned-check wording (ss. 68.065 / 832.08); assistance and service animal wording (FHA, ss. 413.08 / 760.27); LLIP placement 'without notice'; credit reporting; e-signature consent (ch. 668); radon notice (s. 404.056(5)); the 'Administrative Fee' move-out charge; removed 'rental discounts' and returned-check prosecution sentences.",
   "Welcome letter says 'Application fees are non-refundable', but company settings refund the admin fee if an application is denied. Confirm the wording.",
@@ -328,6 +328,7 @@ const sections: DocumentTemplate["sections"] = [
       {
         id: "repair-deductible",
         title: "Resident Repair Deductible",
+        when: ["repair_deductible"],
         blocks: [
           {
             kind: "choice",
@@ -342,7 +343,7 @@ const sections: DocumentTemplate["sections"] = [
           p("Resident agrees to pay the first ${{repair_deductible}} of any repair or maintenance cost per incident, unless otherwise required to be covered solely by the Landlord under Florida law. This deductible does not apply to repairs arising from Landlord negligence or major system failures not caused by tenant conduct."),
         ],
         changes: [
-          ch("F29", "Fla. Stat. 83.51(1), 83.47(1)(a)-(b)", "attorney", "Kept as written (owner decision). Attorney to review: outside single-family homes and duplexes, a deductible on 83.51(1) repairs shifts a duty the statute does not let the landlord shift. Review suggests limiting it to single-family homes and duplexes. Amount is now a setting.", "Resident agrees to pay the first $150.00 of any repair or maintenance cost per incident"),
+          ch("F29", "Fla. Stat. 83.51(1), 83.47(1)(a)-(b)", "attorney", "Owner decision (Nov 1, 2026): keep the $150 deductible on every single-family home; this clause now appears only on single-family leases. Attorney to review: outside single-family homes and duplexes, a deductible on 83.51(1) repairs shifts a duty the statute does not let the landlord shift. Review suggests limiting it to single-family homes and duplexes. Amount is now a setting.", "Resident agrees to pay the first $150.00 of any repair or maintenance cost per incident"),
         ],
       },
       {
@@ -551,7 +552,7 @@ const sections: DocumentTemplate["sections"] = [
         changes: [
           ch("F69", "n/a", "cleanup", "Section 4.3 moved back into Section 4 (the PDF printed it under the Section 5 heading)."),
           ch("F53", "Fla. Stat. 83.56(5)(a), 83.47(1)(a)", "attorney", "Non-waiver now yields to 83.56(5): accepting rent with knowledge of a violation can waive the right to terminate for it.", "isn't a waiver under any circumstances"),
-          ch("F54", "Outside the saved statute", "attorney", "Jury waiver kept as written (owner/attorney decision).", "shall be to a judge and not a jury"),
+          ch("F54", "Outside the saved statute", "attorney", "Owner decision (Nov 1, 2026): keep the jury waiver as written. Attorney to confirm it is enforceable.", "shall be to a judge and not a jury"),
           ch("F55", "Fla. Stat. 83.56(1), 83.63, 83.47(1)(a)", "attorney", "Force majeure now delays the landlord's performance instead of excusing it, and keeps the tenant's statutory rights.", "We shall be excused from performance of obligations"),
         ],
       },
@@ -1192,7 +1193,7 @@ const fields: Record<string, TemplateField> = {
   // Maintenance
   ac_filter_interval: f("AC filter replacement interval", "setting", "monthly"),
   water_filter_months: f("Water filter replacement (months)", "setting", "6"),
-  repair_deductible_applies: f("Resident repair deductible applies? (responsible / not_responsible)", "lease", "not_responsible"),
+  repair_deductible_applies: f("Resident repair deductible applies? (responsible / not_responsible)", "lease", "responsible"),
   repair_deductible: money("Resident repair deductible per incident", "150.00"),
   pest_control_start_days: f("Resident pest control starts (days after move-in)", "setting", "30"),
   pest_control_interval_days: f("Maximum days between resident pest treatments", "setting", "90"),
