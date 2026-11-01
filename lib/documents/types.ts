@@ -50,6 +50,11 @@ export type Condition =
   | "tenant_lawn_care"
   | "has_guarantor"
   | "email_notices"
+  /** Property setting: the resident handles pest control (otherwise the landlord does, 83.51(2)(a)). */
+  | "resident_pest_control"
+  | "landlord_pest_control"
+  /** Property setting: the home has an irrigation system. */
+  | "irrigation"
   /** The lease runs longer than 12 months. */
   | "long_term";
 

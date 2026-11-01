@@ -1350,6 +1350,7 @@ export type Database = {
           entity_id: string
           id: string
           kind: string
+          lease_settings: Json
           name: string
           notes: string | null
           postal_code: string | null
@@ -1369,6 +1370,7 @@ export type Database = {
           entity_id: string
           id?: string
           kind: string
+          lease_settings?: Json
           name: string
           notes?: string | null
           postal_code?: string | null
@@ -1388,6 +1390,7 @@ export type Database = {
           entity_id?: string
           id?: string
           kind?: string
+          lease_settings?: Json
           name?: string
           notes?: string | null
           postal_code?: string | null

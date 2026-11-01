@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { Button, Card, CardHeader, Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import { PROPERTY_TYPE_LABEL } from "@/lib/format";
 import { MAX_OWNERS } from "@/lib/property-form";
-import { createProperty, saveUnit, updateProperty, type FormState } from "./actions";
+import { createProperty, saveLeaseSettings, saveUnit, updateProperty, type FormState } from "./actions";
+import type { LeaseSettings } from "@/lib/property-lease-settings";
 
 type PropertyValues = {
   id: string;
@@ -305,6 +306,154 @@ export function UnitForm({ propertyId, unit, defaultKind, canEdit }: { propertyI
         <div className="flex justify-end sm:col-span-4">
           <Button type="submit" small disabled={pending}>
             {pending ? "Saving…" : unit ? "Save unit" : "Add unit"}
+          </Button>
+        </div>
+      </fieldset>
+    </form>
+  );
+}
+
+// ---------- lease settings ----------
+
+function Pick({ name, value, options, onChange, disabled }: { name: string; value: string; options: [string, string][]; onChange?: (v: string) => void; disabled?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      {options.map(([v, label]) => (
+        <label key={v} className={`flex min-h-10 items-center gap-3 text-sm ${disabled ? "opacity-50" : "cursor-pointer"}`}>
+          <input type="radio" name={name} value={v} defaultChecked={value === v} disabled={disabled} onChange={() => onChange?.(v)} className="size-[18px] accent-[var(--color-accent)]" />
+          {label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function Group({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="rounded-[var(--radius-control)] border border-line p-4">
+      <legend className="px-1 text-sm font-bold">{title}</legend>
+      {hint && <p className="-mt-1 mb-2 text-[13px] text-subtle">{hint}</p>}
+      {children}
+    </fieldset>
+  );
+}
+
+export function LeaseSettingsForm({ propertyId, settings, single, deductibleAllowed, pre1978, canEdit }: { propertyId: string; settings: LeaseSettings; single: boolean; deductibleAllowed: boolean; pre1978: boolean; canEdit: boolean }) {
+  const [state, action, pending] = useActionState(saveLeaseSettings, empty);
+  const s = (k: keyof LeaseSettings) => (state.values?.[k] ?? String(settings[k] ?? "")) as string;
+  const [leadKnown, setLeadKnown] = useState(s("leadKnown"));
+  const [leadRecords, setLeadRecords] = useState(s("leadRecords"));
+  return (
+    <form action={action}>
+      <input type="hidden" name="property_id" value={propertyId} />
+      <fieldset disabled={!canEdit} className="space-y-4 p-5">
+        {state.error && <Notice tone="danger">{state.error}</Notice>}
+        {state.message && <Notice tone="success">{state.message}</Notice>}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Group title="Resident repair deductible" hint={deductibleAllowed ? "Resident pays the first $150 of each repair (lease §3.2)." : "Not allowed here: Florida only allows it for single-family homes and duplexes (83.51(1))."}>
+            <Pick name="repairDeductible" value={deductibleAllowed ? s("repairDeductible") : "none"} disabled={!deductibleAllowed} options={[["resident", "Resident is responsible"], ["none", "Resident is not responsible"]]} />
+            {!deductibleAllowed && <input type="hidden" name="repairDeductible" value="none" />}
+          </Group>
+          <Group title="Pest control" hint="Lease §3.2. For buildings other than houses and duplexes, Florida makes this the landlord's job unless the lease says otherwise (83.51(2)(a))." >
+            <Pick name="pestControl" value={s("pestControl")} options={[["resident", "Resident is responsible"], ["landlord", "Landlord provides it"]]} />
+          </Group>
+          {single ? (
+            <>
+              <Group title="Lawn maintenance" hint="Lease §3.2: mowing, weeding and trimming.">
+                <Pick name="lawnCare" value={s("lawnCare")} options={[["resident", "Resident is responsible"], ["landlord", "Resident is not responsible"]]} />
+              </Group>
+              <Group title="Irrigation system" hint="Adds the irrigation rules (lease §3.2).">
+                <label className="flex min-h-10 items-center gap-3 text-sm">
+                  <input type="checkbox" name="irrigation" defaultChecked={state.values ? state.values.irrigation === "on" : settings.irrigation} className="size-[18px] accent-[var(--color-accent)]" />
+                  This home has an irrigation system
+                </label>
+              </Group>
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="lawnCare" value="landlord" />
+            </>
+          )}
+        </div>
+
+        <Group title="Utilities and keys" hint="Prints on the lease (§1.5, §1.7) and the welcome letter.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Utilities the landlord pays">
+              <Input name="utilitiesIncluded" defaultValue={s("utilitiesIncluded")} placeholder="Water, sewer and trash, or None" />
+            </Field>
+            <Field label="Keys provided">
+              <Input name="keys" defaultValue={s("keys")} placeholder="Front door, mailbox" />
+            </Field>
+            <Field label="Electric provider">
+              <Input name="electricProvider" defaultValue={s("electricProvider")} />
+            </Field>
+            <Field label="Water / sewer / trash">
+              <Input name="waterSewerTrash" defaultValue={s("waterSewerTrash")} placeholder="City of Eustis, or flat fee" />
+            </Field>
+          </div>
+        </Group>
+
+        <Group title="Where deposits are held" hint="Required on Florida leases (83.49(2)). Usually the same for every property the LLC owns.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Bank">
+              <Input name="depositBankName" defaultValue={s("depositBankName")} placeholder="e.g. United Southern Bank" />
+            </Field>
+            <Field label="Bank street address">
+              <Input name="depositBankAddress" defaultValue={s("depositBankAddress")} />
+            </Field>
+            <div>
+              <p className="mb-1.5 text-[13px] font-semibold text-ink-2">How deposits are held</p>
+              <Pick name="depositAccountType" value={s("depositAccountType")} options={[["non_interest", "Separate non-interest-bearing account"], ["interest", "Separate interest-bearing account"], ["surety_bond", "Surety bond"]]} />
+            </div>
+            <div>
+              <p className="mb-1.5 text-[13px] font-semibold text-ink-2">Interest to the tenant</p>
+              <Pick name="depositInterest" value={s("depositInterest")} options={[["not_entitled", "Tenant is not entitled to interest"], ["entitled", "Tenant is entitled to interest"]]} />
+            </div>
+          </div>
+        </Group>
+
+        <Group title="Flood disclosure (83.512)" hint="The owner's answers, printed on every lease of a year or longer.">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="mb-1.5 text-[13px] font-semibold text-ink-2">Knows of flooding that damaged the home</p>
+              <Pick name="floodKnowledge" value={s("floodKnowledge")} options={[["has", "Has knowledge"], ["has_no", "Has no knowledge"]]} />
+            </div>
+            <div>
+              <p className="mb-1.5 text-[13px] font-semibold text-ink-2">Filed a flood insurance claim</p>
+              <Pick name="floodClaim" value={s("floodClaim")} options={[["has", "Has filed"], ["has_not", "Has not filed"]]} />
+            </div>
+            <div>
+              <p className="mb-1.5 text-[13px] font-semibold text-ink-2">Received flood assistance (e.g. FEMA)</p>
+              <Pick name="floodAssistance" value={s("floodAssistance")} options={[["has", "Has received"], ["has_not", "Has not received"]]} />
+            </div>
+          </div>
+        </Group>
+
+        {pre1978 ? (
+          <Group title="Lead-based paint (built before 1978)" hint="Federal disclosure; the owner's answers.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Pick name="leadKnown" value={leadKnown} onChange={setLeadKnown} options={[["known", "Known lead-based paint or hazards"], ["no_knowledge", "No knowledge of lead-based paint"]]} />
+                {leadKnown === "known" && <Textarea name="leadKnownDescription" defaultValue={s("leadKnownDescription")} placeholder="Describe what is known" className="mt-2" />}
+              </div>
+              <div>
+                <Pick name="leadRecords" value={leadRecords} onChange={setLeadRecords} options={[["provided", "Records or reports provided to the tenant"], ["none", "No reports or records"]]} />
+                {leadRecords === "provided" && <Textarea name="leadRecordsList" defaultValue={s("leadRecordsList")} placeholder="List the documents" className="mt-2" />}
+              </div>
+            </div>
+          </Group>
+        ) : (
+          <>
+            <input type="hidden" name="leadKnown" value={s("leadKnown")} />
+            <input type="hidden" name="leadRecords" value={s("leadRecords")} />
+          </>
+        )}
+        {leadKnown !== "known" && <input type="hidden" name="leadKnownDescription" value="" />}
+        {leadRecords !== "provided" && <input type="hidden" name="leadRecordsList" value="" />}
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : "Save lease settings"}
           </Button>
         </div>
       </fieldset>

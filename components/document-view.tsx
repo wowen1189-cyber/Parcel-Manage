@@ -129,6 +129,13 @@ export function DocumentView({
         );
       }
       case "blank":
+        if (values[b.id])
+          return (
+            <div key={key} className="my-3">
+              <p className="text-[13px]">{fill(b.label)}</p>
+              <p className="mt-1 border-b border-ink pb-1 font-semibold">{values[b.id]}</p>
+            </div>
+          );
         return (
           <div key={key} className="my-3">
             <p className="text-[13px]">{fill(b.label)}</p>

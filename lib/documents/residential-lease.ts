@@ -369,15 +369,25 @@ const sections: DocumentTemplate["sections"] = [
       {
         id: "pest",
         title: "Pest Control",
+        when: ["resident_pest_control"],
         blocks: [
           p("Resident is responsible for general pest control beginning {{pest_control_start_days}} days after move-in, unless otherwise agreed in writing. Resident agrees to treat the premises for common pests (ants, roaches, spiders, etc.) at regular intervals, not to exceed {{pest_control_interval_days}} days between treatments. Resident shall notify Landlord immediately if any infestation (including rodents or bed bugs) is suspected so appropriate action can be coordinated."),
         ],
         changes: [ch("4d", "n/a", "cleanup", "30-day start and 90-day interval are now settings (values unchanged).")],
       },
       {
+        id: "pest-landlord",
+        title: "Pest Control",
+        when: ["landlord_pest_control"],
+        blocks: [
+          p("Landlord provides routine pest control for the Premises. Resident shall keep the Premises clean, allow access for scheduled treatments on notice under Section 3.4, and notify Landlord immediately if any infestation (including rodents or bed bugs) is suspected. Resident is responsible for treatment costs caused by Resident's own conduct or failure to allow access."),
+        ],
+        changes: [ch("N/A", "Fla. Stat. 83.51(2)(a)1", "cleanup", "New alternative, chosen per property in its lease settings: the landlord provides pest control (the statute's default for buildings other than single-family homes and duplexes, unless agreed otherwise in writing).")],
+      },
+      {
         id: "irrigation",
         title: "Lawn Maintenance & Irrigation System Usage",
-        when: ["single_family"],
+        when: ["single_family", "irrigation"],
         blocks: [
           p("If the Premises is equipped with a functional irrigation system, Resident is required to operate and maintain the system on a regular basis. At a minimum, the irrigation system must be used at least {{irrigation_days_per_week}} days per week, or as otherwise required by local ordinance or HOA regulation. Resident shall ensure that:"),
           list(["Irrigation timers are properly set and seasonally adjusted.", "Sprinkler heads remain unobstructed and functional.", "Leaks, broken heads, or dry patches are promptly reported to the Landlord."]),

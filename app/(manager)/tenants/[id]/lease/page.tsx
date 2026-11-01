@@ -8,6 +8,7 @@ import { readBusinessRules } from "@/lib/business-rules";
 import { TEMPLATES } from "@/lib/documents";
 import { fillLease } from "@/lib/documents/fill";
 import { contactName } from "@/lib/format";
+import { readLeaseSettings } from "@/lib/property-lease-settings";
 import { requireCompany } from "@/lib/session";
 
 export const metadata = { title: "Lease document" };
@@ -21,7 +22,7 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "start_date, end_date, term_months, rent_cents, deposit_cents, unit(label, kind, property_id, property(name, property_type, address_line1, address_line2, city, state, postal_code, year_built, entity(name))), lease_tenant(role, is_primary, contact(kind, first_name, last_name, business_name, email)), pet(kind, name, is_assistance_animal), recurring_charge(description, amount_cents)",
+      "start_date, end_date, term_months, rent_cents, deposit_cents, unit(label, kind, property_id, property(name, property_type, address_line1, address_line2, city, state, postal_code, year_built, lease_settings, unit(id), entity(name))), lease_tenant(role, is_primary, contact(kind, first_name, last_name, business_name, email)), pet(kind, name, is_assistance_animal), recurring_charge(description, amount_cents)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
@@ -50,6 +51,7 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
     },
     company,
     readBusinessRules(company.settings),
+    readLeaseSettings(l.unit.property.lease_settings, l.unit.property.property_type, l.unit.property.unit.length),
   );
   const blanks = Object.entries(values).filter(([k, v]) => !v && JSON.stringify(doc.sections).includes(`{{${k}}}`)).length;
   const primary = [...l.lease_tenant].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))[0];

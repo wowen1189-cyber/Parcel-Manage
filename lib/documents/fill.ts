@@ -5,6 +5,7 @@
 import type { BusinessRules } from "@/lib/business-rules";
 import { contactName, date, money, oneLineAddress, type NamedContact } from "@/lib/format";
 import type { Condition, DocumentTemplate, PartyNames } from "./types";
+import type { LeaseSettings } from "@/lib/property-lease-settings";
 
 export type LeaseForDocument = {
   start_date: string;
@@ -34,7 +35,7 @@ export type CompanyForDocument = { name: string; legal_name: string | null; addr
 
 const NOT_SET = "Owner LLC not set yet";
 
-export function fillLease(template: DocumentTemplate, l: LeaseForDocument, company: CompanyForDocument, rules: BusinessRules) {
+export function fillLease(template: DocumentTemplate, l: LeaseForDocument, company: CompanyForDocument, rules: BusinessRules, settings: LeaseSettings) {
   const values: Record<string, string> = {};
   // Settings and company-wide values start from the template's SIM REI defaults.
   for (const [key, field] of Object.entries(template.fields)) {
@@ -73,6 +74,24 @@ export function fillLease(template: DocumentTemplate, l: LeaseForDocument, compa
     tenant_notice_email: tenants[0]?.contact.email ?? "",
     long_term_increase_percent: String(increase),
     year_two_rent: money(Math.round((l.rent_cents * (100 + increase)) / 100)),
+    // The property's lease settings: the office-set checkboxes and blanks.
+    repair_deductible_applies: settings.repairDeductible === "resident" ? "responsible" : "not_responsible",
+    lawn_care_by_resident: settings.lawnCare === "resident" ? "responsible" : "not_responsible",
+    utilities_included: settings.utilitiesIncluded,
+    keys_list: settings.keys,
+    electric_provider: settings.electricProvider,
+    water_sewer_trash: settings.waterSewerTrash,
+    deposit_bank_name: settings.depositBankName,
+    deposit_bank_address: settings.depositBankAddress,
+    deposit_account_type: settings.depositAccountType,
+    deposit_interest: settings.depositInterest,
+    flood_knowledge: settings.floodKnowledge,
+    flood_claim: settings.floodClaim,
+    flood_assistance: settings.floodAssistance,
+    lbp_known: settings.leadKnown,
+    lbp_description: settings.leadKnownDescription,
+    lbp_records: settings.leadRecords,
+    lbp_documents: settings.leadRecordsList,
   });
   // Values the template has but this lease can't know yet stay blank (shown highlighted).
   for (const key of Object.keys(template.fields)) values[key] ??= "";
@@ -80,12 +99,11 @@ export function fillLease(template: DocumentTemplate, l: LeaseForDocument, compa
   const conditions = new Set<Condition>();
   const single = l.property.property_type === "single_family";
   conditions.add(single ? "single_family" : "multi_unit");
-  // SIM REI: every single-family home carries the $150 repair deductible (owner decision, Nov 1, 2026).
-  if (single) {
-    conditions.add("tenant_lawn_care");
-    conditions.add("repair_deductible");
-    values.repair_deductible_applies = "responsible";
-  }
+  // From the property's lease settings (SIM REI: every single-family home has the $150 repair deductible).
+  if (settings.repairDeductible === "resident") conditions.add("repair_deductible");
+  if (single && settings.lawnCare === "resident") conditions.add("tenant_lawn_care");
+  if (settings.irrigation) conditions.add("irrigation");
+  conditions.add(settings.pestControl === "resident" ? "resident_pest_control" : "landlord_pest_control");
   if (pets.length) conditions.add("has_pets");
   if (l.property.year_built != null && l.property.year_built < 1978) conditions.add("pre_1978");
   if (guarantors.length) conditions.add("has_guarantor");

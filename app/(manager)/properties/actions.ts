@@ -6,6 +6,7 @@ import { z } from "zod";
 import { contactName, type NamedContact } from "@/lib/format";
 import { personName } from "@/lib/import/appfolio";
 import { MAX_OWNERS } from "@/lib/property-form";
+import { allowsRepairDeductible, defaultLeaseSettings, leaseSettingsSchema } from "@/lib/property-lease-settings";
 import { requireCompany } from "@/lib/session";
 
 export type FormState = { error?: string; message?: string; values?: Record<string, string> };
@@ -219,4 +220,28 @@ export async function saveUnit(_: FormState, form: FormData): Promise<FormState>
   revalidatePath(`/properties/${property_id}`);
   revalidatePath("/properties");
   return { message: id ? "Saved." : `Unit ${fields.label} added.` };
+}
+
+/** The property's lease settings: who handles what, utilities, keys, deposit account, disclosure answers. */
+export async function saveLeaseSettings(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
+  const id = z.string().uuid().safeParse(form.get("property_id"));
+  if (!id.success) return { error: "Property not found." };
+  const { data: property } = await supabase.from("property").select("id, property_type, unit(id)").eq("id", id.data).eq("company_id", company.id).maybeSingle();
+  if (!property) return { error: "Property not found." };
+  const raw = Object.fromEntries(form);
+  // Unanswered radio groups aren't submitted; start from the defaults so they stay blank or default.
+  const parsed = leaseSettingsSchema.safeParse({ ...defaultLeaseSettings(property.property_type, property.unit.length), ...raw, irrigation: raw.irrigation === "on" });
+  if (!parsed.success) return { error: parsed.error.issues[0].message, values: typed(form) };
+  const s = parsed.data;
+  if (s.repairDeductible === "resident" && !allowsRepairDeductible(property.property_type, property.unit.length)) {
+    return { error: "Florida only lets a lease shift repair duties to the tenant in a single-family home or duplex (83.51(1)), so this building can't have the repair deductible.", values: typed(form) };
+  }
+  if (s.leadKnown === "known" && !s.leadKnownDescription) return { error: "Describe the known lead-based paint.", values: typed(form) };
+  if (s.leadRecords === "provided" && !s.leadRecordsList) return { error: "List the lead paint records you provide.", values: typed(form) };
+  const { error } = await supabase.from("property").update({ lease_settings: s }).eq("id", property.id).eq("company_id", company.id);
+  if (error) return { error: error.message, values: typed(form) };
+  revalidatePath(`/properties/${property.id}`);
+  return { message: "Lease settings saved. Every lease at this property uses them." };
 }

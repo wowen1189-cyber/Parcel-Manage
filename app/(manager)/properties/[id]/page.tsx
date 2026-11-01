@@ -4,7 +4,8 @@ import { Card, CardHeader, Notice, PageHeader, Pill, StatTile } from "@/componen
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { bedBath, contactName, date, money, oneLineAddress, PROPERTY_TYPE_LABEL, UNIT_STATUS } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
-import { PropertyForm, UnitForm } from "../forms";
+import { LeaseSettingsForm, PropertyForm, UnitForm } from "../forms";
+import { allowsRepairDeductible, missingLeaseSettings, readLeaseSettings } from "@/lib/property-lease-settings";
 
 export async function generateMetadata({ params }: PageProps<"/properties/[id]">) {
   const { id } = await params;
@@ -37,6 +38,8 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
   const market = units.reduce((s, u) => s + (u.market_rent_cents ?? 0), 0);
   const owed = units.reduce((s, u) => s + Math.max(0, current(u)?.opening_balance_cents ?? 0), 0);
   const canEdit = ["admin", "property_manager"].includes(membership.role);
+  const leaseSettings = readLeaseSettings(p.lease_settings, p.property_type, units.length);
+  const leaseMissing = missingLeaseSettings(leaseSettings, p.year_built != null && p.year_built < 1978);
   const editing = typeof sp.edit === "string" ? units.find((u) => u.id === sp.edit) : undefined;
   const defaultKind = p.kind === "commercial" ? "commercial" : "residential";
 
@@ -138,6 +141,22 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
             </div>
           </details>
         )}
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader
+          title="Lease settings"
+          description="The checkboxes from your lease, set once for this property. Every lease here fills in from them."
+          action={leaseMissing.length ? <Pill tone="warn">Missing: {leaseMissing.join(", ")}</Pill> : <Pill tone="success">Complete</Pill>}
+        />
+        <LeaseSettingsForm
+          propertyId={p.id}
+          settings={leaseSettings}
+          single={p.property_type === "single_family"}
+          deductibleAllowed={allowsRepairDeductible(p.property_type, units.length)}
+          pre1978={p.year_built != null && p.year_built < 1978}
+          canEdit={canEdit}
+        />
       </Card>
 
       <div className="mt-6">
