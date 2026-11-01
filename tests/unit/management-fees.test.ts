@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { DEFAULT_MANAGEMENT_FEE, describeFee, effectiveFee, feeFromForm, leasingFee, monthlyFee, readCompanyFee, type ManagementFee } from "@/lib/management-fees";
+
+const fee = (f: Partial<ManagementFee>): ManagementFee => ({ ...DEFAULT_MANAGEMENT_FEE, ...f });
+
+describe("monthly management fee", () => {
+  it("takes a percent of rent collected, rounded to the cent", () => {
+    expect(monthlyFee(fee({ percent: 8 }), 145_000, 1)).toBe(11_600);
+    expect(monthlyFee(fee({ percent: 7.5 }), 123_456, 1)).toBe(9_259);
+  });
+  it("never goes below the minimum when rent comes in", () => {
+    expect(monthlyFee(fee({ percent: 8, minimumCents: 10_000 }), 50_000, 1)).toBe(10_000);
+  });
+  it("charges nothing on an empty month unless the agreement says to", () => {
+    expect(monthlyFee(fee({ percent: 8, minimumCents: 10_000 }), 0, 0)).toBe(0);
+    expect(monthlyFee(fee({ percent: 8, minimumCents: 10_000, chargeWhenVacant: true }), 0, 0)).toBe(10_000);
+    expect(monthlyFee(fee({ basis: "flat", flatCents: 9_900 }), 0, 0)).toBe(0);
+    expect(monthlyFee(fee({ basis: "flat", flatCents: 9_900, chargeWhenVacant: true }), 0, 0)).toBe(9_900);
+  });
+  it("supports flat, per occupied unit and none", () => {
+    expect(monthlyFee(fee({ basis: "flat", flatCents: 9_900 }), 200_000, 2)).toBe(9_900);
+    expect(monthlyFee(fee({ basis: "per_unit", flatCents: 5_000 }), 900_000, 17)).toBe(85_000);
+    expect(monthlyFee(fee({ basis: "none" }), 200_000, 2)).toBe(0);
+  });
+});
+
+describe("leasing fee", () => {
+  it("is a share of a month's rent, a flat amount or none", () => {
+    expect(leasingFee(fee({ leasingFee: "percent", leasingPercent: 50 }), 145_000)).toBe(72_500);
+    expect(leasingFee(fee({ leasingFee: "flat", leasingFlatCents: 30_000 }), 145_000)).toBe(30_000);
+    expect(leasingFee(fee({ leasingFee: "none" }), 145_000)).toBe(0);
+  });
+});
+
+describe("which fee applies", () => {
+  const company = fee({ percent: 8 });
+  it("uses the property's own fee, then the owner's agreement, then the company default", () => {
+    expect(effectiveFee(null, {}, company)).toEqual({ fee: company, source: "company" });
+    expect(effectiveFee(null, { ...company, percent: 10 }, company)).toMatchObject({ fee: { percent: 10 }, source: "owner" });
+    expect(effectiveFee({ ...company, percent: 6 }, { ...company, percent: 10 }, company)).toMatchObject({ fee: { percent: 6 }, source: "property" });
+  });
+  it("ignores a broken saved fee instead of failing", () => {
+    expect(effectiveFee({ basis: "weird" }, null, company).source).toBe("company");
+  });
+  it("reads the company default from settings", () => {
+    expect(readCompanyFee({})).toEqual(DEFAULT_MANAGEMENT_FEE);
+    expect(readCompanyFee({ managementFee: { ...DEFAULT_MANAGEMENT_FEE, percent: 9 } }).percent).toBe(9);
+  });
+});
+
+describe("fee form", () => {
+  it("reads dollars and percents", () => {
+    const { fee: f } = feeFromForm({ basis: "percent", percent: "8%", minimum: "$100", leasingFee: "flat", leasingFlat: "300", renewal: "150.50" });
+    expect(f).toMatchObject({ basis: "percent", percent: 8, minimumCents: 10_000, leasingFlatCents: 30_000, renewalFeeCents: 15_050, chargeWhenVacant: false });
+  });
+  it("explains bad input", () => {
+    expect(feeFromForm({ basis: "percent", percent: "", leasingFee: "none" }).error).toMatch(/percent/);
+    expect(feeFromForm({ basis: "flat", flat: "abc", leasingFee: "none" }).error).toMatch(/dollars/);
+    expect(feeFromForm({ basis: "percent", percent: "150", leasingFee: "none" }).error).toMatch(/between 0 and 100/);
+  });
+  it("describes the terms in plain words", () => {
+    expect(describeFee(fee({ percent: 8, minimumCents: 10_000, leasingPercent: 50, renewalFeeCents: 15_000 }))).toBe("8% of rent collected (at least $100) · leasing 50% of a month · renewal $150");
+  });
+});

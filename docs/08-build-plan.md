@@ -32,7 +32,7 @@ Build in order. Each phase ends with a demo Wesley can click through, tests pass
 - [ ] Stripe Connect: tenant ACH (free) and card (fee disclosed first), autopay, returned payments + NSF, receipts
 - [ ] Plaid bank feeds, property → account mapping (trust warning), bank reconciliation
 - [ ] Bills: inbound email invoices read and coded by AI (approval required), pay by ACH/check/card, pay all scheduled; recurring bills
-- [ ] Owner statements and monthly distribution run split by ownership %, ACH payouts; owner portal (statements, distributions, documents)
+- [ ] Owner statements and monthly distribution run *(Done: Owners screen with each owner's properties, management agreement and fees — company default, owner agreement or per-property — with estimated monthly fees and CSV export. Left: posting fees from rent collected, statements, payouts, owner portal.)* split by ownership %, ACH payouts; owner portal (statements, distributions, documents)
 - [ ] Native e-sign (templates, signer order, typed signature, UETA consent, audit trail, signed PDF filing); lease templates that fill from the unit and add required addenda
 - [ ] Move-out workflow and final account statement (Fla. 83.49), inspections & deposits with AI-suggested deductions and deadline tracking
 **Done when:** a full month closes: rent collected online, bills paid, bank reconciled to $0.00, Grove Tower partners receive statements and ACH distributions.

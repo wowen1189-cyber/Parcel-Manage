@@ -533,26 +533,44 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          email: string | null
           entity_type: string | null
           id: string
+          mailing_address: string | null
+          management_fee: Json
           name: string
+          notes: string | null
+          phone: string | null
           tax_id_last4: string | null
+          updated_at: string
         }
         Insert: {
           company_id: string
           created_at?: string
+          email?: string | null
           entity_type?: string | null
           id?: string
+          mailing_address?: string | null
+          management_fee?: Json
           name: string
+          notes?: string | null
+          phone?: string | null
           tax_id_last4?: string | null
+          updated_at?: string
         }
         Update: {
           company_id?: string
           created_at?: string
+          email?: string | null
           entity_type?: string | null
           id?: string
+          mailing_address?: string | null
+          management_fee?: Json
           name?: string
+          notes?: string | null
+          phone?: string | null
           tax_id_last4?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1351,6 +1369,7 @@ export type Database = {
           id: string
           kind: string
           lease_settings: Json
+          management_fee: Json | null
           name: string
           notes: string | null
           postal_code: string | null
@@ -1371,6 +1390,7 @@ export type Database = {
           id?: string
           kind: string
           lease_settings?: Json
+          management_fee?: Json | null
           name: string
           notes?: string | null
           postal_code?: string | null
@@ -1391,6 +1411,7 @@ export type Database = {
           id?: string
           kind?: string
           lease_settings?: Json
+          management_fee?: Json | null
           name?: string
           notes?: string | null
           postal_code?: string | null

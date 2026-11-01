@@ -22,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: "metrics", label: "Metrics", phase: 4, description: "Targets, trends and alerts." },
   { slug: "maintenance", label: "Maintenance", phase: 1, description: "Work orders from request to completed invoice." },
   { slug: "inspections", label: "Inspections & deposits", phase: 2, description: "Move-in and move-out inspections and deposit returns." },
-  { slug: "owners", label: "Owners & payouts", phase: 2, description: "Owner records, statements and distributions." },
+  { slug: "owners", label: "Owners", phase: 0, description: "Who owns each property, their management agreement and fees." },
   { slug: "e-sign", label: "E-sign", phase: 2, description: "Send anything for signature, with a full audit trail." },
   { slug: "settings", label: "Settings & team", phase: 0, description: "Company profile, business rules and your team." },
   { slug: "vendors", label: "Vendors", phase: 1, description: "Vendor directory with W-9 and insurance tracking." },
@@ -49,7 +49,7 @@ export const NEW_MENU: { label: string; href?: string }[] = [
   { label: "Property", href: "/properties/new" },
   { label: "Vendor", href: "/vendors/new" },
   { label: "Work order", href: "/maintenance/new" },
-  { label: "Owner" },
+  { label: "Owner", href: "/owners/new" },
 ];
 
 export function navItem(slug: string) {

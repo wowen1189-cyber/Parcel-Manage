@@ -6,6 +6,9 @@ import { bedBath, contactName, date, money, oneLineAddress, PROPERTY_TYPE_LABEL,
 import { requireCompany } from "@/lib/session";
 import { LeaseSettingsForm, PropertyForm, UnitForm } from "../forms";
 import { allowsRepairDeductible, missingLeaseSettings, readLeaseSettings } from "@/lib/property-lease-settings";
+import { describeFee, effectiveFee, monthlyFee, readCompanyFee } from "@/lib/management-fees";
+import { UNASSIGNED_OWNER } from "@/lib/owners";
+import { FeeForm } from "../../owners/forms";
 
 export async function generateMetadata({ params }: PageProps<"/properties/[id]">) {
   const { id } = await params;
@@ -22,7 +25,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
     supabase
       .from("property")
       .select(
-        "*, entity(id, name), property_owner(ownership_pct, contact(first_name, last_name, business_name)), unit(id, label, kind, beds, baths, sqft, market_rent_cents, status, amenities, notes, lease(id, status, rent_cents, end_date, opening_balance_cents, lease_tenant(is_primary, contact(first_name, last_name, business_name))))",
+        "*, entity(id, name, management_fee), property_owner(ownership_pct, contact(first_name, last_name, business_name)), unit(id, label, kind, beds, baths, sqft, market_rent_cents, status, amenities, notes, lease(id, status, rent_cents, end_date, opening_balance_cents, lease_tenant(is_primary, contact(first_name, last_name, business_name))))",
       )
       .eq("id", id)
       .eq("company_id", company.id)
@@ -40,6 +43,10 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
   const canEdit = ["admin", "property_manager"].includes(membership.role);
   const leaseSettings = readLeaseSettings(p.lease_settings, p.property_type, units.length);
   const leaseMissing = missingLeaseSettings(leaseSettings, p.year_built != null && p.year_built < 1978);
+  const companyFee = readCompanyFee(company.settings);
+  const ownerFee = effectiveFee(null, p.entity?.management_fee, companyFee);
+  const fee = effectiveFee(p.management_fee, p.entity?.management_fee, companyFee);
+  const estFee = monthlyFee(fee.fee, rent, occupied);
   const editing = typeof sp.edit === "string" ? units.find((u) => u.id === sp.edit) : undefined;
   const defaultKind = p.kind === "commercial" ? "commercial" : "residential";
 
@@ -56,7 +63,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
         <StatTile label="Occupancy" value={units.length ? `${Math.round((occupied / units.length) * 100)}%` : "—"} note={`${occupied} of ${units.length} units`} />
         <StatTile label="Monthly rent" value={money(rent)} note={`Market ${money(market)}`} />
         <StatTile label="Owed (from AppFolio)" value={money(owed)} note="As of Nov 1, 2026" />
-        <StatTile label="Owning LLC" value={<span className="text-lg">{p.entity?.name}</span>} note={p.property_owner.map((o) => `${contactName(o.contact)} ${Number(o.ownership_pct)}%`).join(" · ") || "Ownership split not set"} />
+        <StatTile label="Owner" value={p.entity ? <Link href={`/owners/${p.entity.id}`} className="text-lg hover:underline">{p.entity.name === UNASSIGNED_OWNER ? "Not set yet" : p.entity.name}</Link> : "—"} note={p.property_owner.map((o) => `${contactName(o.contact)} ${Number(o.ownership_pct)}%`).join(" · ") || "Ownership split not set"} />
       </div>
 
       {sp.added && (
@@ -141,6 +148,23 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
             </div>
           </details>
         )}
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader
+          title="Management fee"
+          description={`What you charge to manage this property. Est. ${money(estFee)} this month if every tenant pays in full.`}
+          action={<Pill tone={fee.source === "property" ? "info" : "neutral"}>{fee.source === "property" ? "Own fee" : fee.source === "owner" ? "Owner's agreement" : "Company default"}</Pill>}
+        />
+        <FeeForm
+          key={fee.source}
+          scope="property"
+          targetId={p.id}
+          fee={fee.fee}
+          custom={fee.source === "property"}
+          inheritLabel={`Use the owner's ${ownerFee.source === "owner" ? "agreement" : "fee (company default)"}: ${describeFee(ownerFee.fee)}`}
+          canEdit={canEdit}
+        />
       </Card>
 
       <Card className="mt-6">
