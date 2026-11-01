@@ -22,12 +22,12 @@ export const OPEN_QUESTIONS: string[] = [
   "End-of-term notice (83.575): keep 60 days (allowed range 30-60)? Keep the one-month liquidated-damages charge? If so, the office must send the 83.575(2) pre-notice within 15 days before the notice period starts, and must give tenants the same notice of non-renewal.",
   "Early termination (83.595(4)): keep Choice 1 at 2x rent? What early-termination notice period (60 days or less)?",
   "Obligo: what exactly does the tenant sign (fee, insurance, surety bond, installment plan)? The attorney must decide whether 83.491 applies. If it does not, remove clause 10.6 (fee-in-lieu notice and disclosure). Is the option offered to every new tenant at a property (required by 83.491(7) if it is a fee in lieu)?",
-  "Insurance model: §1.6 requires a renter's policy naming the landlord as additional insured; §9 and the welcome letter use the LLIP / interested-party model. Pick one (review F17); the template keeps both wordings until you decide.",
+  "Insurance model: §1.6 requires a renter's policy naming the landlord as additional insured; §9 and the welcome letter use the required-insurance / interested-party model (the LLIP program was removed Nov 1, 2026). Pick one (review F17); the template keeps both wordings until you decide.",
   "Property mix: which properties are not single-family homes or duplexes? The repair deductible (§3.2) and other duty shifts are allowed only for single-family homes and duplexes under 83.51(1). Should the app block the deductible on other units?",
   "Personal property after move-out: add the 83.67(5) legend (no landlord liability for storage or disposition), or keep following ch. 715? Not added in this draft.",
   "Decided Nov 1, 2026: keep the jury waiver (§4.3) and the $150 repair deductible (§3.2) on all single-family homes. Attorney to confirm both are enforceable.",
   "Guarantors: the original lease has no guaranty terms. The template only adds a guarantor signature block when a lease has a guarantor; attorney to supply the guaranty wording.",
-  "Items outside the saved statute for the attorney: NSF fee cap and returned-check wording (ss. 68.065 / 832.08); assistance and service animal wording (FHA, ss. 413.08 / 760.27); LLIP placement 'without notice'; credit reporting; e-signature consent (ch. 668); radon notice (s. 404.056(5)); the 'Administrative Fee' move-out charge; removed 'rental discounts' and returned-check prosecution sentences.",
+  "Items outside the saved statute for the attorney: NSF fee cap and returned-check wording (ss. 68.065 / 832.08); assistance and service animal wording (FHA, ss. 413.08 / 760.27); credit reporting; e-signature consent (ch. 668); radon notice (s. 404.056(5)); the 'Administrative Fee' move-out charge; removed 'rental discounts' and returned-check prosecution sentences.",
   "Welcome letter says 'Application fees are non-refundable', but company settings refund the admin fee if an application is denied. Confirm the wording.",
   "Flood disclosure: use it on every lease, or only terms of 1 year or longer (83.512(1))? Who at each owner LLC answers items 1-3?",
   "Lead-based paint (federal, verify): which properties were built before 1978? Who signs the agent's acknowledgment for SIM REI? Confirm the warning statement and items against the EPA/HUD lessor sample form.",
@@ -111,14 +111,6 @@ const sections: DocumentTemplate["sections"] = [
         ],
       },
       {
-        id: "rent-insurance-waiver",
-        when: ["llip_offered"],
-        blocks: [
-          p("You may provide proof of renter's insurance coverage. If the policy meets the Landlord's minimum requirements in the attached Required Insurance Addendum, the monthly insurance charge will be waived and removed from your rental obligations."),
-        ],
-        changes: [ch("4d", "n/a", "cleanup", "Shown only when the property offers the LLIP program.")],
-      },
-      {
         id: "deposit",
         number: "1.4",
         title: "Security Deposit",
@@ -186,7 +178,7 @@ const sections: DocumentTemplate["sections"] = [
         ],
         changes: [
           ch("F16", "Fla. Stat. 83.47(1)(b)", "attorney", "Removed \"You assume all liability for personal injury, property damage or loss\"; the clause now says it does not limit the landlord's legal liability.", "You assume all liability for personal injury, property damage or loss, and insurable risk."),
-          ch("F17", "Outside the saved statute (insurance)", "attorney", "Kept as written for now: this paragraph (additional insured, lapse is a default) conflicts with §9 and the welcome letter (LLIP, interested party). Owner to pick one model. Liability minimum is now a setting.", "which policy shall name Landlord as an additional insured"),
+          ch("F17", "Outside the saved statute (insurance)", "attorney", "Kept as written for now: this paragraph (additional insured, lapse is a default) conflicts with §9 and the welcome letter (interested party). Owner to pick one model. Liability minimum is now a setting.", "which policy shall name Landlord as an additional insured"),
         ],
       },
       {
@@ -792,34 +784,12 @@ const sections: DocumentTemplate["sections"] = [
         blocks: [
           p("This Addendum is attached to and becomes part of the Residential Lease Agreement. For the duration of the Lease, Lessee is required to maintain and provide the following minimum required insurance coverage:"),
           list(["${{required_liability_limit}} Limit of Liability for Lessee's legal liability for damage to Lessor's property for no less than the following causes of loss: fire, smoke, explosion, and water damage resulting from backup or overflow of sewer, drain or sump (\"Required Insurance\")."]),
-          p("Lessee is required to furnish Lessor with evidence of Required Insurance before occupancy of the leased premises and at each lease renewal. If at any time Lessee does not have Required Insurance, Lessee is in breach of the Lease and Lessor shall have, in addition to any other rights under the Lease, the right but not the obligation to purchase Required Insurance coverage protecting the sole interest of the Lessor and seek contractual reimbursement from the Lessee for all costs and expenses associated with such purchase."),
+          p("Lessee is required to furnish Lessor with evidence of Required Insurance before occupancy of the leased premises and at each lease renewal. If at any time Lessee does not have Required Insurance, Lessee is in breach of the Lease."),
           p("Lessee may obtain Required Insurance or broader coverage from an insurance agent or insurance company of Lessee's choice. If Lessee furnishes evidence of such insurance and maintains it for the duration of the Lease, nothing more is required."),
         ],
-        changes: [ch("F17", "Outside the saved statute (insurance)", "attorney", "Liability limit is now a setting. Conflicts with the §1.6 additional-insured wording remain until the owner picks one insurance model.")],
-      },
-      {
-        id: "llip",
-        when: ["llip_offered"],
-        blocks: [
-          p("If Lessee does not maintain Required Insurance, the insurance requirement of this Lease may be satisfied by Lessor, who may purchase such coverage through the Lessor's Legal Liability Insurance Policy (\"LLIP\"). The coverage provided under the LLIP will provide the Required Insurance coverage listed above. An amount equal to the total cost to the Lessor for the LLIP coverage shall be charged to Lessee by the Lessor as a recoverable expense under the Lease. Some important points of this coverage, which Lessee should understand, are:"),
-          list(
-            [
-              "LLIP is designed to fulfill the insurance requirement of the Lease. Lessor is the Insured under the LLIP. This is a single-interest master insurance policy. Lessee is not an Insured, Additional Insured or beneficiary under the LLIP. All loss payments are made to the Lessor.",
-              "LLIP coverage is NOT personal liability insurance or renters insurance. LLIP does not cover the Lessee's personal property (contents), additional living expenses or liability arising out of bodily injury or property damage to any third party. If Lessee requires any of these coverages, Lessee should contact an insurance agent or insurance company of Lessee's choice to obtain personal liability insurance or renters insurance to protect Lessee's interests.",
-              "Coverage under the LLIP may be more expensive than the cost of Required Insurance obtainable by Lessee elsewhere. At any time, Lessee may contact an insurance agent or insurance company of their choice for insurance options to satisfy the Required Insurance under this Lease.",
-              "If Lessee has purchased Renters Insurance and at any time allows such Renters Insurance to lapse in breach of the Lease Agreement, Lessor may purchase Lessor Insurance without notice and add the total cost associated therewith to Lessee's monthly rent payment.",
-              "Licensed insurance agents may receive a commission on the LLIP.",
-              "The total cost to the Lessee for the Lessor obtaining LLIP shall be ${{llip_monthly}} per month, subject to no proration. This is an amount equal to the actual premium charge to the Lessor including any premium taxes and fees due to state governing bodies. There are no other fees, cost or charge added to or included within this total cost.",
-              "If loss or damage to Lessor's property exceeds the amount of Required Insurance, Lessee shall remain contractually liable to Lessor for such amount. In the event of liability to any other party for bodily injury or property damage, Lessee shall remain liable to such other party.",
-              "It shall be the Lessee's duty to notify Lessor of any subsequent purchase of Renters Insurance.",
-            ],
-            true,
-          ),
-          p("Scheduling of the premises under the LLIP is not mandatory. Lessee may purchase Required Insurance from an insurance agent or insurance company of Lessee's choice at any time, and coverage under the LLIP will then be terminated by the Lessor."),
-        ],
         changes: [
-          ch("F65", "Outside the saved statute (insurance placement)", "attorney", "Kept as written: LLIP placement \"without notice\", and the cost called a \"recoverable expense\" here but \"Additional Rent\" elsewhere. Attorney to confirm and pick one label. LLIP cost is now a setting; shown only when the property offers LLIP.", "Lessor may purchase Lessor Insurance without notice and add the total cost associated therewith to Lessee's monthly rent payment."),
-          ch("F67", "n/a", "cleanup", "The \"Scheduling of the premises under the LLIP is not mandatory\" paragraph moved here from §10.1, where it was misplaced.", "10.1 ... Scheduling of the premises under the LLIP is not mandatory"),
+          ch("F17", "Outside the saved statute (insurance)", "attorney", "Liability limit is now a setting. Conflicts with the §1.6 additional-insured wording remain until the owner picks one insurance model."),
+          ch("F65", "Outside the saved statute (insurance placement)", "cleanup", "Removed the Legal Liability Insurance Policy (LLIP) program, its $10.50 monthly charge and the landlord's right to buy coverage and bill the resident (decided Nov 1, 2026: SIM REI won't have an LLIP after leaving AppFolio). Residents must carry their own policy.", "the right but not the obligation to purchase Required Insurance coverage protecting the sole interest of the Lessor and seek contractual reimbursement"),
         ],
       },
     ],
@@ -841,7 +811,7 @@ const sections: DocumentTemplate["sections"] = [
         blocks: [
           p("As used in this Addendum: \"Lease\" may be interchangeable with \"Lease Agreement\"; \"Lessee\" may be interchangeable with \"Resident\" or \"Tenant\"; and \"Lessor\" may be interchangeable with \"Landlord\" or \"Owner\"."),
         ],
-        changes: [ch("F67", "n/a", "cleanup", "LLIP paragraph removed from this clause and moved to Section 9.")],
+        changes: [ch("F67", "n/a", "cleanup", "LLIP paragraph removed from this clause (the LLIP program was later removed from the lease).")],
       },
       {
         id: "sda-offer",
@@ -1011,12 +981,6 @@ const sections: DocumentTemplate["sections"] = [
           ch("F68", "n/a", "cleanup", "Literal labels \"Funds Payable to (Enter owner entity name)\", \"For Welcome Letter:Water|Sewer|Trash (flat fee or provider\", \"Next Months Rent amount If applicable\" and \"Next Months Utility If applicable\" replaced with fields. Funds are payable to the owner LLC. Utility contacts are per-property settings; the duplicated utility list was merged.", "Make payable to:Funds Payable to (Enter owner entity name)"),
           ch("F17", "Outside the saved statute (insurance)", "attorney", "Interested-party name and liability minimum are now settings. This \"additional interest\" wording conflicts with the §1.6 \"additional insured\" wording until the owner picks one model.", "Please add additional interest of \"SIM REI Property Management, LLC\""),
         ],
-      },
-      {
-        id: "welcome-llip",
-        when: ["llip_offered"],
-        blocks: [list(["Next Month LLIP: {{next_month_llip}}"])],
-        changes: [ch("F68", "n/a", "cleanup", "Literal label \"Next Month LLIP\" replaced with the computed amount; shown only when LLIP is offered.", "Next Month LLIP:Next Month LLIP")],
       },
       {
         id: "welcome-sda-balance",
@@ -1268,9 +1232,6 @@ const fields: Record<string, TemplateField> = {
   pet_offspring_weeks: f("Weeks to rehome unintended offspring", "setting", "8"),
   pet_removal_days: f("Days to remove pet after permission is revoked", "setting", "7"),
 
-  // LLIP
-  llip_monthly: money("LLIP monthly cost", "10.50"),
-
   // Security deposit alternative
   sda_provider: f("Security deposit alternative provider", "setting", "Obligo"),
   sda_fee: money("Security deposit alternative program fee (non-refundable)", "20.00"),
@@ -1294,9 +1255,8 @@ const fields: Record<string, TemplateField> = {
   insurance_interested_party: f("Name to list as additional interest on renter's insurance", "setting", "SIM REI Property Management, LLC"),
   next_month_rent: f("Next month's rent, if applicable", "computed", "$1,500.00"),
   next_month_utilities: f("Next month's utility charges, if applicable", "computed", "$0.00"),
-  next_month_llip: f("Next month's LLIP charge", "computed", "$10.50"),
   prorated_charges: f("Prorated charges", "computed", "$500.00"),
-  total_move_in: f("Total charges due at move-in", "computed", "$3,510.50"),
+  total_move_in: f("Total charges due at move-in", "computed", "$3,500.00"),
 };
 
 export const RESIDENTIAL_LEASE: DocumentTemplate = {

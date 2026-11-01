@@ -109,7 +109,6 @@ export function fillLease(template: DocumentTemplate, l: LeaseForDocument, compa
   if (guarantors.length) conditions.add("has_guarantor");
   if (months != null && months > 12) conditions.add("long_term");
   // SIM REI offers these today; they become company settings with the lease settings screen.
-  conditions.add("llip_offered");
   conditions.add("deposit_alternative_offered");
   conditions.add("email_notices");
 

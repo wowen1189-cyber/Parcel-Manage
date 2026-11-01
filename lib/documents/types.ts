@@ -44,7 +44,6 @@ export type Condition =
   | "multi_unit"
   | "has_pets"
   | "pre_1978"
-  | "llip_offered"
   | "deposit_alternative_offered"
   | "repair_deductible"
   | "tenant_lawn_care"

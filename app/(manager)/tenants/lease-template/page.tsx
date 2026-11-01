@@ -17,7 +17,7 @@ const SEVERITY: { key: Change["severity"]; title: string; tone: "danger" | "warn
 ];
 
 // Every condition on, so the whole template (all optional sections) shows.
-const ALL: Condition[] = ["single_family", "multi_unit", "has_pets", "pre_1978", "llip_offered", "deposit_alternative_offered", "repair_deductible", "tenant_lawn_care", "has_guarantor", "email_notices", "long_term", "resident_pest_control", "irrigation"];
+const ALL: Condition[] = ["single_family", "multi_unit", "has_pets", "pre_1978", "deposit_alternative_offered", "repair_deductible", "tenant_lawn_care", "has_guarantor", "email_notices", "long_term", "resident_pest_control", "irrigation"];
 
 export default async function LeaseTemplatePage({ searchParams }: PageProps<"/tenants/lease-template">) {
   await requireCompany();
