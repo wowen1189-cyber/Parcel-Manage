@@ -48,7 +48,7 @@ Build in order. Each phase ends with a demo Wesley can click through, tests pass
 **Done when:** a prospect texts at 9 PM, gets answers, books a showing on Wesley's calendar, applies, is screened, and receives a lease to e-sign, with escalations texted to Wesley.
 
 ## Phase 4 — Insight, platform, switch-over
-- [ ] Reports library (41) + custom builder + exports + scheduled emails (`04-reports-and-metrics.md`)
+- [ ] Reports library (41) + custom builder + exports + scheduled emails (`04-reports-and-metrics.md`) *(Done: Reports lists all 41 with what each replaces in AppFolio; 29 run today with filters (date range or as-of, owner, property), totals and CSV export: income statement, balance sheet, trial balance, general ledger, expenses by vendor, trust reconciliation, rent roll, aged receivables, payments, charges, tenant directory, lease expirations, move-ins/outs, vacancy, leasing funnel, applications, work orders, vendor compliance, vendor spend, aged payables, properties, owner directory, 1099s, Schedule E, users, plus pointers for tenant ledger and owner statements. Left: the other 12 (cash flow, budgets, loans, fixed assets, bank activity, payment plans, collections, surveys, inspections, projects, inventory, property insurance, delivery log), PDF/Excel, custom builder, scheduled e-mails.)*
 - [ ] Metrics page with company targets, alerts and daily snapshots
 - [ ] AI assistant panel (read-only Q&A, build report/tile) and approval queue; remaining agents (collections, renewal, accounting close, resident messenger, document AI)
 - [ ] Public REST API, scoped keys, signed webhooks; MCP server
