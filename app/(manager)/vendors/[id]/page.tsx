@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Notice, PageHeader, StatTile } from "@/components/ui";
+import { Button, Card, CardHeader, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
 import { contactName, date, todayIn } from "@/lib/format";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { canPay, itemsNeeded, MAX_SENDS, REMINDER_EVERY_DAYS, REQUEST_ITEM, requiredItems } from "@/lib/vendor-requests";
+import { cancelPaperworkRequest } from "../actions";
+import { RequestPaperworkButton } from "../request-button";
 import { isAdmin, requireCompany } from "@/lib/session";
 import { vendorCompliance } from "@/lib/vendors";
 import { VendorForm } from "../forms";
@@ -20,8 +24,23 @@ export default async function VendorPage({ params, searchParams }: PageProps<"/v
   const { supabase, company, membership } = await requireCompany();
   const { data: v } = await supabase.from("vendor").select("*, contact(*)").eq("id", id).eq("company_id", company.id).maybeSingle();
   if (!v) notFound();
-  const compliance = vendorCompliance(v, todayIn(company.time_zone));
+  const today = todayIn(company.time_zone);
+  const compliance = vendorCompliance(v, today);
   const c = v.contact;
+  const canEdit = ["admin", "property_manager", "maintenance_coordinator", "accountant"].includes(membership.role);
+  const [{ data: requests }, { data: docs }] = await Promise.all([
+    supabase.from("vendor_request").select("id, items, sent_to, send_count, first_sent_at, last_sent_at, opened_at, completed_at, cancelled_at").eq("company_id", company.id).eq("vendor_id", v.id).order("created_at", { ascending: false }).limit(1),
+    supabase.from("document").select("id, file_name, storage_path, category, expires_on, created_at").eq("company_id", company.id).eq("vendor_id", v.id).order("created_at", { ascending: false }),
+  ]);
+  const request = requests?.[0];
+  const open = request && !request.completed_at && !request.cancelled_at ? request : null;
+  const missing = requiredItems(itemsNeeded(v, today));
+  // Short-lived links to the private files (storage is server-only).
+  const links = new Map<string, string>();
+  if (docs?.length) {
+    const { data: signed } = await createAdminClient().storage.from("documents").createSignedUrls(docs.map((d) => d.storage_path), 600);
+    for (const s of signed ?? []) if (s.path && s.signedUrl) links.set(s.path, s.signedUrl);
+  }
 
   return (
     <>
@@ -39,10 +58,63 @@ export default async function VendorPage({ params, searchParams }: PageProps<"/v
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatTile label="Paperwork" value={<PaperworkPill compliance={compliance} />} />
         <StatTile label="Insurance expires" value={<span className="text-xl">{date(v.coi_expires_on, { blank: "Not on file" })}</span>} />
-        <StatTile label="Last paid" value={<span className="text-xl">{date(v.last_paid_on)}</span>} />
+        <StatTile label="Can be paid" value={<span className="text-xl">{canPay(v) ? "Yes" : "No: needs a W-9"}</span>} note={`Last paid ${date(v.last_paid_on)}`} />
       </div>
+      <Card className="mb-6">
+        <CardHeader
+          title="Paperwork"
+          description={
+            open
+              ? `Requested ${date(open.first_sent_at.slice(0, 10))}, sent ${open.send_count} time${open.send_count === 1 ? "" : "s"} to ${open.sent_to}${open.opened_at ? ", link opened" : ""}. Reminders every ${REMINDER_EVERY_DAYS} days (up to ${MAX_SENDS}).`
+              : missing.length
+                ? `Missing: ${missing.map((i) => REQUEST_ITEM[i].label).join(", ")}. Send a request and they can upload it from their phone.`
+                : "W-9 and insurance are on file."
+          }
+          action={open ? <Pill tone="info">Requested</Pill> : request?.completed_at ? <Pill tone="success">Received {date(request.completed_at.slice(0, 10))}</Pill> : undefined}
+        />
+        <div className="space-y-4 px-5 py-4">
+          {canEdit && (missing.length > 0 || open) && (
+            <div className="flex flex-wrap items-start gap-3">
+              {!c.email ? (
+                <Notice tone="warn">Add their e-mail below to send a request.</Notice>
+              ) : (
+                <RequestPaperworkButton vendorId={v.id} label={open ? "Send a reminder now" : "Request paperwork"} reminder={Boolean(open)} />
+              )}
+              {open && (
+                <form action={cancelPaperworkRequest}>
+                  <input type="hidden" name="vendor_id" value={v.id} />
+                  <Button type="submit" small variant="ghost">
+                    Stop reminders
+                  </Button>
+                </form>
+              )}
+            </div>
+          )}
+          {docs?.length ? (
+            <ul className="divide-y divide-line text-sm">
+              {docs.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span>
+                    {links.get(d.storage_path) ? (
+                      <a href={links.get(d.storage_path)} target="_blank" rel="noreferrer" className="font-semibold text-accent hover:underline">
+                        {d.file_name}
+                      </a>
+                    ) : (
+                      d.file_name
+                    )}
+                    <span className="ml-2 text-[13px] text-subtle">uploaded {date(d.created_at.slice(0, 10))}</span>
+                  </span>
+                  {d.expires_on && <span className="text-[13px] text-subtle">ends {date(d.expires_on)}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-subtle">No documents uploaded yet.</p>
+          )}
+        </div>
+      </Card>
       <VendorForm
-        canEdit={["admin", "property_manager", "maintenance_coordinator", "accountant"].includes(membership.role)}
+        canEdit={canEdit}
         canOverride={isAdmin(membership)}
         vendor={{
           id: v.id,

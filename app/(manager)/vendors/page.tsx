@@ -6,15 +6,26 @@ import { date, todayIn } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
 import { listVendors, PAPERWORK_OPTIONS } from "@/lib/vendor-list";
 import { PAYMENT_METHOD_LABEL, VENDOR_TRADES } from "@/lib/vendors";
+import { itemsNeeded, requiredItems } from "@/lib/vendor-requests";
 import { PaperworkPill } from "./paperwork-pill";
+import { RequestAllButton } from "./request-button";
 
 export const metadata = { title: "Vendors" };
 
 export default async function VendorsPage({ searchParams }: PageProps<"/vendors">) {
-  const { supabase, company } = await requireCompany();
+  const { supabase, company, membership } = await requireCompany();
   const params = await searchParams;
   const filters = { q: param(params, "q"), trade: param(params, "trade"), paperwork: param(params, "paperwork") };
-  const vendors = await listVendors(supabase, company.id, filters, todayIn(company.time_zone));
+  const today = todayIn(company.time_zone);
+  const [vendors, all, { data: openRequests }] = await Promise.all([
+    listVendors(supabase, company.id, filters, today),
+    listVendors(supabase, company.id, { q: "", trade: "", paperwork: "" }, today),
+    supabase.from("vendor_request").select("vendor_id").eq("company_id", company.id).is("completed_at", null).is("cancelled_at", null),
+  ]);
+  const requested = new Set((openRequests ?? []).map((r) => r.vendor_id));
+  const missing = all.filter((v) => requiredItems(itemsNeeded(v, today)).length);
+  const canRequest = missing.filter((v) => v.contact.email && !requested.has(v.id)).length;
+  const canEdit = ["admin", "property_manager", "maintenance_coordinator", "accountant"].includes(membership.role);
 
   return (
     <>
@@ -27,6 +38,17 @@ export default async function VendorsPage({ searchParams }: PageProps<"/vendors"
           </Link>
         }
       />
+      {canEdit && missing.length > 0 && (
+        <Card className="mb-4 flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <p className="text-sm">
+            <span className="font-semibold">{missing.length} vendors are missing paperwork</span>
+            <span className="text-subtle">
+              {" "}· {requested.size} already requested (reminders every few days){missing.length - canRequest - requested.size > 0 ? ` · ${missing.filter((v) => !v.contact.email).length} have no e-mail` : ""}
+            </span>
+          </p>
+          <RequestAllButton count={canRequest} />
+        </Card>
+      )}
       <Card className="overflow-hidden">
         <ListFilters
           action="/vendors"
@@ -67,6 +89,7 @@ export default async function VendorsPage({ searchParams }: PageProps<"/vendors"
                   </Td>
                   <Td>
                     <PaperworkPill compliance={v.compliance} />
+                    {requested.has(v.id) && <p className="mt-1 text-[12px] text-subtle">Requested</p>}
                   </Td>
                   <Td className="text-[13px]">
                     {v.payment_method ? PAYMENT_METHOD_LABEL[v.payment_method] : "—"}

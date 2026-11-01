@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { todayIn } from "@/lib/format";
+import { sendVendorRequest } from "@/lib/vendor-request-send";
+import { itemsNeeded, REMINDER_EVERY_DAYS, requiredItems } from "@/lib/vendor-requests";
 import { isAdmin, requireCompany } from "@/lib/session";
 import { VENDOR_TRADES } from "@/lib/vendors";
 
@@ -175,4 +178,54 @@ export async function createVendor(_: FormState, form: FormData): Promise<FormSt
   if (error) return { error: error.message, values: typed(form) };
   revalidatePath("/vendors");
   redirect(`/vendors/${vendor.id}?added=1`);
+}
+
+/** E-mail the vendor a private link to upload their W-9 and insurance; reminders follow until it's all in. */
+export async function requestPaperwork(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership, user } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: "Your role can't change vendors." };
+  const id = z.string().uuid().safeParse(form.get("vendor_id"));
+  if (!id.success) return { error: "Vendor not found." };
+  const result = await sendVendorRequest(supabase, company, id.data, { reminder: form.get("reminder") === "1", createdBy: user.id });
+  revalidatePath(`/vendors/${id.data}`);
+  revalidatePath("/vendors");
+  if (!result.ok) return { error: result.reason };
+  return { message: `Sent to ${result.sentTo}. They'll get a reminder every ${REMINDER_EVERY_DAYS} days until it's all uploaded.` };
+}
+
+export async function cancelPaperworkRequest(form: FormData): Promise<void> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return;
+  const id = z.string().uuid().safeParse(form.get("vendor_id"));
+  if (!id.success) return;
+  await supabase.from("vendor_request").update({ cancelled_at: new Date().toISOString() }).eq("company_id", company.id).eq("vendor_id", id.data).is("completed_at", null).is("cancelled_at", null);
+  revalidatePath(`/vendors/${id.data}`);
+  revalidatePath("/vendors");
+}
+
+/** Send requests to every vendor that's missing paperwork, has an e-mail, and has no open request. */
+export async function requestPaperworkFromAll(): Promise<FormState> {
+  const { supabase, company, membership, user } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: "Your role can't change vendors." };
+  const today = todayIn(company.time_zone);
+  const [{ data: vendors }, { data: open }] = await Promise.all([
+    supabase.from("vendor").select("id, trade, w9_on_file, coi_expires_on, workers_comp_expires_on, dispatch_override, is_1099, is_active, contact(email)").eq("company_id", company.id).eq("is_active", true),
+    supabase.from("vendor_request").select("vendor_id").eq("company_id", company.id).is("completed_at", null).is("cancelled_at", null),
+  ]);
+  const pending = new Set((open ?? []).map((r) => r.vendor_id));
+  const targets = (vendors ?? []).filter((v) => !pending.has(v.id) && v.contact.email && requiredItems(itemsNeeded(v, today)).length);
+  let sent = 0;
+  const failed: string[] = [];
+  for (const v of targets) {
+    const r = await sendVendorRequest(supabase, company, v.id, { reminder: false, createdBy: user.id });
+    if (r.ok) sent++;
+    else failed.push(r.reason);
+  }
+  const noEmail = (vendors ?? []).filter((v) => !v.contact.email && requiredItems(itemsNeeded(v, today)).length).length;
+  revalidatePath("/vendors");
+  if (!targets.length) return { message: `No new requests to send.${noEmail ? ` ${noEmail} vendors missing paperwork have no e-mail on file.` : ""}` };
+  return {
+    message: `Sent ${sent} request${sent === 1 ? "" : "s"}.${noEmail ? ` ${noEmail} vendors missing paperwork have no e-mail on file; add one to request.` : ""}`,
+    ...(failed.length ? { error: `${failed.length} couldn't be sent: ${[...new Set(failed)].join(" ")}` } : {}),
+  };
 }

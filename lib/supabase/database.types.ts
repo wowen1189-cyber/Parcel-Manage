@@ -399,6 +399,7 @@ export type Database = {
           company_id: string
           contact_id: string | null
           created_at: string
+          expires_on: string | null
           file_name: string
           id: string
           lease_id: string | null
@@ -406,6 +407,7 @@ export type Database = {
           source: string | null
           storage_path: string
           uploaded_by: string | null
+          vendor_id: string | null
           work_order_id: string | null
         }
         Insert: {
@@ -413,6 +415,7 @@ export type Database = {
           company_id: string
           contact_id?: string | null
           created_at?: string
+          expires_on?: string | null
           file_name: string
           id?: string
           lease_id?: string | null
@@ -420,6 +423,7 @@ export type Database = {
           source?: string | null
           storage_path: string
           uploaded_by?: string | null
+          vendor_id?: string | null
           work_order_id?: string | null
         }
         Update: {
@@ -427,6 +431,7 @@ export type Database = {
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          expires_on?: string | null
           file_name?: string
           id?: string
           lease_id?: string | null
@@ -434,6 +439,7 @@ export type Database = {
           source?: string | null
           storage_path?: string
           uploaded_by?: string | null
+          vendor_id?: string | null
           work_order_id?: string | null
         }
         Relationships: [
@@ -470,6 +476,13 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor"
             referencedColumns: ["id"]
           },
           {
@@ -1885,6 +1898,79 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contact"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_request: {
+        Row: {
+          cancelled_at: string | null
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          first_sent_at: string
+          id: string
+          items: string[]
+          last_sent_at: string
+          opened_at: string | null
+          send_count: number
+          sent_to: string
+          token_hash: string
+          vendor_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          first_sent_at?: string
+          id?: string
+          items: string[]
+          last_sent_at?: string
+          opened_at?: string | null
+          send_count?: number
+          sent_to: string
+          token_hash: string
+          vendor_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          first_sent_at?: string
+          id?: string
+          items?: string[]
+          last_sent_at?: string
+          opened_at?: string | null
+          send_count?: number
+          sent_to?: string
+          token_hash?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_request_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_request_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_request_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor"
             referencedColumns: ["id"]
           },
         ]
