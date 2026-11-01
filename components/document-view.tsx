@@ -1,20 +1,12 @@
 import type { ReactNode } from "react";
-import type { Block, Change, Condition, DocumentTemplate, Party, PartyNames } from "@/lib/documents/types";
+import type { Block, Condition, DocumentTemplate, Party, PartyNames } from "@/lib/documents/types";
 
 // Draws a document template (lease, addendum, disclosure) as a printable page.
 // `values` fills {{merge_fields}}; a missing value shows as a highlighted blank so nothing prints silently empty.
-// `showChanges` adds staff-only notes beside every clause changed for Florida law.
 
 export type { PartyNames };
 
 const PARTY_LABEL: Record<Party, string> = { tenants: "Tenant", guarantors: "Co-signer (guarantor)", landlord: "Landlord", agent: "Agent" };
-
-const SEVERITY: Record<Change["severity"], { label: string; className: string }> = {
-  must: { label: "Required by Florida law", className: "border-danger bg-danger-bg text-danger" },
-  disclosure: { label: "Required disclosure", className: "border-danger bg-danger-bg text-danger" },
-  attorney: { label: "For your attorney", className: "border-warn bg-warn-bg text-warn" },
-  cleanup: { label: "Cleanup", className: "border-line-strong bg-surface-sunk text-ink-2" },
-};
 
 function applies(when: Condition[] | undefined, conditions: Set<Condition>) {
   return !when || when.every((c) => conditions.has(c));
@@ -26,7 +18,6 @@ export function DocumentView({
   conditions,
   parties,
   choices = {},
-  showChanges = false,
 }: {
   template: DocumentTemplate;
   values: Record<string, string>;
@@ -34,7 +25,6 @@ export function DocumentView({
   parties: PartyNames;
   /** Pre-selected option id per choice id (office-set choices). */
   choices?: Record<string, string>;
-  showChanges?: boolean;
 }) {
   const fill = (text: string): ReactNode[] => {
     // Split on merge fields and **bold**.
@@ -202,7 +192,7 @@ export function DocumentView({
           {s.clauses
             .filter((c) => applies(c.when, conditions))
             .map((c) => (
-              <div key={c.id} className={showChanges && c.changes?.length ? "relative -mx-3 rounded-[10px] px-3 outline outline-2 outline-warn/40" : undefined}>
+              <div key={c.id}>
                 {c.title && (
                   <h3 className="mt-5 border-b border-line pb-1 text-[13px] font-semibold uppercase tracking-wide">
                     {c.number && <span className="mr-2">{c.number}</span>}
@@ -210,16 +200,6 @@ export function DocumentView({
                   </h3>
                 )}
                 {c.blocks.map((b, i) => block(b, `${c.id}-${i}`))}
-                {showChanges &&
-                  c.changes?.map((ch, i) => (
-                    <aside key={i} className={`my-2 rounded-[8px] border px-3 py-2 text-[12px] print:hidden ${SEVERITY[ch.severity].className}`}>
-                      <p className="font-semibold">
-                        {SEVERITY[ch.severity].label} · {ch.cite} · {ch.finding}
-                      </p>
-                      <p className="mt-0.5">{ch.summary}</p>
-                      {ch.before && <p className="mt-0.5 italic opacity-80">Was: “{ch.before}”</p>}
-                    </aside>
-                  ))}
               </div>
             ))}
           {s.initials && block({ kind: "initials" }, `${s.id}-initials`)}
@@ -229,9 +209,3 @@ export function DocumentView({
   );
 }
 
-/** Every Change in a template, in document order, for a summary list. */
-export function listChanges(template: DocumentTemplate) {
-  return template.sections.flatMap((s) =>
-    s.clauses.flatMap((c) => (c.changes ?? []).map((ch) => ({ ...ch, where: [s.number, c.number ?? c.title ?? s.title].filter(Boolean).join(" · "), section: s.title, clause: c.title ?? "" }))),
-  );
-}

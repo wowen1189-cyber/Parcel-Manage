@@ -3,8 +3,8 @@
 
 import { FLOOD_DISCLOSURE } from "./flood-disclosure";
 import { LEAD_PAINT_DISCLOSURE } from "./lead-paint-disclosure";
-import { OPEN_QUESTIONS, RESIDENTIAL_LEASE } from "./residential-lease";
+import { RESIDENTIAL_LEASE } from "./residential-lease";
 
-export { FLOOD_DISCLOSURE, LEAD_PAINT_DISCLOSURE, OPEN_QUESTIONS, RESIDENTIAL_LEASE };
+export { FLOOD_DISCLOSURE, LEAD_PAINT_DISCLOSURE, RESIDENTIAL_LEASE };
 
 export const TEMPLATES = [RESIDENTIAL_LEASE, FLOOD_DISCLOSURE, LEAD_PAINT_DISCLOSURE];

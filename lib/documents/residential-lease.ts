@@ -15,24 +15,6 @@ const f = (label: string, source: TemplateField["source"], example: string, fixe
   fixedByLaw === undefined ? { label, source, example } : { label, source, example, fixedByLaw };
 
 /** Questions the owner (and attorney) must answer before this template is used. */
-export const OPEN_QUESTIONS: string[] = [
-  "Landlord name: confirm each lease names the owning LLC as Landlord ({{landlord_name}}) with SIM REI Property Management LLC as its agent for notices (83.50). Which LLC owns each property?",
-  "Deposit accounts (83.49(1)-(2)): for each owner LLC, which Florida bank holds deposits (name and street address)? Interest-bearing, non-interest-bearing, or surety bond? Does each owner rent five or more units (the 83.49(2) notice threshold)?",
-  "Electronic notices (83.505): do you want to send 3-day notices, deposit claims and other ch. 83 notices by e-mail? If so, which e-mail address does SIM REI designate, and who signs the landlord election?",
-  "End-of-term notice (83.575): keep 60 days (allowed range 30-60)? Keep the one-month liquidated-damages charge? If so, the office must send the 83.575(2) pre-notice within 15 days before the notice period starts, and must give tenants the same notice of non-renewal.",
-  "Early termination (83.595(4)): keep Choice 1 at 2x rent? What early-termination notice period (60 days or less)?",
-  "Obligo: what exactly does the tenant sign (fee, insurance, surety bond, installment plan)? The attorney must decide whether 83.491 applies. If it does not, remove clause 10.6 (fee-in-lieu notice and disclosure). Is the option offered to every new tenant at a property (required by 83.491(7) if it is a fee in lieu)?",
-  "Insurance model: §1.6 requires a renter's policy naming the landlord as additional insured; §9 and the welcome letter use the required-insurance / interested-party model (the LLIP program was removed Nov 1, 2026). Pick one (review F17); the template keeps both wordings until you decide.",
-  "Property mix: which properties are not single-family homes or duplexes? The repair deductible (§3.2) and other duty shifts are allowed only for single-family homes and duplexes under 83.51(1). Should the app block the deductible on other units?",
-  "Personal property after move-out: add the 83.67(5) legend (no landlord liability for storage or disposition), or keep following ch. 715? Not added in this draft.",
-  "Decided Nov 1, 2026: keep the jury waiver (§4.3) and the $150 repair deductible (§3.2) on all single-family homes. Attorney to confirm both are enforceable.",
-  "Guarantors: the original lease has no guaranty terms. The template only adds a guarantor signature block when a lease has a guarantor; attorney to supply the guaranty wording.",
-  "Items outside the saved statute for the attorney: NSF fee cap and returned-check wording (ss. 68.065 / 832.08); assistance and service animal wording (FHA, ss. 413.08 / 760.27); credit reporting; e-signature consent (ch. 668); radon notice (s. 404.056(5)); the 'Administrative Fee' move-out charge; removed 'rental discounts' and returned-check prosecution sentences.",
-  "Welcome letter says 'Application fees are non-refundable', but company settings refund the admin fee if an application is denied. Confirm the wording.",
-  "Flood disclosure: use it on every lease, or only terms of 1 year or longer (83.512(1))? Who at each owner LLC answers items 1-3?",
-  "Lead-based paint (federal, verify): which properties were built before 1978? Who signs the agent's acknowledgment for SIM REI? Confirm the warning statement and items against the EPA/HUD lessor sample form.",
-];
-
 const sections: DocumentTemplate["sections"] = [
   // ───────────────────────────── 1 Lease Terms ─────────────────────────────
   {
@@ -174,11 +156,11 @@ const sections: DocumentTemplate["sections"] = [
         title: "Insurance",
         blocks: [
           p("Landlord's insurance does not cover your personal property or your liability. We strongly encourage you to carry renter's insurance for losses to your personal property or injuries due to theft, fire, water damage, pipe leaks and the like. This section does not limit any liability Landlord has to you under law."),
-          p("Resident shall, at Resident's sole cost and expense, obtain renter's insurance covering the full value of all personal property of Resident in the Premises, and providing liability coverage to Resident in an amount not less than ${{required_liability_limit}}, which policy shall name Landlord as an additional insured. Resident shall maintain such renter's insurance at all times during the Term of the Lease. Resident shall provide a certificate of insurance to Landlord demonstrating that Resident has procured the required insurance coverage. If Resident fails to procure the required insurance, allows such insurance to be cancelled or to lapse, or fails to timely provide the required certificates of insurance, the same shall be a Default of this Lease."),
+          p("Resident shall, at Resident's sole cost and expense, obtain renter's insurance covering the full value of all personal property of Resident in the Premises, and providing liability coverage to Resident in an amount not less than ${{required_liability_limit}}, which policy shall list \"{{insurance_interested_party}}\" as an interested party (additional interest), as described in the Required Insurance Addendum. Resident shall maintain such renter's insurance at all times during the Term of the Lease. Resident shall provide a certificate of insurance to Landlord demonstrating that Resident has procured the required insurance coverage. If Resident fails to procure the required insurance, allows such insurance to be cancelled or to lapse, or fails to timely provide the required certificates of insurance, the same shall be a Default of this Lease."),
         ],
         changes: [
           ch("F16", "Fla. Stat. 83.47(1)(b)", "attorney", "Removed \"You assume all liability for personal injury, property damage or loss\"; the clause now says it does not limit the landlord's legal liability.", "You assume all liability for personal injury, property damage or loss, and insurable risk."),
-          ch("F17", "Outside the saved statute (insurance)", "attorney", "Kept as written for now: this paragraph (additional insured, lapse is a default) conflicts with §9 and the welcome letter (interested party). Owner to pick one model. Liability minimum is now a setting.", "which policy shall name Landlord as an additional insured"),
+          ch("F17", "Outside the saved statute (insurance)", "attorney", "Was \"additional insured\", which conflicted with §9 and the welcome letter. Settled Nov 1, 2026: the landlord is listed as an interested party (additional interest), matching §9 and the welcome letter. Liability minimum is now a setting.", "which policy shall name Landlord as an additional insured"),
         ],
       },
       {
@@ -938,7 +920,7 @@ const sections: DocumentTemplate["sections"] = [
           p("Lease Term: {{lease_term_months}} months, from {{lease_start_date}} to {{lease_end_date}}"),
           p("Monthly Rental Charges: {{monthly_charges}}"),
           p("Address: {{unit_address}}"),
-          p("The application fee is used to screen applicant(s) with regard to credit history and other background information. A criminal background check will also be performed as part of this process. Application fees are non-refundable."),
+          p("The application fee is used to screen applicant(s) with regard to credit history and other background information. A criminal background check will also be performed as part of this process. The application fee is non-refundable."),
           p("Application Fee Due: ${{application_fee}}"),
           p("Admin Fee Due: ${{admin_fee}}"),
           p("Deposit Due: Security Deposit (refundable as described in Section 1.4): {{security_deposit}}"),

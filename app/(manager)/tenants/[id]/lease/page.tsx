@@ -33,7 +33,6 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
   const pre1978 = l.unit.property.year_built != null && l.unit.property.year_built < 1978;
   const docs = TEMPLATES.filter((t) => t.id !== "lead-paint-disclosure" || pre1978);
   const doc = docs.find((t) => t.id === param(sp, "doc")) ?? TEMPLATES[0];
-  const showChanges = param(sp, "changes") === "1";
   const { values, conditions, parties, yearBuiltUnknown } = fillLease(
     doc,
     {
@@ -68,20 +67,17 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
       {commercial && <Notice tone="warn">This is a commercial unit. The residential lease and Florida residential disclosures don&apos;t apply; a commercial lease template comes later.</Notice>}
       <div className="my-4 flex flex-wrap gap-2 print:hidden">
         {docs.map((t) => (
-          <Link key={t.id} href={`/tenants/${id}/lease?doc=${t.id}${showChanges ? "&changes=1" : ""}`} className={buttonClass(t.id === doc.id ? "primary" : "secondary", true)}>
+          <Link key={t.id} href={`/tenants/${id}/lease?doc=${t.id}`} className={buttonClass(t.id === doc.id ? "primary" : "secondary", true)}>
             {t.title}
           </Link>
         ))}
-        <Link href={`/tenants/${id}/lease?doc=${doc.id}${showChanges ? "" : "&changes=1"}`} className={buttonClass("ghost", true)}>
-          {showChanges ? "Hide changes" : "Show what changed for Florida law"}
-        </Link>
       </div>
       {blanks > 0 && (
         <div className="mb-4 print:hidden">
           <Notice tone="warn">
-            {blanks} blank{blanks === 1 ? "" : "s"} still to fill (highlighted), like the owning LLC and the bank holding deposits. See the questions on the{" "}
-            <Link href="/tenants/lease-template" className="font-semibold underline">
-              lease template page
+            {blanks} blank{blanks === 1 ? "" : "s"} still to fill (highlighted), like where deposits are held. Fill them in on the{" "}
+            <Link href={`/properties/${l.unit.property_id}`} className="font-semibold underline">
+              property&apos;s lease settings
             </Link>
             .
           </Notice>
@@ -99,7 +95,7 @@ export default async function LeaseDocumentPage({ params, searchParams }: PagePr
         </div>
       )}
       <Card className="mx-auto max-w-[860px] px-6 py-8 sm:px-12 print:max-w-none print:border-0 print:p-0">
-        <DocumentView template={doc} values={values} conditions={conditions} parties={parties} showChanges={showChanges} />
+        <DocumentView template={doc} values={values} conditions={conditions} parties={parties} />
       </Card>
     </>
   );
