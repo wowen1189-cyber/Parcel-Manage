@@ -52,6 +52,10 @@ export function PaymentForm({ leaseId, today, certifiedOnly }: { leaseId: string
           <Input name="memo" defaultValue={v("memo", "")} />
         </Field>
       </div>
+      <label className="flex items-center gap-2 text-[14px]">
+        <input type="checkbox" name="send_receipt" defaultChecked className="size-4" />
+        E-mail a receipt to the tenant
+      </label>
       <Button type="submit" small disabled={pending}>
         {pending ? "Recording…" : "Record payment"}
       </Button>

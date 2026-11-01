@@ -197,6 +197,76 @@ export type Database = {
           },
         ]
       }
+      autopay: {
+        Row: {
+          active: boolean
+          bank_label: string | null
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          day_of_month: number
+          id: string
+          last_result: string | null
+          last_run_month: string | null
+          lease_id: string
+          max_cents: number | null
+          stripe_customer_id: string
+          stripe_payment_method_id: string
+        }
+        Insert: {
+          active?: boolean
+          bank_label?: string | null
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          day_of_month?: number
+          id?: string
+          last_result?: string | null
+          last_run_month?: string | null
+          lease_id: string
+          max_cents?: number | null
+          stripe_customer_id: string
+          stripe_payment_method_id: string
+        }
+        Update: {
+          active?: boolean
+          bank_label?: string | null
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          day_of_month?: number
+          id?: string
+          last_result?: string | null
+          last_run_month?: string | null
+          lease_id?: string
+          max_cents?: number | null
+          stripe_customer_id?: string
+          stripe_payment_method_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopay_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autopay_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autopay_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_account: {
         Row: {
           company_id: string

@@ -1,13 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { emailHtml, emailText } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/integrations/resend/send";
-import { verifyStripeWebhook } from "@/lib/integrations/stripe/client";
+import { stripe, verifyStripeWebhook } from "@/lib/integrations/stripe/client";
+import { sendReceipt } from "@/lib/receipts";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Stripe Connect webhook: records tenant payments once they've cleared, and reverses a payment that comes
 // back (a dispute or returned bank payment). Each event is handled once (stripe_event table).
 
-type Session = { id: string; payment_status: string; payment_intent: string | null; metadata: Record<string, string> };
+type Session = { id: string; mode?: string; payment_status: string; payment_intent: string | null; setup_intent?: string | null; customer?: string | null; metadata: Record<string, string> };
+type Intent = { id: string; amount: number; metadata: Record<string, string>; last_payment_error?: { message?: string } | null };
 type Dispute = { payment_intent: string | null; amount: number };
 
 export async function POST(request: NextRequest) {
@@ -20,22 +22,44 @@ export async function POST(request: NextRequest) {
   if (dup) return NextResponse.json({ received: true, duplicate: true });
   if (!company) return NextResponse.json({ received: true });
 
-  if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
+  if (event.type === "checkout.session.completed" && (event.data.object as Session).mode === "setup") {
+    // Autopay setup finished: save the bank account, replacing any earlier one on this lease.
+    const s = event.data.object as Session;
+    if (s.metadata?.company_id !== company.id || !s.metadata.lease_id || !s.setup_intent || !s.customer) return NextResponse.json({ received: true });
+    const si = await stripe<{ payment_method: { id: string; us_bank_account?: { bank_name?: string; last4?: string } } }>("GET", `setup_intents/${s.setup_intent}`, { "expand[]": "payment_method" }, event.account);
+    const bank = si.payment_method.us_bank_account;
+    await db.from("autopay").update({ active: false }).eq("company_id", company.id).eq("lease_id", s.metadata.lease_id).eq("active", true);
+    await db.from("autopay").insert({
+      company_id: company.id,
+      lease_id: s.metadata.lease_id,
+      contact_id: s.metadata.contact_id || null,
+      stripe_customer_id: s.customer,
+      stripe_payment_method_id: si.payment_method.id,
+      bank_label: bank ? `${bank.bank_name ?? "Bank"} ending ${bank.last4 ?? ""}`.trim() : "Bank account",
+      day_of_month: Math.min(28, Math.max(1, Number(s.metadata.day) || 1)),
+      max_cents: Number(s.metadata.max_cents) || null,
+    });
+  } else if (event.type === "payment_intent.succeeded" && (event.data.object as Intent).metadata?.autopay) {
+    const pi = event.data.object as Intent;
+    if (pi.metadata.company_id !== company.id) return NextResponse.json({ received: true });
+    const err = await recordOnline(db, company.id, pi.metadata.lease_id, "ach", pi.amount, pi.id, 0, "Autopay");
+    if (err) return NextResponse.json({ error: err }, { status: 500 });
+  } else if (event.type === "payment_intent.payment_failed" && (event.data.object as Intent).metadata?.autopay) {
+    const pi = event.data.object as Intent;
+    const { data: a } = await db.from("autopay").select("id, lease_id").eq("id", pi.metadata.autopay).eq("company_id", company.id).maybeSingle();
+    if (a) {
+      await db.from("autopay").update({ last_result: `${new Date().toISOString().slice(0, 10)}: Failed: ${pi.last_payment_error?.message ?? "the bank declined it"}` }).eq("id", a.id);
+      const { data: people } = await db.from("lease_tenant").select("role, contact(email)").eq("lease_id", a.lease_id);
+      const to = (people ?? []).filter((p) => p.role === "tenant" && p.contact?.email).map((p) => p.contact!.email!);
+      const content = { preheader: "Your autopay didn't go through.", heading: "Autopay didn't go through", paragraphs: [`Your automatic payment of $${(pi.amount / 100).toFixed(2)} didn't go through: ${pi.last_payment_error?.message ?? "the bank declined it"}.`, "Your rent is still due. Please pay in your resident portal or contact the office."], fromLine: company.name };
+      if (to.length) await sendEmail({ to, subject: "Autopay didn't go through", html: emailHtml(content), text: emailText(content), fromName: company.name, replyTo: company.office_email });
+      if (company.office_email) await sendEmail({ to: company.office_email, subject: "A tenant's autopay failed", html: emailHtml({ ...content, heading: "A tenant's autopay failed" }), text: emailText(content), fromName: "Parcel Manage" });
+    }
+  } else if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const s = event.data.object as Session;
     if (s.payment_status !== "paid" || !s.metadata?.lease_id || s.metadata.company_id !== company.id) return NextResponse.json({ received: true });
-    const ref = s.payment_intent ?? s.id;
-    const { data: existing } = await db.from("payment").select("id").eq("company_id", company.id).eq("processor_ref", ref).maybeSingle();
-    if (!existing) {
-      const { data: paymentId, error } = await db.rpc("record_payment", {
-        p_lease: s.metadata.lease_id,
-        p_method: s.metadata.method === "card" ? "card" : "ach",
-        p_amount: Number(s.metadata.amount_cents),
-        p_received: new Date().toISOString().slice(0, 10),
-        p_reference: `Online ${s.metadata.method === "card" ? "card" : "bank"} payment`,
-      });
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      await db.from("payment").update({ processor_ref: ref, fee_cents: Number(s.metadata.fee_cents ?? 0) }).eq("id", paymentId as string);
-    }
+    const err = await recordOnline(db, company.id, s.metadata.lease_id, s.metadata.method === "card" ? "card" : "ach", Number(s.metadata.amount_cents), s.payment_intent ?? s.id, Number(s.metadata.fee_cents ?? 0), `Online ${s.metadata.method === "card" ? "card" : "bank"} payment`);
+    if (err) return NextResponse.json({ error: err }, { status: 500 });
   } else if (event.type === "charge.dispute.created") {
     const d = event.data.object as Dispute;
     const { data: pay } = d.payment_intent ? await db.from("payment").select("id, status, lease_id").eq("company_id", company.id).eq("processor_ref", d.payment_intent).maybeSingle() : { data: null };
@@ -48,4 +72,15 @@ export async function POST(request: NextRequest) {
     }
   }
   return NextResponse.json({ received: true });
+}
+
+/** Records a cleared online payment once (by Stripe reference) and e-mails the receipt. Returns an error message. */
+async function recordOnline(db: ReturnType<typeof createAdminClient>, companyId: string, leaseId: string, method: "ach" | "card", amount: number, ref: string, fee: number, label: string) {
+  const { data: existing } = await db.from("payment").select("id").eq("company_id", companyId).eq("processor_ref", ref).maybeSingle();
+  if (existing) return null;
+  const { data: paymentId, error } = await db.rpc("record_payment", { p_lease: leaseId, p_method: method, p_amount: amount, p_received: new Date().toISOString().slice(0, 10), p_reference: label });
+  if (error) return error.message;
+  await db.from("payment").update({ processor_ref: ref, fee_cents: fee }).eq("id", paymentId as string);
+  await sendReceipt(db, companyId, paymentId as string);
+  return null;
 }

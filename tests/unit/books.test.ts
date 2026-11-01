@@ -42,3 +42,20 @@ describe("recurring bills", () => {
     expect(nextBillDate("2026-11-01", "yearly")).toBe("2027-11-01");
   });
 });
+
+import { autopayAmount, autopayDue } from "@/lib/autopay-rules";
+
+describe("autopay", () => {
+  it("runs once a month, on or after the tenant's day", () => {
+    expect(autopayDue("2026-11-01", 1, null)).toBe(true);
+    expect(autopayDue("2026-11-01", 3, null)).toBe(false);
+    expect(autopayDue("2026-11-05", 3, "2026-10")).toBe(true);
+    expect(autopayDue("2026-11-05", 3, "2026-11")).toBe(false);
+  });
+  it("drafts the balance up to the limit, nothing under $1", () => {
+    expect(autopayAmount(125000, null)).toBe(125000);
+    expect(autopayAmount(125000, 100000)).toBe(100000);
+    expect(autopayAmount(50, null)).toBe(0);
+    expect(autopayAmount(-500, null)).toBe(0);
+  });
+});

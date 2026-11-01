@@ -65,7 +65,10 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const insurance = l.renters_insurance ?? [];
   const vehicles = people.flatMap((p) => p.contact.vehicle);
   const ledger = buildLedger(l.charge, l.payment, { cents: l.opening_balance_cents, asOf: l.opening_balance_as_of });
-  const { data: moveOut } = await supabase.from("move_out").select("refund_cents, closed_at").eq("lease_id", l.id).maybeSingle();
+  const [{ data: moveOut }, { data: autopay }] = await Promise.all([
+    supabase.from("move_out").select("refund_cents, closed_at").eq("lease_id", l.id).maybeSingle(),
+    supabase.from("autopay").select("bank_label, day_of_month, last_result").eq("lease_id", l.id).eq("active", true).maybeSingle(),
+  ]);
   const deposits = depositHeldCents(l.payment, moveOut?.closed_at ? moveOut.refund_cents : 0);
   const showAll = sp.ledger === "all";
   const ledgerRows = [...ledger.rows].reverse().slice(0, showAll ? undefined : 12);
@@ -259,7 +262,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
           <Card className="overflow-hidden">
             <CardHeader
               title="Ledger"
-              description={`Balance ${money(ledger.balanceCents)}${deposits ? ` · ${money(deposits)} deposit held in trust` : ""}`}
+              description={`Balance ${money(ledger.balanceCents)}${deposits ? ` · ${money(deposits)} deposit held in trust` : ""}${autopay ? ` · Autopay on day ${autopay.day_of_month} from ${autopay.bank_label}${autopay.last_result ? ` (last: ${autopay.last_result})` : ""}` : ""}`}
               action={<Link href={`/tenants/${l.id}/ledger.csv`} className="text-[13px] font-semibold text-accent hover:underline">Export CSV</Link>}
             />
             {ledgerRows.length ? (

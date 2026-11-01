@@ -4,11 +4,13 @@ import { money } from "@/lib/format";
 import { buildLedger } from "@/lib/ledger";
 import { requireTenant } from "@/lib/portal";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PayForm } from "./pay-form";
+import { stopAutopay } from "./actions";
+import { AutopayForm, PayForm } from "./pay-form";
 
 export const metadata = { title: "Pay rent" };
 
-export default async function PayPage() {
+export default async function PayPage({ searchParams }: PageProps<"/portal/pay">) {
+  const sp = await searchParams;
   const { supabase, company, lease } = await requireTenant();
   const [{ data: c }, { data: charges }, { data: payments }, { data: full }] = await Promise.all([
     createAdminClient().from("company").select("settings, stripe_charges_enabled").eq("id", company.id).single(),
@@ -16,6 +18,7 @@ export default async function PayPage() {
     supabase.from("payment").select("id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at").eq("lease_id", lease.id),
     supabase.from("lease").select("opening_balance_cents, opening_balance_as_of, certified_funds_only").eq("id", lease.id).single(),
   ]);
+  const { data: autopay } = await supabase.from("autopay").select("bank_label, day_of_month, max_cents, last_result").eq("lease_id", lease.id).eq("active", true).maybeSingle();
   const { balanceCents } = buildLedger(charges ?? [], payments ?? [], { cents: full?.opening_balance_cents ?? null, asOf: full?.opening_balance_as_of ?? null });
   return (
     <div className="space-y-4">
@@ -28,6 +31,25 @@ export default async function PayPage() {
       ) : (
         <Card className="p-5">
           <PayForm balanceCents={balanceCents} feePercent={readBusinessRules(c.settings).rent.cardFeePercent} />
+        </Card>
+      )}
+      {c?.stripe_charges_enabled && !full?.certified_funds_only && (
+        <Card className="p-5">
+          <h2 className="mb-3 text-[17px] font-bold">Autopay</h2>
+          {sp.autopay && !autopay && <Notice>Your bank is being linked. This page will show autopay as on within a minute.</Notice>}
+          {autopay ? (
+            <div className="space-y-3 text-[15px]">
+              <p>
+                On. We draft {autopay.bank_label} on day {autopay.day_of_month} of each month for the balance due{autopay.max_cents ? `, up to ${money(autopay.max_cents)}` : ""}.
+              </p>
+              {autopay.last_result && <p className="text-[13px] text-subtle">Last run: {autopay.last_result}</p>}
+              <form action={stopAutopay}>
+                <button className="min-h-11 text-[14px] font-semibold text-danger">Turn off autopay</button>
+              </form>
+            </div>
+          ) : (
+            <AutopayForm companyName={company.name} />
+          )}
         </Card>
       )}
     </div>

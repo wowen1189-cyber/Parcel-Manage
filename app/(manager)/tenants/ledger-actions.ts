@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { CHARGE_TYPES, PAYMENT_METHODS } from "@/lib/ledger";
+import { sendReceipt } from "@/lib/receipts";
 import { requireCompany } from "@/lib/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Ledger changes: each one posts a balanced journal entry through the database functions in
 // 0015_accounting.sql. Nothing is edited after posting; mistakes are fixed by returning or reversing.
@@ -29,7 +32,7 @@ function refresh(leaseId: string) {
 }
 
 export async function recordPayment(_: LedgerState, form: FormData): Promise<LedgerState> {
-  const { supabase, membership } = await requireCompany();
+  const { supabase, company, membership } = await requireCompany();
   if (!MONEY_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
   const parsed = z
     .object({
@@ -44,7 +47,7 @@ export async function recordPayment(_: LedgerState, form: FormData): Promise<Led
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message, values: typed(form) };
   const d = parsed.data;
-  const { error } = await supabase.rpc("record_payment", {
+  const { data: paymentId, error } = await supabase.rpc("record_payment", {
     p_lease: d.lease_id,
     p_method: d.method,
     p_amount: d.amount,
@@ -54,6 +57,7 @@ export async function recordPayment(_: LedgerState, form: FormData): Promise<Led
     p_memo: d.memo || undefined,
   });
   if (error) return { error: error.message, values: typed(form) };
+  if (form.get("send_receipt") === "on") after(() => sendReceipt(createAdminClient(), company.id, paymentId as string));
   refresh(d.lease_id);
   return { message: d.purpose === "deposit" ? "Deposit recorded and held in trust." : "Payment recorded." };
 }

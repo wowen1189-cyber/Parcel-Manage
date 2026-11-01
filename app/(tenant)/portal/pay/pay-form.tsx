@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button, Field, Input, Notice } from "@/components/ui";
-import { startPayment, type PayState } from "./actions";
+import { startAutopay, startPayment, type PayState } from "./actions";
 
 const empty: PayState = {};
 
@@ -56,6 +56,33 @@ export function PayForm({ balanceCents, feePercent }: { balanceCents: number; fe
         {pending ? "Opening secure checkout…" : `Continue to pay ${fmt(cents + fee)}`}
       </Button>
       <p className="text-[12px] text-subtle">Payments are processed securely by Stripe. Your card or bank details never touch our servers.</p>
+    </form>
+  );
+}
+
+export function AutopayForm({ companyName }: { companyName: string }) {
+  const [state, action, pending] = useActionState(startAutopay, empty);
+  return (
+    <form action={action} className="space-y-4">
+      {state.error && <Notice tone="danger">{state.error}</Notice>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Day of the month to pay" hint="1 to 28. Rent is due on the 1st.">
+          <Input name="day" type="number" min={1} max={28} defaultValue={1} />
+        </Field>
+        <Field label="Most to pay at once ($)" hint="Optional. Leave blank to pay the full balance.">
+          <Input name="max" inputMode="decimal" />
+        </Field>
+      </div>
+      <label className="flex items-start gap-3 text-[14px]">
+        <input type="checkbox" name="agree" className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
+        <span>
+          I authorize {companyName} to draft my bank account each month on the day above for the balance due on my lease (up to the limit, if I set one), until I turn
+          autopay off here. Bank payments are free.
+        </span>
+      </label>
+      <Button type="submit" disabled={pending}>
+        {pending ? "Opening secure bank link…" : "Set up autopay"}
+      </Button>
     </form>
   );
 }
