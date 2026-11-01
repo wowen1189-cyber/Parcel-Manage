@@ -197,6 +197,155 @@ export type Database = {
           },
         ]
       }
+      bank_account: {
+        Row: {
+          company_id: string
+          created_at: string
+          entity_id: string
+          gl_number: string
+          id: string
+          institution: string | null
+          last4: string | null
+          name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entity_id: string
+          gl_number?: string
+          id?: string
+          institution?: string | null
+          last4?: string | null
+          name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entity_id?: string
+          gl_number?: string
+          id?: string
+          institution?: string | null
+          last4?: string | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_account_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_account_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_cleared_line: {
+        Row: {
+          company_id: string
+          journal_line_id: string
+          reconciliation_id: string
+        }
+        Insert: {
+          company_id: string
+          journal_line_id: string
+          reconciliation_id: string
+        }
+        Update: {
+          company_id?: string
+          journal_line_id?: string
+          reconciliation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_cleared_line_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_cleared_line_journal_line_id_fkey"
+            columns: ["journal_line_id"]
+            isOneToOne: true
+            referencedRelation: "journal_line"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_cleared_line_reconciliation_id_fkey"
+            columns: ["reconciliation_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_transaction: {
+        Row: {
+          amount_cents: number
+          bank_account_id: string
+          company_id: string
+          created_at: string
+          description: string
+          fingerprint: string
+          id: string
+          journal_line_id: string | null
+          posted_on: string
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          bank_account_id: string
+          company_id: string
+          created_at?: string
+          description: string
+          fingerprint: string
+          id?: string
+          journal_line_id?: string | null
+          posted_on: string
+          status?: string
+        }
+        Update: {
+          amount_cents?: number
+          bank_account_id?: string
+          company_id?: string
+          created_at?: string
+          description?: string
+          fingerprint?: string
+          id?: string
+          journal_line_id?: string | null
+          posted_on?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transaction_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transaction_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transaction_journal_line_id_fkey"
+            columns: ["journal_line_id"]
+            isOneToOne: false
+            referencedRelation: "journal_line"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bill: {
         Row: {
           amount_cents: number
@@ -1982,6 +2131,61 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation: {
+        Row: {
+          bank_account_id: string
+          cleared_balance_cents: number
+          company_id: string
+          completed_at: string
+          completed_by: string | null
+          id: string
+          statement_balance_cents: number
+          statement_date: string
+        }
+        Insert: {
+          bank_account_id: string
+          cleared_balance_cents: number
+          company_id: string
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          statement_balance_cents: number
+          statement_date: string
+        }
+        Update: {
+          bank_account_id?: string
+          cleared_balance_cents?: number
+          company_id?: string
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          statement_balance_cents?: number
+          statement_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
         ]
