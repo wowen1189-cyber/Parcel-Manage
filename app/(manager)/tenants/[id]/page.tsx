@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { Card, CardHeader, EmptyState, PageHeader, Pill, StatTile } from "@/components/ui";
+import { Card, CardHeader, EmptyState, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
+import { markLeaseSigned } from "../actions";
 import { readBusinessRules } from "@/lib/business-rules";
 import { bedBath, contactName, date, money, todayIn } from "@/lib/format";
 import { lateFeeText, leaseTiming } from "@/lib/leases";
@@ -31,8 +32,9 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) {
+export default async function LeasePage({ params, searchParams }: PageProps<"/tenants/[id]">) {
   const { id } = await params;
+  const sp = await searchParams;
   const { supabase, company, membership } = await requireCompany();
   const { data: l } = await supabase
     .from("lease")
@@ -70,6 +72,34 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
         action={<Pill tone={timing.tone}>{timing.label}</Pill>}
       />
 
+      {sp.added && (
+        <div className="mb-4">
+          <Notice tone="success">Lease created. Review the lease document, then mark it signed when everyone has signed.</Notice>
+        </div>
+      )}
+      {sp.blocked && (
+        <div className="mb-4">
+          <Notice tone="danger">This unit still has another active lease. End it (or put that tenant on notice) before activating this one.</Notice>
+        </div>
+      )}
+      {l.status === "draft" && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-line bg-surface-muted px-4 py-3">
+          <p className="mr-auto text-sm">
+            <span className="font-semibold">Draft lease.</span> Nothing bills until it&apos;s signed.{" "}
+            <Link href={`/tenants/${l.id}/lease`} className="font-semibold text-accent hover:underline">
+              View the lease document
+            </Link>
+          </p>
+          {canEdit && (
+            <form action={markLeaseSigned}>
+              <input type="hidden" name="lease_id" value={l.id} />
+              <button type="submit" className="min-h-9 rounded-[10px] bg-accent px-3 text-[13px] font-semibold text-white hover:bg-accent-hover">
+                Mark as signed
+              </button>
+            </form>
+          )}
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Owes" value={<span className={(l.opening_balance_cents ?? 0) > 0 ? "text-danger" : undefined}>{money(l.opening_balance_cents, { blank: "$0.00" })}</span>} note={l.opening_balance_as_of ? `From AppFolio, ${date(l.opening_balance_as_of)}` : undefined} />
         <StatTile label="Monthly total" value={money(monthly)} note={`Rent ${money(l.rent_cents)}${recurring.length ? ` + ${money(monthly - l.rent_cents)} other` : ""}`} />

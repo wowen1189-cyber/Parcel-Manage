@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PageHeader, StatTile } from "@/components/ui";
+import { Notice, PageHeader, StatTile } from "@/components/ui";
 import { contactName, date, todayIn } from "@/lib/format";
 import { isAdmin, requireCompany } from "@/lib/session";
 import { vendorCompliance } from "@/lib/vendors";
@@ -14,8 +14,9 @@ export async function generateMetadata({ params }: PageProps<"/vendors/[id]">) {
   return { title: contactName(data?.contact) || "Vendor" };
 }
 
-export default async function VendorPage({ params }: PageProps<"/vendors/[id]">) {
+export default async function VendorPage({ params, searchParams }: PageProps<"/vendors/[id]">) {
   const { id } = await params;
+  const added = Boolean((await searchParams).added);
   const { supabase, company, membership } = await requireCompany();
   const { data: v } = await supabase.from("vendor").select("*, contact(*)").eq("id", id).eq("company_id", company.id).maybeSingle();
   if (!v) notFound();
@@ -30,6 +31,11 @@ export default async function VendorPage({ params }: PageProps<"/vendors/[id]">)
         </Link>
       </p>
       <PageHeader title={contactName(c)} subtitle={[v.trade, c.phone ?? c.mobile, c.email].filter(Boolean).join(" · ")} />
+      {added && (
+        <div className="mb-6">
+          <Notice tone="success">Vendor added. Record their W-9 and insurance below so they can be sent work orders.</Notice>
+        </div>
+      )}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatTile label="Paperwork" value={<PaperworkPill compliance={compliance} />} />
         <StatTile label="Insurance expires" value={<span className="text-xl">{date(v.coi_expires_on, { blank: "Not on file" })}</span>} />

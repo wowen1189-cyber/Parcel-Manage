@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { contactName, type NamedContact } from "@/lib/format";
 import { personName } from "@/lib/import/appfolio";
@@ -113,4 +114,109 @@ export async function updateProperty(_: FormState, form: FormData): Promise<Form
   revalidatePath("/properties");
   revalidatePath(`/properties/${id}`);
   return { message: "Saved." };
+}
+
+const PROPERTY_TYPES = ["single_family", "multi_family", "commercial", "mixed_use"] as const;
+const kindFor = (t: (typeof PROPERTY_TYPES)[number]) => (t === "commercial" ? "commercial" : t === "mixed_use" ? "mixed" : "residential");
+
+/** New property: details and owning LLC. Units are added on the property page next. */
+export async function createProperty(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
+  const parsed = z
+    .object({
+      name: z.string().trim().min(2, "Enter the property name.").max(120),
+      property_type: z.enum(PROPERTY_TYPES),
+      address_line1: z.string().trim().min(3, "Enter the street address.").max(150),
+      address_line2: text(150),
+      city: z.string().trim().min(2, "Enter the city.").max(80),
+      state: z.string().trim().length(2, "Use the 2-letter state, like FL.").transform((v) => v.toUpperCase()),
+      postal_code: z.string().trim().regex(/^\d{5}(-\d{4})?$/, "Enter a 5-digit ZIP."),
+      county: text(60),
+      year_built: z
+        .string()
+        .trim()
+        .transform((v) => (v ? Number(v) : null))
+        .refine((v) => v == null || (Number.isInteger(v) && v >= 1800 && v <= 2100), "Enter a 4-digit year built."),
+      entity_id: z.string(),
+      new_entity_name: text(150),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message, values: typed(form) };
+  const { entity_id, new_entity_name, ...fields } = parsed.data;
+
+  let entityId = entity_id;
+  if (entity_id === "new" || !entity_id) {
+    if (!new_entity_name) return { error: "Choose the owning LLC or enter a new one.", values: typed(form) };
+    const { data, error } = await supabase.from("entity").insert({ company_id: company.id, name: new_entity_name, entity_type: "LLC" }).select("id").single();
+    if (error) return { error: error.message, values: typed(form) };
+    entityId = data.id;
+  }
+  const { data: property, error } = await supabase
+    .from("property")
+    .insert({ ...fields, company_id: company.id, entity_id: entityId, kind: kindFor(fields.property_type) })
+    .select("id")
+    .single();
+  if (error) return { error: error.message, values: typed(form) };
+
+  // A single-family home has exactly one unit; create it so it's ready for a lease.
+  if (fields.property_type === "single_family") {
+    await supabase.from("unit").insert({ company_id: company.id, property_id: property.id, label: "Home", kind: "residential", status: "vacant" });
+  }
+  revalidatePath("/properties");
+  redirect(`/properties/${property.id}?added=1`);
+}
+
+const unitSchema = z.object({
+  property_id: z.string().uuid(),
+  id: z.string(),
+  label: z.string().trim().min(1, "Enter the unit number or name.").max(60),
+  kind: z.enum(["residential", "commercial"]),
+  beds: z
+    .string()
+    .trim()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v == null || (v >= 0 && v <= 20), "Enter bedrooms as a number."),
+  baths: z
+    .string()
+    .trim()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v == null || (v >= 0 && v <= 20 && (v * 2) % 1 === 0), "Enter bathrooms like 1, 1.5 or 2."),
+  sqft: z
+    .string()
+    .trim()
+    .transform((v) => (v ? Number(v.replace(/,/g, "")) : null))
+    .refine((v) => v == null || (Number.isInteger(v) && v > 0 && v < 1_000_000), "Enter square feet as a whole number."),
+  market_rent: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/[$,\s]/g, ""))
+    .refine((v) => !v || /^\d+(\.\d{1,2})?$/.test(v), "Enter market rent as a dollar amount.")
+    .transform((v) => (v ? Math.round(Number(v) * 100) : null)),
+  status: z.enum(["vacant", "listed", "down", "occupied", "notice"]),
+  amenities: z.string().trim().max(500),
+  notes: text(2000),
+});
+
+/** Add a unit to a property, or edit one (`id` set). */
+export async function saveUnit(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
+  const parsed = unitSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message, values: typed(form) };
+  const { property_id, id, market_rent, amenities, ...fields } = parsed.data;
+  const row = {
+    ...fields,
+    market_rent_cents: market_rent,
+    amenities: amenities ? amenities.split(",").map((a) => a.trim()).filter(Boolean) : [],
+    beds: fields.kind === "commercial" ? null : fields.beds,
+    baths: fields.kind === "commercial" ? null : fields.baths,
+  };
+  const { error } = id
+    ? await supabase.from("unit").update(row).eq("id", id).eq("company_id", company.id)
+    : await supabase.from("unit").insert({ ...row, company_id: company.id, property_id });
+  if (error) return { error: error.code === "23505" ? `This property already has a unit called ${fields.label}.` : error.message, values: typed(form) };
+  revalidatePath(`/properties/${property_id}`);
+  revalidatePath("/properties");
+  return { message: id ? "Saved." : `Unit ${fields.label} added.` };
 }

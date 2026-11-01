@@ -1,7 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
+import { readBusinessRules } from "@/lib/business-rules";
+import { todayIn } from "@/lib/format";
+import { leaseEndDate } from "@/lib/lease-expirations";
 import { requireCompany } from "@/lib/session";
 
 export type FormState = { error?: string; message?: string; values?: Record<string, string> };
@@ -272,4 +276,128 @@ export async function deleteHouseholdItem(form: FormData): Promise<void> {
   if (!p.success) return;
   await supabase.from(p.data.table).delete().eq("id", p.data.id).eq("company_id", company.id);
   revalidatePath(`/tenants/${p.data.lease_id}`);
+}
+
+// ---------- new lease ----------
+
+const personRow = z.object({
+  role: z.enum(["tenant", "guarantor", "occupant"]),
+  first_name: z.string().trim().max(80),
+  last_name: z.string().trim().max(80),
+  email: z.union([z.literal(""), z.string().trim().email("Enter a valid email for everyone on the lease.")]),
+  mobile: z
+    .string()
+    .trim()
+    .max(30)
+    .refine((v) => !v || v.replace(/\D/g, "").length >= 10, "Enter 10-digit phone numbers."),
+});
+
+/**
+ * New lease on a unit: people (tenants, co-signers, occupants), start date, length, rent and deposit.
+ * The end date always comes from the length (last day of the month). Under the short-term length the
+ * surcharge is added to rent; over 12 months the yearly increase is scheduled, as the lease states.
+ */
+export async function createLease(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
+  const rules = readBusinessRules(company.settings);
+  const parsed = z
+    .object({
+      unit_id: z.string().uuid("Choose the unit."),
+      start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the start date."),
+      months: z.coerce.number().int().min(rules.lease.minTermMonths, `Leases are at least ${rules.lease.minTermMonths} months.`).max(rules.lease.maxTermMonths, `Leases are at most ${rules.lease.maxTermMonths} months.`),
+      rent: money("the monthly rent"),
+      deposit: money("the deposit"),
+      status: z.enum(["draft", "active"]),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message, values: typed(form) };
+  const d = parsed.data;
+  if (!d.rent) return { error: "Enter the monthly rent.", values: typed(form) };
+
+  const people: z.infer<typeof personRow>[] = [];
+  for (let i = 0; i < 6; i++) {
+    const row = {
+      role: String(form.get(`p${i}_role`) ?? "tenant"),
+      first_name: String(form.get(`p${i}_first_name`) ?? ""),
+      last_name: String(form.get(`p${i}_last_name`) ?? ""),
+      email: String(form.get(`p${i}_email`) ?? ""),
+      mobile: String(form.get(`p${i}_mobile`) ?? ""),
+    };
+    if (!row.first_name.trim() && !row.last_name.trim()) continue;
+    const p = personRow.safeParse(row);
+    if (!p.success) return { error: p.error.issues[0].message, values: typed(form) };
+    people.push(p.data);
+  }
+  if (!people.some((p) => p.role === "tenant")) return { error: "Add at least one tenant.", values: typed(form) };
+  if (!people[0].email && !people[0].mobile) return { error: "Add an email or mobile for the first tenant.", values: typed(form) };
+
+  const { data: unit } = await supabase.from("unit").select("id, kind, status, lease(id, status)").eq("id", d.unit_id).eq("company_id", company.id).maybeSingle();
+  if (!unit) return { error: "That unit wasn't found.", values: typed(form) };
+  if (unit.lease.some((l) => l.status === "active") && d.status === "active")
+    return { error: "This unit already has an active lease. Save this one as a draft, or end the current lease first.", values: typed(form) };
+
+  const end = leaseEndDate(d.start_date, d.months);
+  const surcharge = d.months < rules.lease.shortTermUnderMonths ? rules.lease.shortTermSurchargeCents : 0;
+  const increase = rules.lease.longTermYearlyIncreasePercent;
+  const anniversary = (() => {
+    const [y, m, day] = d.start_date.split("-").map(Number);
+    return `${y + 1}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  })();
+  const { data: lease, error } = await supabase
+    .from("lease")
+    .insert({
+      company_id: company.id,
+      unit_id: d.unit_id,
+      start_date: d.start_date,
+      end_date: end,
+      term_months: d.months,
+      rent_cents: d.rent + surcharge,
+      short_term_surcharge_cents: surcharge,
+      deposit_cents: d.deposit ?? 0,
+      status: d.status,
+      move_in_on: d.status === "active" ? d.start_date : null,
+      next_rent_increase_on: d.months > 12 ? anniversary : null,
+      next_rent_cents: d.months > 12 ? Math.round(((d.rent + surcharge) * (100 + increase)) / 100) : null,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message, values: typed(form) };
+
+  let primaryDone = false;
+  for (const p of people) {
+    const { data: c, error: cErr } = await supabase
+      .from("contact")
+      .insert({ company_id: company.id, kind: "person", first_name: p.first_name || null, last_name: p.last_name || null, email: p.email || null, mobile: p.mobile || null })
+      .select("id")
+      .single();
+    if (cErr) return { error: cErr.message, values: typed(form) };
+    const isPrimary = !primaryDone && p.role === "tenant";
+    if (isPrimary) primaryDone = true;
+    const { error: ltErr } = await supabase.from("lease_tenant").insert({ company_id: company.id, lease_id: lease.id, contact_id: c.id, role: p.role, is_primary: isPrimary });
+    if (ltErr) return { error: ltErr.message, values: typed(form) };
+  }
+  if (d.status === "active" && d.start_date <= todayIn(company.time_zone)) {
+    await supabase.from("unit").update({ status: "occupied" }).eq("id", d.unit_id).eq("company_id", company.id);
+  }
+  revalidatePath("/tenants");
+  redirect(`/tenants/${lease.id}?added=1`);
+}
+
+/** A draft lease was signed: it becomes active and the unit occupied once the lease has started. */
+export async function markLeaseSigned(form: FormData): Promise<void> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return;
+  const id = z.string().uuid().safeParse(form.get("lease_id"));
+  if (!id.success) return;
+  const { data: lease } = await supabase.from("lease").select("id, unit_id, start_date, status, unit(lease(id, status))").eq("id", id.data).eq("company_id", company.id).maybeSingle();
+  if (!lease || lease.status !== "draft") return;
+  // Another active lease on the unit (the current tenant on notice is fine) blocks activation.
+  if (lease.unit.lease.some((l) => l.id !== lease.id && l.status === "active")) redirect(`/tenants/${lease.id}?blocked=1`);
+  await supabase.from("lease").update({ status: "active", move_in_on: lease.start_date }).eq("id", lease.id).eq("company_id", company.id);
+  if (lease.start_date <= todayIn(company.time_zone)) {
+    await supabase.from("unit").update({ status: "occupied" }).eq("id", lease.unit_id).eq("company_id", company.id);
+  }
+  revalidatePath(`/tenants/${lease.id}`);
+  revalidatePath("/tenants");
 }

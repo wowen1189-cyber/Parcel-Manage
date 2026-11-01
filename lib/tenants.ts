@@ -11,6 +11,7 @@ type Db = SupabaseClient<Database>;
 export type TenantFilters = { q: string; property: string; show: string };
 
 export const TENANT_SHOW_OPTIONS: [string, string][] = [
+  ["draft", "Drafts (not signed yet)"],
   ["owes", "Owes money"],
   ["ending", "Lease ends within 90 days"],
   ["mtm", "Month-to-month"],
@@ -27,7 +28,7 @@ export async function listTenants(supabase: Db, companyId: string, f: TenantFilt
       "id, status, start_date, end_date, move_out_on, rent_cents, deposit_cents, deposit_pending_cents, opening_balance_cents, unit!inner(id, label, kind, property!inner(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone))",
     )
     .eq("company_id", companyId)
-    .in("status", ["active", "notice"]);
+    .in("status", ["active", "notice", "draft"]);
   if (error) throw error;
 
   const q = f.q.toLowerCase();
@@ -61,6 +62,7 @@ export async function listTenants(supabase: Db, companyId: string, f: TenantFilt
     .filter((r) => !f.property || r.propertyId === f.property)
     .filter((r) => {
       switch (f.show) {
+        case "draft": return r.status === "draft";
         case "owes": return (r.balanceCents ?? 0) > 0;
         case "ending": return r.timing.daysLeft != null && r.timing.daysLeft <= 90;
         case "mtm": return !r.endDate && r.status === "active";

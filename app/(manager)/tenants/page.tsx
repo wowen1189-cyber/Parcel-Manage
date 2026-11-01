@@ -23,6 +23,9 @@ export default async function TenantsPage({ searchParams }: PageProps<"/tenants"
     <>
       <PageHeader title="Tenants & leases" subtitle="Everyone renting from you, their lease and what they owe." action={
           <div className="flex gap-2">
+            <Link href="/tenants/new" className={buttonClass("primary", true)}>
+              + New lease
+            </Link>
             <Link href="/tenants/lease-template" className={buttonClass("secondary", true)}>
               Lease template
             </Link>

@@ -1,4 +1,5 @@
-import { Card, EmptyState, PageHeader, Pill } from "@/components/ui";
+import Link from "next/link";
+import { buttonClass, Card, EmptyState, PageHeader, Pill } from "@/components/ui";
 import { exportLink, ListFilters, param } from "@/components/list-filters";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { money, PROPERTY_TYPE_LABEL } from "@/lib/format";
@@ -19,7 +20,15 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
 
   return (
     <>
-      <PageHeader title="Properties" subtitle="Buildings, units and who owns them." />
+      <PageHeader
+        title="Properties"
+        subtitle="Buildings, units and who owns them."
+        action={
+          <Link href="/properties/new" className={buttonClass("primary", true)}>
+            + New property
+          </Link>
+        }
+      />
       <Card className="overflow-hidden">
         <ListFilters
           action="/properties"

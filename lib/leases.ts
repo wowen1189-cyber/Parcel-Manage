@@ -39,6 +39,7 @@ export type LeaseDates = { status: string; end_date: string | null; move_out_on:
 
 /** "Month-to-month", "Ends in 45 days", "Moving out Nov 30"… with a tone for the pill. */
 export function leaseTiming(l: LeaseDates, today: string): { label: string; tone: "success" | "warn" | "danger" | "info" | "neutral"; daysLeft: number | null } {
+  if (l.status === "draft") return { label: "Draft", tone: "neutral", daysLeft: null };
   if (l.status === "notice") return { label: "On notice", tone: "warn", daysLeft: l.move_out_on ? daysBetween(today, l.move_out_on) : null };
   if (!l.end_date) return { label: "Month-to-month", tone: "info", daysLeft: null };
   const days = daysBetween(today, l.end_date);

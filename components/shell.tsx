@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo } from "@/components/logo";
@@ -110,19 +111,31 @@ function NewMenu() {
       </button>
       {open && (
         <div role="menu" className="absolute right-0 mt-2 w-56 rounded-[12px] border border-line bg-surface p-1.5 shadow-lg">
-          {NEW_MENU.map((label) => (
-            <button
-              key={label}
-              type="button"
-              role="menuitem"
-              disabled
-              title="Coming in Phase 1"
-              className="flex min-h-10 w-full items-center justify-between rounded-[9px] px-3 text-left text-[14px] text-ink-2 disabled:cursor-not-allowed"
-            >
-              {label}
-              <span className="text-[11px] text-subtle">Soon</span>
-            </button>
-          ))}
+          {NEW_MENU.map(({ label, href }) =>
+            href ? (
+              <Link
+                key={label}
+                href={href}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className="flex min-h-10 w-full items-center rounded-[9px] px-3 text-left text-[14px] font-medium text-ink hover:bg-surface-sunk"
+              >
+                {label}
+              </Link>
+            ) : (
+              <button
+                key={label}
+                type="button"
+                role="menuitem"
+                disabled
+                title="Coming soon"
+                className="flex min-h-10 w-full items-center justify-between rounded-[9px] px-3 text-left text-[14px] text-subtle disabled:cursor-not-allowed"
+              >
+                {label}
+                <span className="text-[11px]">Soon</span>
+              </button>
+            ),
+          )}
         </div>
       )}
     </div>

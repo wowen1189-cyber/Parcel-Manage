@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button, Card, CardHeader, Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import { PAYMENT_METHOD_LABEL, VENDOR_TRADES } from "@/lib/vendors";
-import { updateVendor, type FormState } from "./actions";
+import { createVendor, updateVendor, type FormState } from "./actions";
 
 export type VendorValues = {
   id: string;
@@ -196,6 +196,83 @@ export function VendorForm({ vendor, canEdit, canOverride }: { vendor: VendorVal
           </Button>
         </div>
       </fieldset>
+    </form>
+  );
+}
+
+export function NewVendorForm() {
+  const [state, action, pending] = useActionState(createVendor, empty);
+  const v = (k: string, d = "") => state.values?.[k] ?? d;
+  const [kind, setKind] = useState(v("kind", "business"));
+  return (
+    <form action={action}>
+      <Card>
+        <CardHeader title="Vendor" description="Add their W-9 and insurance on the next page; on-site vendors can't be sent work orders until both are on file." />
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <div className="sm:col-span-2">{state.error && <Notice tone="danger">{state.error}</Notice>}</div>
+          <Field label="This is a">
+            <Select name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
+              <option value="business">Company</option>
+              <option value="person">Person</option>
+            </Select>
+          </Field>
+          {kind === "business" ? (
+            <Field label="Company name">
+              <Input name="business_name" required defaultValue={v("business_name")} />
+            </Field>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="First name">
+                <Input name="first_name" defaultValue={v("first_name")} />
+              </Field>
+              <Field label="Last name">
+                <Input name="last_name" defaultValue={v("last_name")} />
+              </Field>
+            </div>
+          )}
+          <Field label="Trade">
+            <Select name="trade" defaultValue={v("trade", "Plumbing")}>
+              {VENDOR_TRADES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {kind === "business" ? (
+            <Field label="Who to ask for (optional)">
+              <Input name="contact_person" defaultValue={v("contact_person")} />
+            </Field>
+          ) : (
+            <div />
+          )}
+          <Field label="Phone">
+            <Input name="phone" type="tel" defaultValue={v("phone")} />
+          </Field>
+          <Field label="Mobile" hint="For texting work orders (opt-in required)">
+            <Input name="mobile" type="tel" defaultValue={v("mobile")} />
+          </Field>
+          <Field label="Email">
+            <Input name="email" type="email" defaultValue={v("email")} />
+          </Field>
+          <Field label="Pay by">
+            <Select name="payment_method" defaultValue={v("payment_method", "ach")}>
+              <option value="">Not set</option>
+              {Object.entries(PAYMENT_METHOD_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Checkbox name="is_1099" label="Send a 1099 each year" defaultChecked={state.values ? state.values.is_1099 === "on" : true} />
+          <div className="flex justify-end sm:col-span-2">
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving…" : "Add vendor"}
+            </Button>
+          </div>
+        </div>
+      </Card>
     </form>
   );
 }

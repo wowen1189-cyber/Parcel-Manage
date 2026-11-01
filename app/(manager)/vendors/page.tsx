@@ -1,4 +1,5 @@
-import { Card, EmptyState, PageHeader, Pill } from "@/components/ui";
+import Link from "next/link";
+import { buttonClass, Card, EmptyState, PageHeader, Pill } from "@/components/ui";
 import { exportLink, ListFilters, param } from "@/components/list-filters";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, todayIn } from "@/lib/format";
@@ -17,7 +18,15 @@ export default async function VendorsPage({ searchParams }: PageProps<"/vendors"
 
   return (
     <>
-      <PageHeader title="Vendors" subtitle="Who you call, and whether their W-9 and insurance are on file." />
+      <PageHeader
+        title="Vendors"
+        subtitle="Who you call, and whether their W-9 and insurance are on file."
+        action={
+          <Link href="/vendors/new" className={buttonClass("primary", true)}>
+            + New vendor
+          </Link>
+        }
+      />
       <Card className="overflow-hidden">
         <ListFilters
           action="/vendors"

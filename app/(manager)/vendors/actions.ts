@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isAdmin, requireCompany } from "@/lib/session";
 import { VENDOR_TRADES } from "@/lib/vendors";
@@ -123,4 +124,55 @@ export async function updateVendor(_: FormState, form: FormData): Promise<FormSt
   revalidatePath("/vendors");
   revalidatePath(`/vendors/${d.id}`);
   return { message: "Saved." };
+}
+
+/** Quick add: name, trade and how to reach them. Paperwork is added on the vendor's page next. */
+export async function createVendor(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: "Your role can't add vendors." };
+  const parsed = z
+    .object({
+      kind: z.enum(["person", "business"]),
+      business_name: text(150),
+      first_name: text(80),
+      last_name: text(80),
+      contact_person: text(120),
+      trade: z.enum(VENDOR_TRADES as [string, ...string[]]),
+      email: z.union([z.literal(""), z.string().trim().email("Enter a valid email.")]).transform((v) => v || null),
+      phone,
+      mobile: phone,
+      payment_method: z.enum(["", "ach", "check", "mailed_check", "card", "other"]).transform((v) => v || null),
+      is_1099: z.literal("on").optional(),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message, values: typed(form) };
+  const d = parsed.data;
+  if (d.kind === "business" && !d.business_name) return { error: "Enter the company name.", values: typed(form) };
+  if (d.kind === "person" && !d.first_name && !d.last_name) return { error: "Enter the vendor's name.", values: typed(form) };
+  if (!d.email && !d.phone && !d.mobile) return { error: "Add a phone number or email so you can reach them.", values: typed(form) };
+
+  const { data: contact, error: cErr } = await supabase
+    .from("contact")
+    .insert({
+      company_id: company.id,
+      kind: d.kind,
+      business_name: d.kind === "business" ? d.business_name : null,
+      first_name: d.kind === "person" ? d.first_name : null,
+      last_name: d.kind === "person" ? d.last_name : null,
+      email: d.email,
+      phone: d.phone,
+      mobile: d.mobile,
+      notes: d.contact_person ? `Contact: ${d.contact_person}` : null,
+    })
+    .select("id")
+    .single();
+  if (cErr) return { error: cErr.message, values: typed(form) };
+  const { data: vendor, error } = await supabase
+    .from("vendor")
+    .insert({ company_id: company.id, contact_id: contact.id, trade: d.trade, payment_method: d.payment_method, is_1099: Boolean(d.is_1099) })
+    .select("id")
+    .single();
+  if (error) return { error: error.message, values: typed(form) };
+  revalidatePath("/vendors");
+  redirect(`/vendors/${vendor.id}?added=1`);
 }

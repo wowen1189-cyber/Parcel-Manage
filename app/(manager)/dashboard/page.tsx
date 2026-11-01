@@ -28,7 +28,8 @@ export default async function DashboardPage() {
   ]);
   const total = units?.length ?? 0;
   const occupied = units?.filter((u) => u.status === "occupied" || u.status === "notice").length ?? 0;
-  const rent = leases.reduce((s, l) => s + l.rentCents, 0);
+  const signed = leases.filter((l) => l.status !== "draft");
+  const rent = signed.reduce((s, l) => s + l.rentCents, 0);
   const owing = leases.filter((l) => (l.balanceCents ?? 0) > 0).sort((a, b) => (b.balanceCents ?? 0) - (a.balanceCents ?? 0));
   const owed = owing.reduce((s, l) => s + (l.balanceCents ?? 0), 0);
   const ending = leases.filter((l) => l.timing.daysLeft != null && l.timing.daysLeft <= 90).sort((a, b) => (a.timing.daysLeft ?? 0) - (b.timing.daysLeft ?? 0));
@@ -47,7 +48,7 @@ export default async function DashboardPage() {
     "key-numbers": (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Occupancy" value={total ? `${Math.round((occupied / total) * 100)}%` : "—"} note={`${occupied} of ${total} units · ${propertyCount ?? 0} properties`} />
-        <StatTile label="Monthly rent" value={money(rent)} note={`${leases.length} leases`} />
+        <StatTile label="Monthly rent" value={money(rent)} note={`${signed.length} leases`} />
         <StatTile label="Owed by tenants" value={money(owed)} note={`${owing.length} tenants · from AppFolio Nov 1`} />
         <StatTile label="Vacant" value={total - occupied} note={total - occupied === 1 ? "unit" : "units"} />
       </div>

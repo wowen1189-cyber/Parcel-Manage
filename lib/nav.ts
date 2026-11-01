@@ -43,7 +43,14 @@ export const NAV_GROUPS: NavGroup[] = [
   { id: "admin", label: "Admin", items: ["settings", "import"] },
 ];
 
-export const NEW_MENU = ["Property", "Tenant and lease", "Owner", "Work order", "Vendor"] as const;
+// "+ New" menu. Items without an href aren't built yet and show as "Soon".
+export const NEW_MENU: { label: string; href?: string }[] = [
+  { label: "Tenant and lease", href: "/tenants/new" },
+  { label: "Property", href: "/properties/new" },
+  { label: "Vendor", href: "/vendors/new" },
+  { label: "Work order" },
+  { label: "Owner" },
+];
 
 export function navItem(slug: string) {
   return NAV_ITEMS.find((item) => item.slug === slug);

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, CardHeader, PageHeader, Pill, StatTile } from "@/components/ui";
+import { Card, CardHeader, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { bedBath, contactName, date, money, oneLineAddress, PROPERTY_TYPE_LABEL, UNIT_STATUS } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
-import { PropertyForm } from "../forms";
+import { PropertyForm, UnitForm } from "../forms";
 
 export async function generateMetadata({ params }: PageProps<"/properties/[id]">) {
   const { id } = await params;
@@ -13,14 +13,15 @@ export async function generateMetadata({ params }: PageProps<"/properties/[id]">
   return { title: data?.name ?? "Property" };
 }
 
-export default async function PropertyPage({ params }: PageProps<"/properties/[id]">) {
+export default async function PropertyPage({ params, searchParams }: PageProps<"/properties/[id]">) {
   const { id } = await params;
+  const sp = await searchParams;
   const { supabase, company, membership } = await requireCompany();
   const [{ data: p }, { data: entities }] = await Promise.all([
     supabase
       .from("property")
       .select(
-        "*, entity(id, name), property_owner(ownership_pct, contact(first_name, last_name, business_name)), unit(id, label, kind, beds, baths, sqft, market_rent_cents, status, amenities, lease(id, status, rent_cents, end_date, opening_balance_cents, lease_tenant(is_primary, contact(first_name, last_name, business_name))))",
+        "*, entity(id, name), property_owner(ownership_pct, contact(first_name, last_name, business_name)), unit(id, label, kind, beds, baths, sqft, market_rent_cents, status, amenities, notes, lease(id, status, rent_cents, end_date, opening_balance_cents, lease_tenant(is_primary, contact(first_name, last_name, business_name))))",
       )
       .eq("id", id)
       .eq("company_id", company.id)
@@ -36,6 +37,8 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
   const market = units.reduce((s, u) => s + (u.market_rent_cents ?? 0), 0);
   const owed = units.reduce((s, u) => s + Math.max(0, current(u)?.opening_balance_cents ?? 0), 0);
   const canEdit = ["admin", "property_manager"].includes(membership.role);
+  const editing = typeof sp.edit === "string" ? units.find((u) => u.id === sp.edit) : undefined;
+  const defaultKind = p.kind === "commercial" ? "commercial" : "residential";
 
   return (
     <>
@@ -53,6 +56,19 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
         <StatTile label="Owning LLC" value={<span className="text-lg">{p.entity?.name}</span>} note={p.property_owner.map((o) => `${contactName(o.contact)} ${Number(o.ownership_pct)}%`).join(" · ") || "Ownership split not set"} />
       </div>
 
+      {sp.added && (
+        <div className="mt-6">
+          <Notice tone="success">Property added. {units.length ? "" : "Now add its units below."}</Notice>
+        </div>
+      )}
+      {editing && canEdit && (
+        <Card className="mt-6">
+          <CardHeader title={`Edit unit ${editing.label}`} action={<Link href={`/properties/${p.id}`} className="text-[13px] font-semibold text-accent hover:underline">Done</Link>} />
+          <div className="p-5">
+            <UnitForm key={editing.id} propertyId={p.id} defaultKind={defaultKind} canEdit={canEdit} unit={{ id: editing.id, label: editing.label, kind: editing.kind, beds: editing.beds, baths: editing.baths, sqft: editing.sqft, market_rent_cents: editing.market_rent_cents, status: editing.status, amenities: editing.amenities, notes: editing.notes }} />
+          </div>
+        </Card>
+      )}
       <Card className="mt-6 overflow-hidden">
         <CardHeader title="Units" description="Each unit, who lives or works there, and their lease." />
         <Table minWidth={900}>
@@ -74,7 +90,17 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
                 <tr key={u.id}>
                   <Td>
                     <p className="font-semibold">{u.label}</p>
-                    <p className="text-[13px] text-subtle">{u.kind === "commercial" ? "Commercial" : "Residential"}</p>
+                    <p className="text-[13px] text-subtle">
+                      {u.kind === "commercial" ? "Commercial" : "Residential"}
+                      {canEdit && (
+                        <>
+                          {" · "}
+                          <Link href={`/properties/${p.id}?edit=${u.id}`} className="font-semibold text-accent hover:underline">
+                            Edit
+                          </Link>
+                        </>
+                      )}
+                    </p>
                   </Td>
                   <Td>
                     <p>{u.kind === "commercial" ? "—" : bedBath(u.beds, u.baths)}</p>
@@ -84,7 +110,11 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
                     <Pill tone={status.tone}>{status.label}</Pill>
                   </Td>
                   <Td>
-                    {lease ? (
+                    {!lease && canEdit ? (
+                      <Link href={`/tenants/new?unit=${u.id}`} className="text-[13px] font-semibold text-accent hover:underline">
+                        Start a lease
+                      </Link>
+                    ) : lease ? (
                       <RowLink href={`/tenants/${lease.id}`} sub={tenants.length > 1 ? `+ ${tenants.slice(1).map((t) => contactName(t.contact)).join(", ")}` : undefined}>
                         {contactName(tenants[0]?.contact) || "Tenant"}
                       </RowLink>
@@ -100,6 +130,14 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
             })}
           </Tbody>
         </Table>
+        {canEdit && (
+          <details className="border-t border-line px-5 py-4" open={!units.length}>
+            <summary className="cursor-pointer text-[13px] font-semibold text-accent">+ Add a unit</summary>
+            <div className="mt-3">
+              <UnitForm propertyId={p.id} defaultKind={defaultKind} canEdit={canEdit} />
+            </div>
+          </details>
+        )}
       </Card>
 
       <div className="mt-6">
