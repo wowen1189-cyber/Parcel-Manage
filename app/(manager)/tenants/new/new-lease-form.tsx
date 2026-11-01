@@ -5,7 +5,9 @@ import { Button, Card, CardHeader, Field, Input, Notice, Pill, Select } from "@/
 import type { BusinessRules } from "@/lib/business-rules";
 import { date, money } from "@/lib/format";
 import { countExpirations, recommendTerms, type LeaseEnd } from "@/lib/lease-expirations";
+import { COMMERCIAL_TERM_MONTHS, DEFAULT_COMMERCIAL_TERMS } from "@/lib/commercial-terms";
 import { createLease, type FormState } from "../actions";
+import { CommercialTermsFields } from "../commercial-terms";
 
 export type UnitOption = { id: string; label: string; propertyId: string; propertyName: string; kind: string; marketRentCents: number | null; status: string; hasActiveLease: boolean };
 
@@ -47,7 +49,9 @@ export function NewLeaseForm({
   );
   const best = options.find((o) => o.recommended);
   const [pickedMonths, setMonths] = useState<number | null>(state.values?.months ? Number(state.values.months) : null);
-  const months = pickedMonths ?? best?.months ?? 12;
+  const commercial = unit?.kind === "commercial";
+  const [commercialMonths, setCommercialMonths] = useState(Number(v("months", String(COMMERCIAL_TERM_MONTHS.default))));
+  const months = commercial ? commercialMonths : (pickedMonths ?? best?.months ?? 12);
   const chosen = options.find((o) => o.months === months);
   const [rent, setRent] = useState(v("rent", unit?.marketRentCents ? (unit.marketRentCents / 100).toFixed(2) : ""));
   const rentCents = Math.round(Number(rent.replace(/[$,]/g, "")) * 100) || 0;
@@ -97,13 +101,23 @@ export function NewLeaseForm({
             />
           </Field>
         </div>
-        {unit?.kind === "commercial" && (
+        {commercial && (
           <div className="px-5 pb-4">
-            <Notice tone="warn">This is a commercial unit. The residential lease template doesn&apos;t apply; attach your commercial lease to the record.</Notice>
+            <Notice>Commercial unit: this lease uses the commercial lease (Florida ch. 83 Part I). Residential rules like the length planner and short-term surcharge don&apos;t apply.</Notice>
           </div>
         )}
       </Card>
 
+      {commercial ? (
+        <Card>
+          <CardHeader title="Lease length" description="Commercial leases commonly run 3 to 5 years." />
+          <div className="grid gap-4 p-5 sm:grid-cols-3">
+            <Field label="Initial term (months)" hint={`${COMMERCIAL_TERM_MONTHS.min} to ${COMMERCIAL_TERM_MONTHS.max} months`}>
+              <Input name="months" inputMode="numeric" value={String(commercialMonths || "")} onChange={(e) => setCommercialMonths(Number(e.target.value.replace(/\D/g, "")) || 0)} />
+            </Field>
+          </div>
+        </Card>
+      ) : (
       <Card className="overflow-hidden">
         <CardHeader title="Lease length" description="Ordered by month. The best length keeps move-outs spread out; you can pick any." />
         {options.length ? (
@@ -136,6 +150,16 @@ export function NewLeaseForm({
           <p className="p-5 text-sm text-subtle">Choose a unit and start date to see lengths.</p>
         )}
       </Card>
+      )}
+
+      {commercial && (
+        <Card>
+          <CardHeader title="Commercial terms" description="Printed in the lease summary. You can change these later on the lease page." />
+          <div className="p-5">
+            <CommercialTermsFields terms={DEFAULT_COMMERCIAL_TERMS} values={state.values} />
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader title="Rent and deposit" />
@@ -148,9 +172,10 @@ export function NewLeaseForm({
           </Field>
           <div className="text-sm">
             <p className="mb-1.5 text-[13px] font-semibold text-ink-2">Tenant pays each month</p>
-            <p className="text-xl font-bold">{money(rentCents + (chosen?.surchargeCents ?? 0))}</p>
-            {chosen && chosen.surchargeCents > 0 && <p className="text-[13px] text-subtle">includes {money(chosen.surchargeCents)} short-term surcharge (under {rules.lease.shortTermUnderMonths} months)</p>}
-            {months > 12 && (
+            <p className="text-xl font-bold">{money(rentCents + (commercial ? 0 : (chosen?.surchargeCents ?? 0)))}</p>
+            {commercial && <p className="text-[13px] text-subtle">Base rent; it rises by the yearly increase on each anniversary, plus CAM and utilities.</p>}
+            {!commercial && chosen && chosen.surchargeCents > 0 && <p className="text-[13px] text-subtle">includes {money(chosen.surchargeCents)} short-term surcharge (under {rules.lease.shortTermUnderMonths} months)</p>}
+            {!commercial && months > 12 && (
               <p className="text-[13px] text-subtle">
                 then {money(Math.round(((rentCents + (chosen?.surchargeCents ?? 0)) * (100 + rules.lease.longTermYearlyIncreasePercent)) / 100))} after 12 months (+{rules.lease.longTermYearlyIncreasePercent}%)
               </p>
@@ -160,7 +185,10 @@ export function NewLeaseForm({
       </Card>
 
       <Card>
-        <CardHeader title="People" description="Everyone 18 or older who lives there should be a tenant. Co-signers guarantee the rent but don't live there." />
+        <CardHeader
+          title="People"
+          description={commercial ? "The person signing for the business is the tenant. Add a personal guarantor if the owner guarantees the lease." : "Everyone 18 or older who lives there should be a tenant. Co-signers guarantee the rent but don't live there."}
+        />
         <div className="space-y-4 p-5">
           {Array.from({ length: people }, (_, i) => (
             <div key={i} className="grid gap-3 rounded-[var(--radius-control)] border border-line p-3 sm:grid-cols-[1.2fr_1fr_1fr_1.3fr_1fr]">

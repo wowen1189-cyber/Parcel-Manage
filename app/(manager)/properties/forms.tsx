@@ -338,7 +338,25 @@ function Group({ title, hint, children }: { title: string; hint?: string; childr
   );
 }
 
-export function LeaseSettingsForm({ propertyId, settings, single, deductibleAllowed, pre1978, canEdit }: { propertyId: string; settings: LeaseSettings; single: boolean; deductibleAllowed: boolean; pre1978: boolean; canEdit: boolean }) {
+export function LeaseSettingsForm({
+  propertyId,
+  settings,
+  single,
+  deductibleAllowed,
+  pre1978,
+  canEdit,
+  mode = "residential",
+}: {
+  propertyId: string;
+  settings: LeaseSettings;
+  single: boolean;
+  deductibleAllowed: boolean;
+  pre1978: boolean;
+  canEdit: boolean;
+  /** commercial: only the commercial lease's blanks (deposit bank, legal description); mixed: both. */
+  mode?: "residential" | "commercial" | "mixed";
+}) {
+  const residential = mode !== "commercial";
   const [state, action, pending] = useActionState(saveLeaseSettings, empty);
   const s = (k: keyof LeaseSettings) => (state.values?.[k] ?? String(settings[k] ?? "")) as string;
   const [leadKnown, setLeadKnown] = useState(s("leadKnown"));
@@ -349,6 +367,8 @@ export function LeaseSettingsForm({ propertyId, settings, single, deductibleAllo
       <fieldset disabled={!canEdit} className="space-y-4 p-5">
         {state.error && <Notice tone="danger">{state.error}</Notice>}
         {state.message && <Notice tone="success">{state.message}</Notice>}
+        {residential ? (
+          <>
         <div className="grid gap-4 lg:grid-cols-2">
           <Group title="Resident repair deductible" hint={deductibleAllowed ? "Resident pays the first $150 of each repair (lease §3.2)." : "Not allowed here: Florida only allows it for single-family homes and duplexes (83.51(1))."}>
             <Pick name="repairDeductible" value={deductibleAllowed ? s("repairDeductible") : "none"} disabled={!deductibleAllowed} options={[["resident", "Resident is responsible"], ["none", "Resident is not responsible"]]} />
@@ -393,7 +413,20 @@ export function LeaseSettingsForm({ propertyId, settings, single, deductibleAllo
           </div>
         </Group>
 
-        <Group title="Where deposits are held" hint="Required on Florida leases (83.49(2)). Usually the same for every property the LLC owns.">
+          </>
+        ) : (
+          <>
+            <input type="hidden" name="repairDeductible" value="none" />
+            <input type="hidden" name="pestControl" value={s("pestControl")} />
+            <input type="hidden" name="lawnCare" value="landlord" />
+            <input type="hidden" name="utilitiesIncluded" value={s("utilitiesIncluded") || "See lease"} />
+            <input type="hidden" name="keys" value={s("keys")} />
+            <input type="hidden" name="electricProvider" value={s("electricProvider")} />
+            <input type="hidden" name="waterSewerTrash" value={s("waterSewerTrash")} />
+          </>
+        )}
+
+        <Group title="Where deposits are held" hint={residential ? "Required on Florida leases (83.49(2)). Usually the same for every property the LLC owns." : "Printed in the commercial lease (Section 4.4). Usually the same for every property the LLC owns."}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Bank">
               <Input name="depositBankName" defaultValue={s("depositBankName")} placeholder="e.g. United Southern Bank" />
@@ -401,6 +434,8 @@ export function LeaseSettingsForm({ propertyId, settings, single, deductibleAllo
             <Field label="Bank street address">
               <Input name="depositBankAddress" defaultValue={s("depositBankAddress")} />
             </Field>
+            {residential && (
+              <>
             <div>
               <p className="mb-1.5 text-[13px] font-semibold text-ink-2">How deposits are held</p>
               <Pick name="depositAccountType" value={s("depositAccountType")} options={[["non_interest", "Separate non-interest-bearing account"], ["interest", "Separate interest-bearing account"], ["surety_bond", "Surety bond"]]} />
@@ -409,9 +444,12 @@ export function LeaseSettingsForm({ propertyId, settings, single, deductibleAllo
               <p className="mb-1.5 text-[13px] font-semibold text-ink-2">Interest to the tenant</p>
               <Pick name="depositInterest" value={s("depositInterest")} options={[["not_entitled", "Tenant is not entitled to interest"], ["entitled", "Tenant is entitled to interest"]]} />
             </div>
+              </>
+            )}
           </div>
         </Group>
 
+        {residential && (
         <Group title="Flood disclosure (83.512)" hint="The owner's answers, printed on every lease of a year or longer.">
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
@@ -428,8 +466,16 @@ export function LeaseSettingsForm({ propertyId, settings, single, deductibleAllo
             </div>
           </div>
         </Group>
+        )}
 
-        {pre1978 ? (
+        {(mode !== "residential") && (
+          <Group title="Legal description of the land" hint="Exhibit A of the commercial lease. Copy it from the deed or the county property appraiser.">
+            <Textarea name="legalDescription" defaultValue={s("legalDescription")} placeholder="e.g. EUSTIS PB 1 PG 79 LOTS 5, 6, 7, 8 BLOCK 36" />
+          </Group>
+        )}
+        {mode === "residential" && <input type="hidden" name="legalDescription" value={s("legalDescription")} />}
+
+        {residential && pre1978 ? (
           <Group title="Lead-based paint (built before 1978)" hint="Federal disclosure; the owner's answers.">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>

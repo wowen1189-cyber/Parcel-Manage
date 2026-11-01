@@ -9,7 +9,7 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: "properties", label: "Properties", phase: 0, description: "Buildings, units and who owns them." },
   { slug: "tenants", label: "Tenants & leases", phase: 1, description: "Tenant profiles, ledgers, leases and households." },
   { slug: "expirations", label: "Lease expirations", phase: 1, description: "Keep lease endings spread across the year.", href: "/tenants/expirations" },
-  { slug: "lease-template", label: "Lease template", phase: 1, description: "The lease and disclosures, with every Florida law change marked.", href: "/tenants/lease-template" },
+  { slug: "lease-template", label: "Lease template", phase: 1, description: "The residential and commercial leases and Florida disclosures.", href: "/tenants/lease-template" },
   { slug: "leasing", label: "Leasing", phase: 3, description: "Vacancies, listings, guest cards and applicants." },
   { slug: "leasing-agent", label: "AI leasing agent", phase: 3, description: "Answers prospects 24/7, books showings and escalates to you." },
   { slug: "communications", label: "Communications", phase: 1, description: "Letters, notices, templates and the sent log." },

@@ -6,6 +6,7 @@ import type { BusinessRules } from "@/lib/business-rules";
 import { contactName, date, money, oneLineAddress, type NamedContact } from "@/lib/format";
 import type { Condition, DocumentTemplate, PartyNames } from "./types";
 import type { LeaseSettings } from "@/lib/property-lease-settings";
+import { rentSchedule, type CommercialTerms } from "@/lib/commercial-terms";
 
 export type LeaseForDocument = {
   start_date: string;
@@ -31,7 +32,7 @@ export type LeaseForDocument = {
   recurring: { description: string; amount_cents: number }[];
 };
 
-export type CompanyForDocument = { name: string; legal_name: string | null; address: string | null; office_phone: string | null };
+export type CompanyForDocument = { name: string; legal_name: string | null; address: string | null; office_phone: string | null; office_email?: string | null };
 
 const NOT_SET = "Owner LLC not set yet";
 
@@ -124,4 +125,86 @@ export function fillLease(template: DocumentTemplate, l: LeaseForDocument, compa
 function monthsBetween(start: string, end: string) {
   const [a, b] = [new Date(start), new Date(end)];
   return Math.max(1, Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
+}
+
+const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
+const shortDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+/**
+ * Fills the commercial lease (Fla. Stat. ch. 83 Part I) from one lease: the deal terms come from
+ * lease.commercial_terms, the deposit bank and legal description from the property's lease settings.
+ */
+export function fillCommercialLease(
+  template: DocumentTemplate,
+  l: LeaseForDocument & { sqft: number | null; createdAt: string },
+  company: CompanyForDocument,
+  terms: CommercialTerms,
+  settings: LeaseSettings,
+) {
+  const values: Record<string, string> = {};
+  const tenants = l.people.filter((p) => p.role === "tenant").sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+  const guarantors = l.people.filter((p) => p.role === "guarantor");
+  const primary = tenants[0]?.contact;
+  const people = tenants.map((t) => contactName(t.contact)).join(", ");
+  const legalName = terms.businessName ? (people ? `${people}, dba ${terms.businessName}` : terms.businessName) : people;
+  const premises = oneLineAddress({ ...l.property, address_line2: [l.property.address_line2, l.unitLabel ? `Unit ${l.unitLabel}` : ""].filter(Boolean).join(", ") });
+  const months = l.term_months ?? (l.end_date ? monthsBetween(l.start_date, l.end_date) : null);
+  const schedule = l.end_date ? rentSchedule(l.start_date, l.end_date, l.rent_cents, terms.annualIncreasePercent) : [];
+  const renewalTerms = terms.renewalOptions === 1 ? "one (1) renewal term" : `${terms.renewalOptions} renewal terms`;
+  const cam = terms.camMonthlyCents || terms.camFixed ? `${money(terms.camMonthlyCents)} a month${terms.camFixed ? `, fixed${l.end_date ? ` through ${date(l.end_date)}` : " for the Lease Term"}` : ", adjustable by Landlord on 30 days' written notice to reflect actual Common Area costs"}` : "None";
+
+  Object.assign(values, {
+    lease_prepared_date: date(l.createdAt.slice(0, 10)),
+    landlord_name: l.property.entityName && l.property.entityName !== NOT_SET ? l.property.entityName : "",
+    agent_name: company.legal_name ?? company.name,
+    agent_address: company.address ?? "",
+    agent_phone: company.office_phone ?? "",
+    agent_email: company.office_email ?? "",
+    tenant_legal_name: legalName,
+    tenant_notice_address: premises,
+    tenant_phone: (primary as { mobile?: string | null } | undefined)?.mobile ?? "",
+    tenant_email: primary?.email ?? "",
+    premises_address: premises,
+    premises_sqft: l.sqft ? l.sqft.toLocaleString("en-US") : "",
+    lease_start_date: date(l.start_date),
+    lease_end_date: l.end_date ? date(l.end_date) : "",
+    lease_term_months: months ? String(months) : "",
+    renewal_summary: terms.renewalOptions
+      ? `${renewalTerms} of ${terms.renewalTermMonths} months; written notice at least ${terms.renewalNoticeDays} days before the Expiration Date`
+      : "None",
+    renewal_clause: terms.renewalOptions
+      ? `Tenant has the option to renew this Lease for ${renewalTerms} of ${terms.renewalTermMonths} months each by giving Landlord written notice at least ${terms.renewalNoticeDays} days before the Expiration Date (or the end of the then-current renewal term).`
+      : "Tenant has no option to renew; any renewal must be agreed in writing.",
+    rent_schedule: schedule.map((r) => `${shortDate(r.from)} – ${shortDate(r.to)}: ${money(r.monthlyCents)}`).join("; ") || money(l.rent_cents),
+    first_month_rent: money(l.rent_cents),
+    annual_increase_percent: String(terms.annualIncreasePercent),
+    utilities_summary: terms.utilitiesMonthlyCents
+      ? `Tenant pays its pro rata share monthly with rent (Section 5.1); currently ${money(terms.utilitiesMonthlyCents)} a month`
+      : "Tenant pays utilities metered or billed to the Premises, and its pro rata share of any that are not (Section 5.1)",
+    utilities_estimate: money(terms.utilitiesMonthlyCents),
+    cam_summary: cam,
+    permitted_use: terms.permittedUse,
+    security_deposit: money(l.deposit_cents),
+    deposit_bank_name: settings.depositBankName,
+    deposit_bank_address: settings.depositBankAddress,
+    late_after_day: ordinal(terms.lateAfterDay),
+    late_fee_percent: String(terms.lateFeePercent),
+    returned_payment_fee: money(terms.returnedPaymentFeeCents),
+    repair_threshold: money(terms.repairThresholdCents),
+    warranty_days: String(terms.warrantyDays),
+    legal_description: settings.legalDescription,
+    landlord_work: terms.landlordWork,
+    tenant_work: terms.tenantWork,
+  });
+  for (const key of Object.keys(template.fields)) values[key] ??= "";
+
+  const conditions = new Set<Condition>();
+  if (guarantors.length) conditions.add("has_guarantor");
+  const parties: PartyNames = {
+    tenants: [legalName],
+    guarantors: guarantors.map((t) => contactName(t.contact)),
+    agent: [company.legal_name ?? company.name],
+    landlord: [values.landlord_name],
+  };
+  return { values, conditions, parties, schedule };
 }

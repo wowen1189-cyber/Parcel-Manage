@@ -42,7 +42,9 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
   const owed = units.reduce((s, u) => s + Math.max(0, current(u)?.opening_balance_cents ?? 0), 0);
   const canEdit = ["admin", "property_manager"].includes(membership.role);
   const leaseSettings = readLeaseSettings(p.lease_settings, p.property_type, units.length);
-  const leaseMissing = missingLeaseSettings(leaseSettings, p.year_built != null && p.year_built < 1978);
+  const hasCommercial = units.some((u) => u.kind === "commercial");
+  const leaseMode = hasCommercial ? (units.every((u) => u.kind === "commercial") ? "commercial" : "mixed") : "residential";
+  const leaseMissing = missingLeaseSettings(leaseSettings, p.year_built != null && p.year_built < 1978, leaseMode);
   const companyFee = readCompanyFee(company.settings);
   const ownerFee = effectiveFee(null, p.entity?.management_fee, companyFee);
   const fee = effectiveFee(p.management_fee, p.entity?.management_fee, companyFee);
@@ -152,9 +154,9 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
 
       <Card className="mt-6">
         <CardHeader
-          title="Management fee"
-          description={`What you charge to manage this property. Est. ${money(estFee)} this month if every tenant pays in full.`}
-          action={<Pill tone={fee.source === "property" ? "info" : "neutral"}>{fee.source === "property" ? "Own fee" : fee.source === "owner" ? "Owner's agreement" : "Company default"}</Pill>}
+          title="Management, leasing and renewal fees"
+          description={`${describeFee(fee.fee)}. Est. management fee ${money(estFee)} this month if every tenant pays in full.`}
+          action={<Pill tone={fee.source === "property" ? "info" : "neutral"}>{fee.source === "property" ? "Own fees" : fee.source === "owner" ? "Owner's agreement" : "Company default"}</Pill>}
         />
         <FeeForm
           key={fee.source}
@@ -162,7 +164,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
           targetId={p.id}
           fee={fee.fee}
           custom={fee.source === "property"}
-          inheritLabel={`Use the owner's ${ownerFee.source === "owner" ? "agreement" : "fee (company default)"}: ${describeFee(ownerFee.fee)}`}
+          inheritLabel={`Use the owner's ${ownerFee.source === "owner" ? "agreement" : "fees (company default)"}: ${describeFee(ownerFee.fee)}`}
           canEdit={canEdit}
         />
       </Card>
@@ -170,7 +172,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
       <Card className="mt-6">
         <CardHeader
           title="Lease settings"
-          description="The checkboxes from your lease, set once for this property. Every lease here fills in from them."
+          description={leaseMode === "commercial" ? "Set once for this building. Every commercial lease here fills in from them." : "The checkboxes from your lease, set once for this property. Every lease here fills in from them."}
           action={leaseMissing.length ? <Pill tone="warn">Missing: {leaseMissing.join(", ")}</Pill> : <Pill tone="success">Complete</Pill>}
         />
         <LeaseSettingsForm
@@ -180,6 +182,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
           deductibleAllowed={allowsRepairDeductible(p.property_type, units.length)}
           pre1978={p.year_built != null && p.year_built < 1978}
           canEdit={canEdit}
+          mode={leaseMode}
         />
       </Card>
 

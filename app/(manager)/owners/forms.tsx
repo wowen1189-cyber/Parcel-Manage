@@ -98,6 +98,7 @@ export function FeeForm({
   const [mode, setMode] = useState(sv?.mode ?? (inheritLabel && !custom ? "inherit" : "custom"));
   const [basis, setBasis] = useState(sv?.basis ?? fee.basis);
   const [leasing, setLeasing] = useState(sv?.leasingFee ?? fee.leasingFee);
+  const [renewal, setRenewal] = useState(sv?.renewalFee ?? fee.renewalFee);
   const val = (k: string, d: string) => sv?.[k] ?? d;
   const showTerms = mode === "custom";
   return (
@@ -112,13 +113,13 @@ export function FeeForm({
               {inheritLabel}
             </Radio>
             <Radio name="mode" value="custom" checked={mode === "custom"} onChange={setMode}>
-              {scope === "property" ? "This property has its own fee" : "This owner has its own agreement"}
+              {scope === "property" ? "This property has its own fees (management, leasing and renewal)" : "This owner has its own agreement (management, leasing and renewal)"}
             </Radio>
           </div>
         )}
         {!inheritLabel && <input type="hidden" name="mode" value="custom" />}
         {showTerms && (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <fieldset className="rounded-[var(--radius-control)] border border-line p-4">
               <legend className="px-1 text-sm font-bold">Monthly management fee</legend>
               <Radio name="basis" value="percent" checked={basis === "percent"} onChange={setBasis}>
@@ -158,8 +159,8 @@ export function FeeForm({
               )}
             </fieldset>
             <fieldset className="rounded-[var(--radius-control)] border border-line p-4">
-              <legend className="px-1 text-sm font-bold">Leasing and renewal fees</legend>
-              <p className="mb-1.5 text-[13px] font-semibold text-ink-2">When a new lease is signed</p>
+              <legend className="px-1 text-sm font-bold">Leasing fee</legend>
+              <p className="mb-1.5 text-[13px] text-subtle">Charged once when a new tenant signs a lease.</p>
               <Radio name="leasingFee" value="percent" checked={leasing === "percent"} onChange={setLeasing}>
                 Percent of one month&apos;s rent
               </Radio>
@@ -169,7 +170,7 @@ export function FeeForm({
               <Radio name="leasingFee" value="none" checked={leasing === "none"} onChange={setLeasing}>
                 No leasing fee
               </Radio>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3">
                 {leasing === "percent" && (
                   <Field label="Percent of a month">
                     <Input name="leasingPercent" inputMode="decimal" defaultValue={val("leasingPercent", String(fee.leasingPercent || ""))} placeholder="50" />
@@ -180,16 +181,38 @@ export function FeeForm({
                     <Input name="leasingFlat" inputMode="decimal" defaultValue={val("leasingFlat", dollars(fee.leasingFlatCents))} />
                   </Field>
                 )}
-                <Field label="Renewal fee ($)" hint="Blank for none">
-                  <Input name="renewal" inputMode="decimal" defaultValue={val("renewal", dollars(fee.renewalFeeCents))} />
-                </Field>
+              </div>
+            </fieldset>
+            <fieldset className="rounded-[var(--radius-control)] border border-line p-4">
+              <legend className="px-1 text-sm font-bold">Renewal fee</legend>
+              <p className="mb-1.5 text-[13px] text-subtle">Charged once when a current tenant renews.</p>
+              <Radio name="renewalFee" value="percent" checked={renewal === "percent"} onChange={setRenewal}>
+                Percent of one month&apos;s rent
+              </Radio>
+              <Radio name="renewalFee" value="flat" checked={renewal === "flat"} onChange={setRenewal}>
+                Flat amount
+              </Radio>
+              <Radio name="renewalFee" value="none" checked={renewal === "none"} onChange={setRenewal}>
+                No renewal fee
+              </Radio>
+              <div className="mt-3">
+                {renewal === "percent" && (
+                  <Field label="Percent of a month">
+                    <Input name="renewalPercent" inputMode="decimal" defaultValue={val("renewalPercent", String(fee.renewalPercent || ""))} placeholder="25" />
+                  </Field>
+                )}
+                {renewal === "flat" && (
+                  <Field label="Renewal fee ($)">
+                    <Input name="renewal" inputMode="decimal" defaultValue={val("renewal", dollars(fee.renewalFeeCents))} placeholder="150" />
+                  </Field>
+                )}
               </div>
             </fieldset>
           </div>
         )}
         <div className="flex justify-end">
           <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : "Save fee"}
+            {pending ? "Saving…" : "Save fees"}
           </Button>
         </div>
       </fieldset>

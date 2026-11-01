@@ -59,7 +59,7 @@ export default async function OwnersPage({ searchParams }: PageProps<"/owners">)
             <Thead>
               <Th>Owner</Th>
               <Th>Properties</Th>
-              <Th>Management fee</Th>
+              <Th>Fees</Th>
               <Th right>Units</Th>
               <Th right>Monthly rent</Th>
               <Th right>Est. monthly fee</Th>
@@ -105,7 +105,7 @@ export default async function OwnersPage({ searchParams }: PageProps<"/owners">)
       </Card>
 
       <Card className="mt-6">
-        <CardHeader title="Company default fee" description={`Owners without their own agreement use this. Now: ${describeFee(companyFee)}.`} />
+        <CardHeader title="Company default fees" description={`Owners without their own agreement use these. Now: ${describeFee(companyFee)}.`} />
         <FeeForm scope="company" fee={companyFee} custom canEdit={membership.role === "admin"} />
       </Card>
     </>

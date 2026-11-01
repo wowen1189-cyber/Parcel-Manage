@@ -135,7 +135,7 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
 
       {!unassigned && (
         <Card className="mt-6">
-          <CardHeader title="Management agreement" description="The fee you charge this owner. Every property they own uses it unless that property has its own fee." />
+          <CardHeader title="Management agreement" description="The management, leasing and renewal fees you charge this owner. Every property they own uses them unless that property has its own." />
           <FeeForm scope="owner" targetId={owner.id} fee={agreement.fee} custom={agreement.source === "owner"} inheritLabel={`Use the company default (${describeFee(companyFee)})`} canEdit={canEdit} />
         </Card>
       )}

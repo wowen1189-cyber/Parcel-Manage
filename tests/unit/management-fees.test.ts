@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MANAGEMENT_FEE, describeFee, effectiveFee, feeFromForm, leasingFee, monthlyFee, readCompanyFee, type ManagementFee } from "@/lib/management-fees";
+import { DEFAULT_MANAGEMENT_FEE, describeFee, effectiveFee, feeFromForm, leasingFee, monthlyFee, readCompanyFee, renewalFee, type ManagementFee } from "@/lib/management-fees";
 
 const fee = (f: Partial<ManagementFee>): ManagementFee => ({ ...DEFAULT_MANAGEMENT_FEE, ...f });
 
@@ -32,6 +32,19 @@ describe("leasing fee", () => {
   });
 });
 
+describe("renewal fee", () => {
+  it("is a share of a month's rent, a flat amount or none", () => {
+    expect(renewalFee(fee({ renewalFee: "percent", renewalPercent: 25 }), 150_000)).toBe(37_500);
+    expect(renewalFee(fee({ renewalFee: "flat", renewalFeeCents: 15_000 }), 150_000)).toBe(15_000);
+    expect(renewalFee(fee({ renewalFee: "none", renewalFeeCents: 15_000 }), 150_000)).toBe(0);
+  });
+  it("reads an older saved renewal amount as a flat fee", () => {
+    const { renewalFee: kind, ...older } = { ...DEFAULT_MANAGEMENT_FEE, renewalFeeCents: 15_000 };
+    expect(kind).toBe("none");
+    expect(readCompanyFee({ managementFee: older }).renewalFee).toBe("flat");
+  });
+});
+
 describe("which fee applies", () => {
   const company = fee({ percent: 8 });
   it("uses the property's own fee, then the owner's agreement, then the company default", () => {
@@ -50,15 +63,17 @@ describe("which fee applies", () => {
 
 describe("fee form", () => {
   it("reads dollars and percents", () => {
-    const { fee: f } = feeFromForm({ basis: "percent", percent: "8%", minimum: "$100", leasingFee: "flat", leasingFlat: "300", renewal: "150.50" });
-    expect(f).toMatchObject({ basis: "percent", percent: 8, minimumCents: 10_000, leasingFlatCents: 30_000, renewalFeeCents: 15_050, chargeWhenVacant: false });
+    const { fee: f } = feeFromForm({ basis: "percent", percent: "8%", minimum: "$100", leasingFee: "flat", leasingFlat: "300", renewalFee: "flat", renewal: "150.50" });
+    expect(f).toMatchObject({ basis: "percent", percent: 8, minimumCents: 10_000, leasingFlatCents: 30_000, renewalFee: "flat", renewalFeeCents: 15_050, chargeWhenVacant: false });
   });
   it("explains bad input", () => {
     expect(feeFromForm({ basis: "percent", percent: "", leasingFee: "none" }).error).toMatch(/percent/);
     expect(feeFromForm({ basis: "flat", flat: "abc", leasingFee: "none" }).error).toMatch(/dollars/);
     expect(feeFromForm({ basis: "percent", percent: "150", leasingFee: "none" }).error).toMatch(/between 0 and 100/);
+    expect(feeFromForm({ basis: "percent", percent: "8", leasingFee: "none", renewalFee: "percent" }).error).toMatch(/renewal fee percent/);
   });
   it("describes the terms in plain words", () => {
-    expect(describeFee(fee({ percent: 8, minimumCents: 10_000, leasingPercent: 50, renewalFeeCents: 15_000 }))).toBe("8% of rent collected (at least $100) · leasing 50% of a month · renewal $150");
+    expect(describeFee(fee({ percent: 8, minimumCents: 10_000, leasingPercent: 50, renewalFee: "flat", renewalFeeCents: 15_000 }))).toBe("Management 8% of rent collected (at least $100) · Leasing 50% of a month's rent · Renewal $150");
+    expect(describeFee(fee({ percent: 5, leasingFee: "none" }))).toBe("Management 5% of rent collected · Leasing none · Renewal none");
   });
 });

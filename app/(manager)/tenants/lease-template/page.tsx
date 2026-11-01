@@ -3,7 +3,7 @@ import { DocumentView } from "@/components/document-view";
 import { buttonClass, Card, PageHeader } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
 import { param } from "@/components/list-filters";
-import { TEMPLATES } from "@/lib/documents";
+import { COMMERCIAL_TEMPLATES, TEMPLATES } from "@/lib/documents";
 import type { Condition } from "@/lib/documents/types";
 import { requireCompany } from "@/lib/session";
 
@@ -15,7 +15,8 @@ const ALL: Condition[] = ["single_family", "multi_unit", "has_pets", "pre_1978",
 export default async function LeaseTemplatePage({ searchParams }: PageProps<"/tenants/lease-template">) {
   await requireCompany();
   const params = await searchParams;
-  const doc = TEMPLATES.find((t) => t.id === param(params, "doc")) ?? TEMPLATES[0];
+  const all = [...TEMPLATES, ...COMMERCIAL_TEMPLATES];
+  const doc = all.find((t) => t.id === param(params, "doc")) ?? TEMPLATES[0];
 
   return (
     <>
@@ -24,10 +25,10 @@ export default async function LeaseTemplatePage({ searchParams }: PageProps<"/te
           ← Tenants & leases
         </Link>
       </p>
-      <PageHeader title="Lease and disclosures" subtitle="SIM REI's residential lease and Florida disclosures. Every optional section is shown; each lease includes only what applies." action={<PrintButton />} />
+      <PageHeader title="Lease and disclosures" subtitle="SIM REI's residential lease, Florida disclosures and commercial lease. Every optional section is shown; each lease includes only what applies." action={<PrintButton />} />
 
       <div className="mb-4 flex flex-wrap gap-2 print:hidden">
-        {TEMPLATES.map((t) => (
+        {all.map((t) => (
           <Link key={t.id} href={`/tenants/lease-template?doc=${t.id}`} className={buttonClass(t.id === doc.id ? "primary" : "secondary", true)}>
             {t.title}
           </Link>

@@ -30,6 +30,8 @@ export const leaseSettingsSchema = z.object({
   leadKnownDescription: z.string().trim().max(500),
   leadRecords: z.enum(["", "provided", "none"]),
   leadRecordsList: z.string().trim().max(500),
+  // Commercial leases: Exhibit A legal description of the land (from the deed or property appraiser).
+  legalDescription: z.string().trim().max(1000),
 });
 export type LeaseSettings = z.infer<typeof leaseSettingsSchema>;
 
@@ -61,6 +63,7 @@ export function defaultLeaseSettings(propertyType: string | null, unitCount: num
     leadKnownDescription: "",
     leadRecords: "",
     leadRecordsList: "",
+    legalDescription: "",
   };
 }
 
@@ -75,8 +78,13 @@ export function readLeaseSettings(stored: unknown, propertyType: string | null, 
 }
 
 /** Settings that are still blank (shown as warnings, since they print as blanks on the lease). */
-export function missingLeaseSettings(s: LeaseSettings, pre1978: boolean): string[] {
+export function missingLeaseSettings(s: LeaseSettings, pre1978: boolean, mode: "residential" | "commercial" | "mixed" = "residential"): string[] {
   const missing: string[] = [];
+  if (mode !== "residential" && !s.legalDescription) missing.push("legal description");
+  if (mode === "commercial") {
+    if (!s.depositBankName || !s.depositBankAddress) missing.push("where deposits are held");
+    return missing;
+  }
   if (!s.depositBankName || !s.depositBankAddress || !s.depositAccountType || !s.depositInterest) missing.push("where deposits are held");
   if (!s.floodKnowledge || !s.floodClaim || !s.floodAssistance) missing.push("flood disclosure answers");
   if (pre1978 && (!s.leadKnown || !s.leadRecords)) missing.push("lead paint answers");

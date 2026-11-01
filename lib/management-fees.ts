@@ -25,7 +25,9 @@ export const managementFeeSchema = z.object({
   leasingFee: z.enum(["percent", "flat", "none"]),
   leasingPercent: percent,
   leasingFlatCents: cents,
-  // Existing tenant renews.
+  // Existing tenant renews: a share of one month's (new) rent, or a set amount.
+  renewalFee: z.enum(["percent", "flat", "none"]),
+  renewalPercent: percent,
   renewalFeeCents: cents,
 });
 export type ManagementFee = z.infer<typeof managementFeeSchema>;
@@ -40,12 +42,17 @@ export const DEFAULT_MANAGEMENT_FEE: ManagementFee = {
   leasingFee: "percent",
   leasingPercent: 50,
   leasingFlatCents: 0,
+  renewalFee: "none",
+  renewalPercent: 0,
   renewalFeeCents: 0,
 };
 
 function parse(stored: unknown, base: ManagementFee): ManagementFee | null {
   if (!stored || typeof stored !== "object" || !Object.keys(stored).length) return null;
-  const parsed = managementFeeSchema.safeParse({ ...base, ...(stored as object) });
+  const saved = stored as Partial<ManagementFee>;
+  // Fees saved before renewal fees had a type: a renewal amount meant a flat fee.
+  const renewal = saved.renewalFee ?? (saved.renewalFeeCents ? "flat" : "none");
+  const parsed = managementFeeSchema.safeParse({ ...base, ...saved, renewalFee: renewal });
   return parsed.success ? parsed.data : null;
 }
 
@@ -87,23 +94,37 @@ export function leasingFee(fee: ManagementFee, monthlyRentCents: number): number
   return Math.round((monthlyRentCents * fee.leasingPercent) / 100);
 }
 
+/** One-time fee when an existing tenant renews, from the renewal's monthly rent. */
+export function renewalFee(fee: ManagementFee, monthlyRentCents: number): number {
+  if (fee.renewalFee === "none") return 0;
+  if (fee.renewalFee === "flat") return fee.renewalFeeCents;
+  return Math.round((monthlyRentCents * fee.renewalPercent) / 100);
+}
+
 const dollars = (c: number) => `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
-/** Plain-language summary, e.g. "8% of rent collected (at least $100) · leasing 50% of a month · renewal $150". */
+/** Plain-language summary of the three fees, e.g. "Management 8% of rent collected · Leasing 50% of a month's rent · Renewal $150". */
 export function describeFee(fee: ManagementFee): string {
+  return describeFeeParts(fee).map((x) => `${x.label} ${x.text}`).join(" · ");
+}
+
+/** The management, leasing and renewal fee, each in plain words. */
+export function describeFeeParts(fee: ManagementFee): { label: string; text: string }[] {
   const monthly =
     fee.basis === "none"
-      ? "No monthly fee"
+      ? "none"
       : fee.basis === "flat"
         ? `${dollars(fee.flatCents)} a month`
         : fee.basis === "per_unit"
           ? `${dollars(fee.flatCents)} per occupied unit a month`
           : `${fee.percent}% of rent collected${fee.minimumCents ? ` (at least ${dollars(fee.minimumCents)})` : ""}`;
-  const parts = [monthly];
-  if (fee.leasingFee === "percent" && fee.leasingPercent) parts.push(`leasing ${fee.leasingPercent}% of a month`);
-  if (fee.leasingFee === "flat" && fee.leasingFlatCents) parts.push(`leasing ${dollars(fee.leasingFlatCents)}`);
-  if (fee.renewalFeeCents) parts.push(`renewal ${dollars(fee.renewalFeeCents)}`);
-  return parts.join(" · ");
+  const oneTime = (kind: "percent" | "flat" | "none", pct: number, flat: number) =>
+    kind === "percent" && pct ? `${pct}% of a month's rent` : kind === "flat" && flat ? dollars(flat) : "none";
+  return [
+    { label: "Management", text: monthly },
+    { label: "Leasing", text: oneTime(fee.leasingFee, fee.leasingPercent, fee.leasingFlatCents) },
+    { label: "Renewal", text: oneTime(fee.renewalFee, fee.renewalPercent, fee.renewalFeeCents) },
+  ];
 }
 
 /** Reads the fee form (dollar and percent text fields) into a fee. */
@@ -127,6 +148,8 @@ export function feeFromForm(raw: Record<string, FormDataEntryValue>): { fee?: Ma
     leasingFee: raw.leasingFee,
     leasingPercent: pct("leasingPercent"),
     leasingFlatCents: money("leasingFlat"),
+    renewalFee: raw.renewalFee ?? "none",
+    renewalPercent: pct("renewalPercent"),
     renewalFeeCents: money("renewal"),
   };
   const bad = Object.entries(candidate).find(([, v]) => typeof v === "number" && Number.isNaN(v));
@@ -139,5 +162,9 @@ export function feeFromForm(raw: Record<string, FormDataEntryValue>): { fee?: Ma
   const fee = parsed.data;
   if (fee.basis === "percent" && !fee.percent) return { error: "Enter the percent of rent, or choose no monthly fee." };
   if ((fee.basis === "flat" || fee.basis === "per_unit") && !fee.flatCents) return { error: "Enter the monthly amount, or choose no monthly fee." };
+  if (fee.leasingFee === "percent" && !fee.leasingPercent) return { error: "Enter the leasing fee percent, or choose no leasing fee." };
+  if (fee.leasingFee === "flat" && !fee.leasingFlatCents) return { error: "Enter the leasing fee amount, or choose no leasing fee." };
+  if (fee.renewalFee === "percent" && !fee.renewalPercent) return { error: "Enter the renewal fee percent, or choose no renewal fee." };
+  if (fee.renewalFee === "flat" && !fee.renewalFeeCents) return { error: "Enter the renewal fee amount, or choose no renewal fee." };
   return { fee };
 }

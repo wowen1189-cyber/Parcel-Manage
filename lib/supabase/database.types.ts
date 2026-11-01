@@ -838,6 +838,7 @@ export type Database = {
           autopay: boolean
           certified_funds_only: boolean
           commercial_lease_type: string | null
+          commercial_terms: Json | null
           company_id: string
           created_at: string
           deposit_cents: number
@@ -872,6 +873,7 @@ export type Database = {
           autopay?: boolean
           certified_funds_only?: boolean
           commercial_lease_type?: string | null
+          commercial_terms?: Json | null
           company_id: string
           created_at?: string
           deposit_cents?: number
@@ -906,6 +908,7 @@ export type Database = {
           autopay?: boolean
           certified_funds_only?: boolean
           commercial_lease_type?: string | null
+          commercial_terms?: Json | null
           company_id?: string
           created_at?: string
           deposit_cents?: number

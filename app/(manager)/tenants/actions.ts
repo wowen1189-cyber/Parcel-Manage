@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { COMMERCIAL_TERM_MONTHS, commercialTermsFromForm, readCommercialTerms, type CommercialTerms } from "@/lib/commercial-terms";
 import { readBusinessRules } from "@/lib/business-rules";
 import { todayIn } from "@/lib/format";
 import { leaseEndDate } from "@/lib/lease-expirations";
@@ -305,7 +306,7 @@ export async function createLease(_: FormState, form: FormData): Promise<FormSta
     .object({
       unit_id: z.string().uuid("Choose the unit."),
       start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the start date."),
-      months: z.coerce.number().int().min(rules.lease.minTermMonths, `Leases are at least ${rules.lease.minTermMonths} months.`).max(rules.lease.maxTermMonths, `Leases are at most ${rules.lease.maxTermMonths} months.`),
+      months: z.coerce.number().int("Choose the lease length.").min(1, "Choose the lease length."),
       rent: money("the monthly rent"),
       deposit: money("the deposit"),
       status: z.enum(["draft", "active"]),
@@ -334,12 +335,24 @@ export async function createLease(_: FormState, form: FormData): Promise<FormSta
 
   const { data: unit } = await supabase.from("unit").select("id, kind, status, lease(id, status)").eq("id", d.unit_id).eq("company_id", company.id).maybeSingle();
   if (!unit) return { error: "That unit wasn't found.", values: typed(form) };
+  // Commercial space (Fla. Stat. ch. 83 Part I) has its own lengths and terms; residential rules don't apply.
+  const commercial = unit.kind === "commercial";
+  let terms: CommercialTerms | null = null;
+  if (commercial) {
+    if (d.months < COMMERCIAL_TERM_MONTHS.min || d.months > COMMERCIAL_TERM_MONTHS.max) return { error: `Commercial leases can be ${COMMERCIAL_TERM_MONTHS.min} to ${COMMERCIAL_TERM_MONTHS.max} months.`, values: typed(form) };
+    const t = commercialTermsFromForm(Object.fromEntries(form));
+    if (!t.terms) return { error: t.error, values: typed(form) };
+    if (!t.terms.permittedUse) return { error: "Enter the permitted use, like \"Hair and nail salon\".", values: typed(form) };
+    terms = t.terms;
+  } else if (d.months < rules.lease.minTermMonths || d.months > rules.lease.maxTermMonths) {
+    return { error: `Leases are ${rules.lease.minTermMonths} to ${rules.lease.maxTermMonths} months.`, values: typed(form) };
+  }
   if (unit.lease.some((l) => l.status === "active") && d.status === "active")
     return { error: "This unit already has an active lease. Save this one as a draft, or end the current lease first.", values: typed(form) };
 
   const end = leaseEndDate(d.start_date, d.months);
-  const surcharge = d.months < rules.lease.shortTermUnderMonths ? rules.lease.shortTermSurchargeCents : 0;
-  const increase = rules.lease.longTermYearlyIncreasePercent;
+  const surcharge = !commercial && d.months < rules.lease.shortTermUnderMonths ? rules.lease.shortTermSurchargeCents : 0;
+  const increase = terms ? terms.annualIncreasePercent : rules.lease.longTermYearlyIncreasePercent;
   const anniversary = (() => {
     const [y, m, day] = d.start_date.split("-").map(Number);
     return `${y + 1}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -357,8 +370,9 @@ export async function createLease(_: FormState, form: FormData): Promise<FormSta
       deposit_cents: d.deposit ?? 0,
       status: d.status,
       move_in_on: d.status === "active" ? d.start_date : null,
-      next_rent_increase_on: d.months > 12 ? anniversary : null,
-      next_rent_cents: d.months > 12 ? Math.round(((d.rent + surcharge) * (100 + increase)) / 100) : null,
+      next_rent_increase_on: d.months > 12 && increase > 0 ? anniversary : null,
+      next_rent_cents: d.months > 12 && increase > 0 ? Math.round(((d.rent + surcharge) * (100 + increase)) / 100) : null,
+      commercial_terms: terms,
     })
     .select("id")
     .single();
@@ -400,4 +414,33 @@ export async function markLeaseSigned(form: FormData): Promise<void> {
   }
   revalidatePath(`/tenants/${lease.id}`);
   revalidatePath("/tenants");
+}
+
+/** Commercial lease terms (use, yearly increase, renewal option, CAM, utilities, repairs) on one lease. */
+export async function saveCommercialTerms(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
+  const id = z.string().uuid().safeParse(form.get("lease_id"));
+  if (!id.success) return { error: "Lease not found." };
+  const { data: lease } = await supabase.from("lease").select("id, rent_cents, start_date, term_months, commercial_terms, unit(kind)").eq("id", id.data).eq("company_id", company.id).maybeSingle();
+  if (!lease || lease.unit.kind !== "commercial") return { error: "Lease not found." };
+  const t = commercialTermsFromForm(Object.fromEntries(form), readCommercialTerms(lease.commercial_terms));
+  if (!t.terms) return { error: t.error, values: typed(form) };
+  if (!t.terms.permittedUse) return { error: "Enter the permitted use, like \"Hair and nail salon\".", values: typed(form) };
+  const increase = t.terms.annualIncreasePercent;
+  const [y, m, day] = lease.start_date.split("-").map(Number);
+  const long = (lease.term_months ?? 0) > 12 && increase > 0;
+  const { error } = await supabase
+    .from("lease")
+    .update({
+      commercial_terms: t.terms,
+      next_rent_increase_on: long ? `${y + 1}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}` : null,
+      next_rent_cents: long ? Math.round((lease.rent_cents * (100 + increase)) / 100) : null,
+    })
+    .eq("id", lease.id)
+    .eq("company_id", company.id);
+  if (error) return { error: error.message, values: typed(form) };
+  revalidatePath(`/tenants/${lease.id}`);
+  revalidatePath(`/tenants/${lease.id}/lease`);
+  return { message: "Saved. The lease below is updated." };
 }
