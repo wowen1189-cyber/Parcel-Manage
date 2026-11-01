@@ -20,6 +20,7 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 | Criminal history | **Case-by-case review** by the escalation contact; no automatic denials (HUD guidance warns against blanket bans). |
 | Security deposit | Credit **620+**: 1 month's rent. **Under 620**: 1.5×–2× month's rent, set from credit and rental history (AI suggests, a person confirms). The agent quotes the range, never a final number. |
 | Application fees | **$75 per adult** application fee + **$85 admin fee**, both paid by card at submission. **Admin fee refunded if denied.** |
+| Who pays for screening | **SIM REI pays** the screening company (decided Nov 1, 2026); the application fee covers it. Target: credit + criminal + eviction + ID check for no more than AppFolio's $30 per adult. Checkr Tenant is $34.99 retail + $1.50 Stripe Identity, so negotiate a partner rate (Checkr, TransUnion ShareAble for Rentals) before switching. Applicants are SIM REI's own customers of the screening company relationship (no reselling reports). See docs/reference/screening-and-insurance-2026-11.md. |
 | Lease term | **7–14 months.** Terms under 12 months add **$50/month** to rent. |
 | Application type | From the unit type (residential vs commercial), never chosen by the applicant. |
 
