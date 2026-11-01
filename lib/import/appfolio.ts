@@ -70,7 +70,7 @@ export function wholeNumber(value: string): number | null {
 
 export type PersonName = { first_name: string | null; last_name: string | null };
 
-/** "Brian A. Collins" → first "Brian A.", last "Collins". "Gaff, Elaine" → first "Elaine", last "Gaff". */
+/** "Pat A. Sample" → first "Pat A.", last "Sample". "Doe, Jane" → first "Jane", last "Doe". */
 export function personName(value: string): PersonName {
   const v = clean(value);
   if (!v) return { first_name: null, last_name: null };
@@ -365,4 +365,129 @@ export function readVendorDirectory(text: string): DirectoryVendor[] {
         notes,
       } satisfies DirectoryVendor;
     });
+}
+
+// ---------- tenant directory ----------
+export type DirectoryTenant = {
+  status: "current" | "notice" | "past" | "future";
+  propertyName: string;
+  unitLabel: string;
+  leaseFrom: string | null;
+  leaseTo: string | null;
+  role: "tenant" | "guarantor" | "occupant";
+  isPrimary: boolean;
+  kind: "person" | "business";
+  first_name: string | null;
+  last_name: string | null;
+  business_name: string | null;
+  /** The business a person row belongs to (commercial tenants list the person behind the business). */
+  company_name: string | null;
+  email: string | null;
+  mobile: string | null;
+  phone: string | null;
+  phoneExtra: string[];
+  notes: string | null;
+  plates: string[];
+  pets: { kind: string; name: string | null }[];
+  insurance: { carrier: string; policy_number: string | null; expires_on: string | null; companyIsInterestedParty: boolean } | null;
+  lease: {
+    late_fee_grace_days: number | null;
+    late_fee_flat_cents: number | null;
+    late_fee_pct: number | null;
+    late_fee_basis: "rent" | "all_charges" | null;
+    late_fee_daily_cents: number | null;
+    late_fee_daily_max_cents: number | null;
+    nsf_fee_cents: number | null;
+    certified_funds_only: boolean;
+    rent_reminders: boolean;
+    commercial_lease_type: string | null;
+  };
+};
+
+const STATUS: Record<string, DirectoryTenant["status"]> = { Current: "current", Notice: "notice", Past: "past", Future: "future" };
+const ROLE: Record<string, DirectoryTenant["role"]> = { "Financially Responsible": "tenant", "Co-signer": "guarantor", "Other Occupant": "occupant" };
+
+/** "Cat (Bear), Cat (Popcorn )" → [{kind "Cat", name "Bear"}, {kind "Cat", name "Popcorn"}] */
+export function pets(value: string): { kind: string; name: string | null }[] {
+  return [...value.matchAll(/([^,(]+?)\s*(?:\(([^)]*)\))?\s*(?:,|$)/g)]
+    .map((m) => ({ kind: clean(m[1] ?? ""), name: clean(m[2] ?? "") || null }))
+    .filter((p) => p.kind);
+}
+
+/** "ABC123, XYZ 9AB" → ["ABC123", "XYZ9AB"] */
+export function plates(value: string): string[] {
+  return value.split(",").map((p) => p.replace(/\s+/g, "").toUpperCase()).filter(Boolean);
+}
+
+/**
+ * Reads AppFolio's Tenant Directory export. One row per person (tenants, co-signers, occupants),
+ * with contact details, renters insurance, vehicles, pets and the lease's late-fee terms.
+ * Birthdates and the tenant's mailing address (same as the unit) are deliberately not read.
+ */
+export function readTenantDirectory(text: string): DirectoryTenant[] {
+  return records(text)
+    .filter((r) => r["Property"] && STATUS[r["Status"]])
+    .map((r) => {
+      const isBusiness = Boolean(r["Company Name"]) && !r["First Name"];
+      const p = phones(r["Phone Numbers"]);
+      const propertyStreet = r["Property Street Address 1"];
+      const unit = r["Unit"] && r["Unit"] !== propertyStreet && r["Unit"] !== r["Property Name"] ? r["Unit"] : "Home";
+      const percent = r["Late Fee Type"].startsWith("Percent");
+      const base = cents(r["Late Fee Base Amount"]);
+      const daily = cents(r["Late Fee Daily Amount"]);
+      const insured = r["Insurance Provider"];
+      return {
+        status: STATUS[r["Status"]],
+        propertyName: r["Property Name"] || propertyStreet,
+        unitLabel: unit,
+        leaseFrom: isoDate(r["Lease From"]),
+        leaseTo: isoDate(r["Lease To"]),
+        role: ROLE[r["Tenant Type"]] ?? "tenant",
+        isPrimary: r["Primary Tenant"] === "Yes",
+        kind: isBusiness ? "business" : "person",
+        first_name: isBusiness ? null : clean(r["First Name"]) || null,
+        last_name: isBusiness ? null : clean(r["Last Name"]) || null,
+        business_name: isBusiness ? clean(r["Company Name"]) : null,
+        company_name: clean(r["Company Name"]) || null,
+        email: r["Emails"].split(",").map(clean).find(Boolean)?.toLowerCase() ?? null,
+        mobile: p.mobile,
+        phone: p.phone,
+        phoneExtra: p.extra,
+        notes: r["Tenant Notes"] ? r["Tenant Notes"].trim() : null,
+        plates: plates(r["License Plates"]),
+        pets: pets(r["Pets"]),
+        insurance: insured
+          ? { carrier: insured, policy_number: r["Insurance Policy Number"] || null, expires_on: isoDate(r["Insurance Expiration"]), companyIsInterestedParty: r["Liability to Landlord Insurance Coverage"] === "Yes" }
+          : null,
+        lease: {
+          late_fee_grace_days: r["Grace Period"] ? Number(r["Grace Period"]) : null,
+          late_fee_flat_cents: percent ? null : base,
+          late_fee_pct: percent && base != null ? base / 100 : null,
+          late_fee_basis: percent ? "all_charges" : r["Late Fee Type"] ? "rent" : null,
+          late_fee_daily_cents: daily ? daily : null,
+          late_fee_daily_max_cents: cents(r["Max Daily Late Fees Amount"]),
+          nsf_fee_cents: cents(r["NSF Fee Amount"]),
+          certified_funds_only: r["Certified Funds Only"] === "Yes",
+          rent_reminders: r["Send Rent Reminders"] !== "No",
+          commercial_lease_type: r["Commercial Lease Type"] || null,
+        },
+      } satisfies DirectoryTenant;
+    });
+}
+
+/** Business names match ignoring case, punctuation, a leading "The" and suffixes like " - Boutique". */
+export function sameBusiness(a: string | null, b: string | null): boolean {
+  const norm = (s: string | null) => (s ?? "").toLowerCase().replace(/^the\s+/, "").replace(/\s+-\s+.*$/, "").replace(/\b(llc|inc|co)\b/g, "").replace(/[^a-z0-9]/g, "");
+  return Boolean(norm(a)) && norm(a) === norm(b);
+}
+
+/** "Pat A." vs "Pat", "Sample" vs "Sample": same person if last names match and first names share a start. */
+export function samePerson(a: PersonName, b: PersonName): boolean {
+  const norm = (s: string | null) => (s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  // Same full name however it was split ("Jasmin Saldana" + "Molina" vs "Jasmin" + "Saldana Molina").
+  if (norm(`${a.first_name ?? ""}${a.last_name ?? ""}`) && norm(`${a.first_name ?? ""}${a.last_name ?? ""}`) === norm(`${b.first_name ?? ""}${b.last_name ?? ""}`)) return true;
+  const firstWord = (s: string | null) => norm((s ?? "").split(" ")[0]);
+  if (!norm(a.last_name) || norm(a.last_name) !== norm(b.last_name)) return false;
+  const [fa, fb] = [firstWord(a.first_name), firstWord(b.first_name)];
+  return Boolean(fa && fb && (fa.startsWith(fb) || fb.startsWith(fa)));
 }

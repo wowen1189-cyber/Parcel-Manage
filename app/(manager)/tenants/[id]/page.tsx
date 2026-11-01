@@ -36,7 +36,7 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, emergency_contact(id, name, relationship, phone), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number))), recurring_charge(id, description, amount_cents)",
+      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, emergency_contact(id, name, relationship, phone), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number))), recurring_charge(id, description, amount_cents), pet(id, kind, name, is_assistance_animal), renters_insurance(id, carrier, policy_number, expires_on, status, company_is_interested_party, tenant_contact_id)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
@@ -53,6 +53,8 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
   const monthly = l.rent_cents + recurring.reduce((s, c) => s + c.amount_cents, 0);
   const canEdit = ["admin", "property_manager", "leasing_agent"].includes(membership.role);
   const commercial = l.unit.kind === "commercial";
+  const insurance = l.renters_insurance ?? [];
+  const vehicles = people.flatMap((p) => p.contact.vehicle);
 
   return (
     <>
@@ -112,6 +114,13 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
                 {money(l.deposit_cents)} held
                 {l.deposit_pending_cents > 0 && `, ${money(l.deposit_pending_cents)} pending`}
               </Row>
+              {l.nsf_fee_cents != null && <Row label="Returned payment">{money(l.nsf_fee_cents)} fee</Row>}
+              {l.certified_funds_only && (
+                <Row label="Payments">
+                  <Pill tone="warn">Certified funds only</Pill> <span className="text-subtle">money order or cashier&apos;s check</span>
+                </Row>
+              )}
+              {l.commercial_lease_type && <Row label="Lease type">{l.commercial_lease_type}</Row>}
               {l.unit.amenities.length > 0 && <Row label="Amenities">{l.unit.amenities.join(", ")}</Row>}
             </dl>
           </Card>
@@ -119,11 +128,13 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
           <Card>
             <CardHeader title="People on this lease" description="Contact details for everyone on the lease." />
             <div className="divide-y divide-line">
-              {people.map(({ contact: c, is_primary }) => (
+              {people.map(({ contact: c, is_primary, role }) => (
                 <div key={c.id} className="px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold">{contactName(c)}</p>
                     {is_primary && <Pill tone="info">Primary</Pill>}
+                    {role === "guarantor" && <Pill tone="warn">Co-signer</Pill>}
+                    {role === "occupant" && <Pill>Occupant</Pill>}
                     {c.kind === "business" && <Pill>Business</Pill>}
                     {c.tags.map((t) => (
                       <Pill key={t}>{t}</Pill>
@@ -134,10 +145,9 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
                       <span className="font-semibold text-warn">No phone or email on file</span>
                     )}
                   </p>
-                  {(c.emergency_contact.length > 0 || c.vehicle.length > 0) && (
+                  {c.emergency_contact.length > 0 && (
                     <p className="mt-1 text-[13px] text-subtle">
                       {c.emergency_contact.map((e) => `Emergency: ${e.name}${e.relationship ? ` (${e.relationship})` : ""} ${e.phone}`).join(" · ")}
-                      {c.vehicle.map((v) => ` · ${v.make_model}${v.tag_number ? `, tag ${v.tag_number}` : ""}${v.parking_permit_number ? `, permit ${v.parking_permit_number}` : ""}`).join("")}
                     </p>
                   )}
                   <details className="mt-3">
@@ -167,6 +177,41 @@ export default async function LeasePage({ params }: PageProps<"/tenants/[id]">) 
           <Card>
             <CardHeader title="Notes and access" />
             <LeaseNotesForm leaseId={l.id} unitId={l.unit.id} notes={l.notes} accessNotes={l.unit.access_notes} canEdit={canEdit} />
+          </Card>
+          <Card>
+            <CardHeader title="Household and insurance" />
+            <dl className="divide-y divide-line px-5 py-2 text-sm">
+              <Row label="Renters insurance">
+                {insurance.length ? (
+                  insurance.map((p) => (
+                    <p key={p.id}>
+                      {p.carrier}
+                      {p.policy_number && <span className="text-subtle"> · #{p.policy_number}</span>}{" "}
+                      <Pill tone={p.status === "active" ? "success" : "danger"}>{p.status === "active" ? `Until ${date(p.expires_on)}` : `Expired ${date(p.expires_on)}`}</Pill>
+                    </p>
+                  ))
+                ) : commercial ? (
+                  <span className="text-subtle">Not tracked</span>
+                ) : (
+                  <span className="font-semibold text-warn">None on file</span>
+                )}
+              </Row>
+              <Row label="Vehicles">
+                {vehicles.length ? vehicles.map((v) => [v.make_model, v.tag_number && `Tag ${v.tag_number}`, v.parking_permit_number && `Permit ${v.parking_permit_number}`].filter(Boolean).join(" · ")).join("; ") : <span className="text-subtle">None on file</span>}
+              </Row>
+              <Row label="Pets">
+                {l.pet.length ? (
+                  l.pet.map((p) => (
+                    <span key={p.id} className="mr-2">
+                      {p.name ? `${p.name} (${p.kind})` : p.kind}
+                      {p.is_assistance_animal && <Pill tone="info">Assistance animal</Pill>}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-subtle">None on file</span>
+                )}
+              </Row>
+            </dl>
           </Card>
           <Card>
             <CardHeader title="Documents" />

@@ -17,3 +17,4 @@ npm-debug.log*
 
 # Real exports from AppFolio and other systems (tenant details, door codes): never committed
 /imports/
+/scripts/.out/

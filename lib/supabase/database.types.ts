@@ -818,12 +818,17 @@ export type Database = {
       lease: {
         Row: {
           autopay: boolean
+          certified_funds_only: boolean
+          commercial_lease_type: string | null
           company_id: string
           created_at: string
           deposit_cents: number
           deposit_pending_cents: number
           end_date: string | null
           id: string
+          late_fee_basis: string | null
+          late_fee_daily_cents: number | null
+          late_fee_daily_max_cents: number | null
           late_fee_flat_cents: number | null
           late_fee_grace_days: number | null
           late_fee_pct: number | null
@@ -832,9 +837,11 @@ export type Database = {
           next_rent_cents: number | null
           next_rent_increase_on: string | null
           notes: string | null
+          nsf_fee_cents: number | null
           opening_balance_as_of: string | null
           opening_balance_cents: number | null
           rent_cents: number
+          rent_reminders: boolean
           short_term_surcharge_cents: number
           start_date: string
           status: string
@@ -844,12 +851,17 @@ export type Database = {
         }
         Insert: {
           autopay?: boolean
+          certified_funds_only?: boolean
+          commercial_lease_type?: string | null
           company_id: string
           created_at?: string
           deposit_cents?: number
           deposit_pending_cents?: number
           end_date?: string | null
           id?: string
+          late_fee_basis?: string | null
+          late_fee_daily_cents?: number | null
+          late_fee_daily_max_cents?: number | null
           late_fee_flat_cents?: number | null
           late_fee_grace_days?: number | null
           late_fee_pct?: number | null
@@ -858,9 +870,11 @@ export type Database = {
           next_rent_cents?: number | null
           next_rent_increase_on?: string | null
           notes?: string | null
+          nsf_fee_cents?: number | null
           opening_balance_as_of?: string | null
           opening_balance_cents?: number | null
           rent_cents: number
+          rent_reminders?: boolean
           short_term_surcharge_cents?: number
           start_date: string
           status?: string
@@ -870,12 +884,17 @@ export type Database = {
         }
         Update: {
           autopay?: boolean
+          certified_funds_only?: boolean
+          commercial_lease_type?: string | null
           company_id?: string
           created_at?: string
           deposit_cents?: number
           deposit_pending_cents?: number
           end_date?: string | null
           id?: string
+          late_fee_basis?: string | null
+          late_fee_daily_cents?: number | null
+          late_fee_daily_max_cents?: number | null
           late_fee_flat_cents?: number | null
           late_fee_grace_days?: number | null
           late_fee_pct?: number | null
@@ -884,9 +903,11 @@ export type Database = {
           next_rent_cents?: number | null
           next_rent_increase_on?: string | null
           notes?: string | null
+          nsf_fee_cents?: number | null
           opening_balance_as_of?: string | null
           opening_balance_cents?: number | null
           rent_cents?: number
+          rent_reminders?: boolean
           short_term_surcharge_cents?: number
           start_date?: string
           status?: string
@@ -1223,6 +1244,63 @@ export type Database = {
           },
           {
             foreignKeyName: "payment_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pet: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_assistance_animal: boolean
+          kind: string
+          lease_id: string
+          name: string | null
+          notes: string | null
+          updated_at: string
+          updated_source: string
+          weight_lbs: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_assistance_animal?: boolean
+          kind: string
+          lease_id: string
+          name?: string | null
+          notes?: string | null
+          updated_at?: string
+          updated_source?: string
+          weight_lbs?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_assistance_animal?: boolean
+          kind?: string
+          lease_id?: string
+          name?: string | null
+          notes?: string | null
+          updated_at?: string
+          updated_source?: string
+          weight_lbs?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_lease_id_fkey"
             columns: ["lease_id"]
             isOneToOne: false
             referencedRelation: "lease"
@@ -1633,7 +1711,7 @@ export type Database = {
           company_id: string
           id: string
           lease_id: string | null
-          make_model: string
+          make_model: string | null
           parking_permit_number: string | null
           tag_number: string | null
           tag_state: string | null
@@ -1646,7 +1724,7 @@ export type Database = {
           company_id: string
           id?: string
           lease_id?: string | null
-          make_model: string
+          make_model?: string | null
           parking_permit_number?: string | null
           tag_number?: string | null
           tag_state?: string | null
@@ -1659,7 +1737,7 @@ export type Database = {
           company_id?: string
           id?: string
           lease_id?: string | null
-          make_model?: string
+          make_model?: string | null
           parking_permit_number?: string | null
           tag_number?: string | null
           tag_state?: string | null

@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseRulesForm, RULE_SECTIONS } from "@/lib/business-rules-form";
+import { emailHtml, emailText, type EmailContent } from "@/lib/email/layout";
 import { ROOT_DOMAIN } from "@/lib/env";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
 import { getOrigin } from "@/lib/request";
@@ -105,12 +106,22 @@ export async function inviteTeammate(_: SettingsState, form: FormData): Promise<
   const link = company.subdomain
     ? companyUrl(company.subdomain, ROOT_DOMAIN, `/invite/${token}`)
     : `${await getOrigin()}/invite/${token}`;
+  const name = escapeHtml(company.name);
+  const invite: EmailContent = {
+    preheader: `Join ${name} on Parcel Manage.`,
+    heading: `You're invited to ${name}`,
+    paragraphs: [`You've been invited to join <strong>${name}</strong> on Parcel Manage, where the team runs properties, tenants and maintenance.`, "Tap the button to accept and set up your sign-in."],
+    button: { label: "Accept the invite", url: link },
+    note: "This invite works for <strong>7 days</strong>.",
+    fromLine: name,
+    footer: [name, company.office_phone && escapeHtml(company.office_phone)].filter(Boolean).join(" · "),
+  };
   const sent = await sendEmail({
     to: parsed.data.email,
     fromName: company.name,
     subject: `You're invited to ${company.name} on Parcel Manage`,
-    text: `You've been invited to join ${company.name} on Parcel Manage.\n\nAccept the invite: ${link}\n\nThe link works for 7 days.`,
-    html: `<p>You've been invited to join <strong>${escapeHtml(company.name)}</strong> on Parcel Manage.</p><p><a href="${link}">Accept the invite</a></p><p>The link works for 7 days.</p>`,
+    text: emailText(invite),
+    html: emailHtml(invite),
   });
 
   revalidatePath("/settings/team");

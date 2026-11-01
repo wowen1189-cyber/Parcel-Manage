@@ -76,3 +76,14 @@ describe("formatting and CSV", () => {
     expect(toCsv(["a", "b"], [["x, y", "=HYPERLINK(1)"], ["-10.50", 'say "hi"']])).toBe('a,b\r\n"x, y",\'=HYPERLINK(1)\r\n-10.50,"say ""hi"""\r\n');
   });
 });
+
+describe("lateFeeText with daily fees", () => {
+  it("describes a flat fee plus a capped daily fee, and a percent of all charges", () => {
+    expect(lateFeeText({ late_fee_grace_days: 3, late_fee_flat_cents: 7500, late_fee_pct: null, late_fee_daily_cents: 1000, late_fee_daily_max_cents: 25000 }, DEFAULT_BUSINESS_RULES).text).toBe(
+      "$75.00 if unpaid after the 3rd, then $10.00 a day up to $250.00",
+    );
+    expect(lateFeeText({ late_fee_grace_days: 5, late_fee_flat_cents: null, late_fee_pct: 10, late_fee_basis: "all_charges" }, DEFAULT_BUSINESS_RULES).text).toBe(
+      "10% of all charges if unpaid after the 5th",
+    );
+  });
+});

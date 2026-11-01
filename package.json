@@ -12,7 +12,9 @@
     "test:db": "vitest run tests/db",
     "seed": "node --env-file=.env.local scripts/seed.mts",
     "db:types": "sh scripts/db-types.sh",
-    "import:appfolio": "node --env-file=.env.local scripts/import-appfolio.mts"
+    "import:appfolio": "node --env-file=.env.local scripts/import-appfolio.mts",
+    "auth:emails": "node scripts/auth-emails.mts",
+    "import:tenants": "node --env-file=.env.local scripts/import-tenant-directory.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

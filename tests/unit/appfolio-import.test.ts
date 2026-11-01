@@ -8,9 +8,14 @@ import {
   lateFeeTerms,
   parseCsv,
   personName,
+  pets,
   phones,
+  plates,
   readRentRoll,
+  readTenantDirectory,
   readVendorDirectory,
+  sameBusiness,
+  samePerson,
   sortTenantTags,
 } from "@/lib/import/appfolio";
 
@@ -134,5 +139,40 @@ describe("readVendorDirectory", () => {
 
   it("parses quoted fields with commas and doubled quotes", () => {
     expect(parseCsv('a,"b, c","say ""hi"""\n')).toEqual([["a", "b, c", 'say "hi"']]);
+  });
+});
+
+describe("tenant directory", () => {
+  it("reads pets and plates", () => {
+    expect(pets("Cat (Bear), Cat (Popcorn )")).toEqual([{ kind: "Cat", name: "Bear" }, { kind: "Cat", name: "Popcorn" }]);
+    expect(pets("Mix Unknown  (Rex )")).toEqual([{ kind: "Mix Unknown", name: "Rex" }]);
+    expect(pets("Pug")).toEqual([{ kind: "Pug", name: null }]);
+    expect(plates("abc123, 12A BCD")).toEqual(["ABC123", "12ABCD"]);
+  });
+
+  it("matches people however their names were split, and businesses loosely", () => {
+    expect(samePerson({ first_name: "Pat A.", last_name: "Sample" }, { first_name: "Pat", last_name: "Sample" })).toBe(true);
+    expect(samePerson({ first_name: "Jo Ann", last_name: "Doe Smith" }, { first_name: "Jo", last_name: "Ann Doe Smith" })).toBe(true);
+    expect(samePerson({ first_name: "Pat", last_name: "Sample" }, { first_name: "Sam", last_name: "Sample" })).toBe(false);
+    expect(sameBusiness("The Example Bar, LLC - Boutique", "Example Bar LLC")).toBe(true);
+    expect(sameBusiness("Example Bar", "Example Cafe")).toBe(false);
+  });
+
+  it("reads a row's contact details, role and the lease's late fee terms", () => {
+    const csv = [
+      "Property,Unit,Tenant,Status,Tenant Type,Phone Numbers,Emails,Lease From,Lease To,Tenant Tags,Property Name,Property Street Address 1,Certified Funds Only,Send Rent Reminders,Late Fee Type,Late Fee Base Amount,Late Fee Daily Amount,Grace Period,Max Daily Late Fees Amount,Liability to Landlord Insurance Coverage,Insurance Provider,Insurance Expiration,Insurance Policy Number,Primary Tenant,First Name,Last Name,Company Name,License Plates,Pets,NSF Fee Amount,Commercial Lease Type,Tenant Notes,Tenant Birthdate",
+      '"Example Plaza - 10 Main St",204,"Sample, Pat",Current,Co-signer,"Mobile: (555) 010-0001, Phone: (555) 010-0002",pat@example.com,01/01/2026,12/31/2026,,Example Plaza,10 Main St,No,Yes,Flat Fee,75.00,10.00,3,250.00,Yes,Example Insurance,06/16/2027,P-1,No,Pat,Sample,,ABC123,Cat (Bear),50.00,,Quiet,01/01/1990',
+      '"1 Example Lane",1 Example Lane,Example Shop LLC,Current,Financially Responsible,,shop@example.com,01/01/2026,12/31/2026,,,1 Example Lane,Yes,No,Percent of All Charges,10.00,0.00,5,,No,,,,Yes,Sam,Owner,Example Shop LLC,,,,Modified Gross,,',
+    ].join("\n");
+    const [pat, shop] = readTenantDirectory(csv);
+    expect(pat).toMatchObject({
+      role: "guarantor", isPrimary: false, kind: "person", first_name: "Pat", mobile: "(555) 010-0001", phone: "(555) 010-0002",
+      email: "pat@example.com", plates: ["ABC123"], pets: [{ kind: "Cat", name: "Bear" }],
+      insurance: { carrier: "Example Insurance", expires_on: "2027-06-16", companyIsInterestedParty: true },
+      lease: { late_fee_grace_days: 3, late_fee_flat_cents: 7500, late_fee_daily_cents: 1000, late_fee_daily_max_cents: 25000, nsf_fee_cents: 5000, late_fee_basis: "rent" },
+    });
+    expect(pat).not.toHaveProperty("birthdate");
+    // A unit named after the street is a single-family "Home"; a person row carries the business name too.
+    expect(shop).toMatchObject({ unitLabel: "Home", kind: "person", company_name: "Example Shop LLC", lease: { late_fee_pct: 10, late_fee_basis: "all_charges", certified_funds_only: true, rent_reminders: false, commercial_lease_type: "Modified Gross" } });
   });
 });

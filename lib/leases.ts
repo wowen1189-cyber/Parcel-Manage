@@ -7,6 +7,9 @@ export type LateFeeFields = {
   late_fee_grace_days: number | null;
   late_fee_flat_cents: number | null;
   late_fee_pct: number | string | null;
+  late_fee_basis?: string | null;
+  late_fee_daily_cents?: number | null;
+  late_fee_daily_max_cents?: number | null;
 };
 
 const ordinal = (n: number) => {
@@ -23,8 +26,11 @@ const ordinal = (n: number) => {
 export function lateFeeText(lease: LateFeeFields, rules: BusinessRules): { text: string; source: "lease" | "company" } {
   const pct = lease.late_fee_pct == null ? null : Number(lease.late_fee_pct);
   if (lease.late_fee_grace_days != null && (lease.late_fee_flat_cents != null || pct != null)) {
-    const amount = pct != null ? `${pct}% of rent` : money(lease.late_fee_flat_cents);
-    return { text: `${amount} if unpaid after the ${ordinal(lease.late_fee_grace_days)}`, source: "lease" };
+    const amount = pct != null ? `${pct}% of ${lease.late_fee_basis === "all_charges" ? "all charges" : "rent"}` : money(lease.late_fee_flat_cents);
+    const daily = lease.late_fee_daily_cents
+      ? `, then ${money(lease.late_fee_daily_cents)} a day${lease.late_fee_daily_max_cents ? ` up to ${money(lease.late_fee_daily_max_cents)}` : ""}`
+      : "";
+    return { text: `${amount} if unpaid after the ${ordinal(lease.late_fee_grace_days)}${daily}`, source: "lease" };
   }
   return { text: `${money(rules.rent.lateFeeCents)} on the ${ordinal(rules.rent.lateFeeDay)}`, source: "company" };
 }
