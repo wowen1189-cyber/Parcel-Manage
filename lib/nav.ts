@@ -48,7 +48,7 @@ export const NEW_MENU: { label: string; href?: string }[] = [
   { label: "Tenant and lease", href: "/tenants/new" },
   { label: "Property", href: "/properties/new" },
   { label: "Vendor", href: "/vendors/new" },
-  { label: "Work order" },
+  { label: "Work order", href: "/maintenance/new" },
   { label: "Owner" },
 ];
 

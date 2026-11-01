@@ -10,6 +10,8 @@ import { calendar, countExpirations, monthLabel, monthOf } from "@/lib/lease-exp
 import { requireCompany } from "@/lib/session";
 import { listTenants } from "@/lib/tenants";
 import { listVendors } from "@/lib/vendor-list";
+import { listWorkOrders } from "@/lib/work-order-list";
+import { formatWhen, WO_PRIORITY } from "@/lib/work-orders";
 import { saveDashboardLayout } from "../preferences";
 
 export const metadata = { title: "Dashboard" };
@@ -26,6 +28,7 @@ export default async function DashboardPage() {
     supabase.from("profile").select("preferences").eq("id", user.id).single(),
     supabase.from("lease").select("id, status, end_date, move_out_on, unit!inner(property_id)").eq("company_id", company.id).in("status", ["active", "notice"]),
   ]);
+  const workOrders = await listWorkOrders(supabase, company.id, { q: "", view: "open", priority: "", property: "" });
   const total = units?.length ?? 0;
   const occupied = units?.filter((u) => u.status === "occupied" || u.status === "notice").length ?? 0;
   const signed = leases.filter((l) => l.status !== "draft");
@@ -148,9 +151,36 @@ export default async function DashboardPage() {
       </Card>
     ),
     "work-orders": (
-      <Card className="h-full">
-        <CardHeader title="Open work orders" description="When each is scheduled and who it's assigned to." />
-        <EmptyState title="Coming next">Maintenance requests and work orders are the next part of Phase 1.</EmptyState>
+      <Card className="h-full overflow-hidden">
+        <CardHeader title="Open work orders" description="When each is scheduled and who it's assigned to." action={viewAll("/maintenance", `All ${workOrders.length}`)} />
+        {workOrders.length ? (
+          <Table minWidth={420}>
+            <Thead>
+              <Th>Work order</Th>
+              <Th>Who · when</Th>
+            </Thead>
+            <Tbody>
+              {workOrders.slice(0, 6).map((w) => (
+                <tr key={w.id}>
+                  <Td>
+                    <RowLink href={`/maintenance/${w.id}`} sub={`#${w.number} · ${w.where}`}>
+                      {w.title}
+                    </RowLink>
+                    <p className="mt-1">
+                      <Pill tone={WO_PRIORITY[w.priority]?.tone ?? "neutral"}>{WO_PRIORITY[w.priority]?.label}</Pill>
+                    </p>
+                  </Td>
+                  <Td className="text-[13px]">
+                    <p>{w.vendorName ?? <span className="font-semibold text-warn">Not assigned</span>}</p>
+                    <p className="text-subtle">{w.scheduled_start ? formatWhen(w.scheduled_start, company.time_zone) : "Not scheduled"}</p>
+                  </Td>
+                </tr>
+              ))}
+            </Tbody>
+          </Table>
+        ) : (
+          <EmptyState title="No open work orders" />
+        )}
       </Card>
     ),
   };

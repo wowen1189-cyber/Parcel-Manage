@@ -2,7 +2,7 @@ import "server-only";
 
 // Sends one email through Resend. Returns false (never throws) so callers can fall back,
 // for example by showing an invite link to copy.
-export async function sendEmail(input: { to: string; subject: string; html: string; text: string; fromName: string }) {
+export async function sendEmail(input: { to: string | string[]; subject: string; html: string; text: string; fromName: string; replyTo?: string | null }) {
   const key = process.env.RESEND_API_KEY;
   const domain = process.env.RESEND_FROM_DOMAIN;
   if (!key || !domain) return false;
@@ -12,7 +12,8 @@ export async function sendEmail(input: { to: string; subject: string; html: stri
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: `${input.fromName} <no-reply@${domain}>`,
-        to: [input.to],
+        to: Array.isArray(input.to) ? input.to : [input.to],
+        ...(input.replyTo ? { reply_to: input.replyTo } : {}),
         subject: input.subject,
         html: input.html,
         text: input.text,

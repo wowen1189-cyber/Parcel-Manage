@@ -824,6 +824,7 @@ export type Database = {
           created_at: string
           deposit_cents: number
           deposit_pending_cents: number
+          email_notices_agreed: boolean
           end_date: string | null
           id: string
           late_fee_basis: string | null
@@ -857,6 +858,7 @@ export type Database = {
           created_at?: string
           deposit_cents?: number
           deposit_pending_cents?: number
+          email_notices_agreed?: boolean
           end_date?: string | null
           id?: string
           late_fee_basis?: string | null
@@ -890,6 +892,7 @@ export type Database = {
           created_at?: string
           deposit_cents?: number
           deposit_pending_cents?: number
+          email_notices_agreed?: boolean
           end_date?: string | null
           id?: string
           late_fee_basis?: string | null
@@ -1864,15 +1867,21 @@ export type Database = {
           ai_summary: string | null
           company_id: string
           completed_at: string | null
+          cost_cents: number | null
           created_at: string
           emergency_ack: Json | null
+          entry_basis: string | null
+          entry_notice_at: string | null
+          entry_notice_method: string | null
           entry_ok: boolean | null
           id: string
           number: number
           pets_in_home: boolean | null
           priority: string
+          priority_reason: string | null
           property_id: string
           reported_by_contact_id: string | null
+          resolution: string | null
           room: string | null
           scheduled_end: string | null
           scheduled_start: string | null
@@ -1889,20 +1898,27 @@ export type Database = {
           unit_id: string | null
           updated_at: string
           vendor_id: string | null
+          vendor_notified_at: string | null
         }
         Insert: {
           ai_summary?: string | null
           company_id: string
           completed_at?: string | null
+          cost_cents?: number | null
           created_at?: string
           emergency_ack?: Json | null
+          entry_basis?: string | null
+          entry_notice_at?: string | null
+          entry_notice_method?: string | null
           entry_ok?: boolean | null
           id?: string
           number?: number
           pets_in_home?: boolean | null
           priority?: string
+          priority_reason?: string | null
           property_id: string
           reported_by_contact_id?: string | null
+          resolution?: string | null
           room?: string | null
           scheduled_end?: string | null
           scheduled_start?: string | null
@@ -1919,20 +1935,27 @@ export type Database = {
           unit_id?: string | null
           updated_at?: string
           vendor_id?: string | null
+          vendor_notified_at?: string | null
         }
         Update: {
           ai_summary?: string | null
           company_id?: string
           completed_at?: string | null
+          cost_cents?: number | null
           created_at?: string
           emergency_ack?: Json | null
+          entry_basis?: string | null
+          entry_notice_at?: string | null
+          entry_notice_method?: string | null
           entry_ok?: boolean | null
           id?: string
           number?: number
           pets_in_home?: boolean | null
           priority?: string
+          priority_reason?: string | null
           property_id?: string
           reported_by_contact_id?: string | null
+          resolution?: string | null
           room?: string | null
           scheduled_end?: string | null
           scheduled_start?: string | null
@@ -1949,6 +1972,7 @@ export type Database = {
           unit_id?: string | null
           updated_at?: string
           vendor_id?: string | null
+          vendor_notified_at?: string | null
         }
         Relationships: [
           {
