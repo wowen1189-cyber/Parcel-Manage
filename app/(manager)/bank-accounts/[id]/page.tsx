@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, CardHeader, EmptyState, PageHeader, Pill } from "@/components/ui";
+import { Card, CardHeader, EmptyState, PageHeader, Pill, StatTile } from "@/components/ui";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { suggestMatch } from "@/lib/bank";
+import { bankVsBooks } from "@/lib/bank-balances";
 import { bookLines } from "@/lib/bank-books";
 import { date, money, todayIn } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
@@ -22,6 +23,10 @@ export default async function BankAccountPage({ params }: PageProps<"/bank-accou
   const used = new Set(lines.filter((l) => l.matched || l.cleared).map((l) => l.id));
   const canEdit = ["admin", "accountant"].includes(membership.role);
   const today = todayIn(company.time_zone);
+  const b = (await bankVsBooks(supabase, company.id, company.time_zone, [a]))[a.id];
+  // What explains a difference: bank items not in the books yet, and book entries the bank hasn't shown yet.
+  const bankOnly = (txs ?? []).filter((t) => t.status === "unmatched" && t.posted_on <= b.asOf).reduce((s, t) => s + Number(t.amount_cents), 0);
+  const booksOnly = lines.filter((l) => !l.matched && !l.cleared && l.entry_date <= b.asOf).reduce((s, l) => s + l.amount_cents, 0);
   const recs = [...a.reconciliation].sort((x, y) => y.statement_date.localeCompare(x.statement_date));
 
   return (
@@ -58,6 +63,20 @@ export default async function BankAccountPage({ params }: PageProps<"/bank-accou
           for nightly transactions, or import a statement below.
         </p>
       )}
+      <Card className="mb-6">
+        <CardHeader title="Bank vs Parcel Manage" description={`Both balances on ${date(b.asOf)}.`} />
+        <div className="grid gap-4 px-5 py-4 sm:grid-cols-3">
+          <StatTile label="Bank balance" value={b.bankCents == null ? "—" : money(b.bankCents)} note={b.bankCents == null ? (a.fc_account_id ? "Press Get today's balance" : "Connect the bank to see it") : "From the bank feed"} />
+          <StatTile label="Parcel Manage balance" value={money(b.bookCents)} note={`${a.gl_number === "1010" ? "Trust cash (1010)" : "Operating cash (1000)"} in ${a.entity.name}'s books`} />
+          <StatTile label="Difference" value={b.status === "no_bank" ? "—" : b.status === "match" ? "Matches" : money(b.diffCents!)} note={b.status === "off" ? "Bank minus Parcel Manage" : undefined} />
+        </div>
+        {b.status === "off" && (
+          <p className="border-t border-line px-5 py-3 text-[13px] text-muted">
+            Usually explained by: bank transactions not in the books yet ({money(bankOnly)}) and book entries the bank hasn&apos;t shown yet ({money(booksOnly)}).{" "}
+            {bankOnly - booksOnly === b.diffCents ? "Those account for the whole difference." : `That leaves ${money(b.diffCents! - (bankOnly - booksOnly))} to look into.`}
+          </p>
+        )}
+      </Card>
       {canEdit && (
         <Card className="mb-6">
           <CardHeader title="Import transactions" />

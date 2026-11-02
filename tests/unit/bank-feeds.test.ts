@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balanceAtEndOf, dayIn, feedRows, pairLinked, type FcTransaction } from "@/lib/bank-feeds";
+import { balanceAtEndOf, compareBalances, dayIn, feedRows, pairLinked, type FcTransaction } from "@/lib/bank-feeds";
 
 const tz = "America/New_York";
 // 2026-11-02 03:00 UTC is still Nov 1 in Florida.
@@ -45,5 +45,13 @@ describe("bank feeds", () => {
       { posted_on: "2026-11-04", amount_cents: -7500 },
     ];
     expect(balanceAtEndOf("2026-11-02", 100000, rows)).toBe(100000 - 20000 + 7500);
+  });
+});
+
+describe("bank vs Parcel Manage balance", () => {
+  it("shows the difference, or that there's no bank balance yet", () => {
+    expect(compareBalances(150000, 150000)).toEqual({ diffCents: 0, status: "match" });
+    expect(compareBalances(150000, 162500)).toEqual({ diffCents: -12500, status: "off" });
+    expect(compareBalances(null, 5000)).toEqual({ diffCents: null, status: "no_bank" });
   });
 });

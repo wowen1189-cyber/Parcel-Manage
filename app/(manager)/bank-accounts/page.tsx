@@ -1,8 +1,10 @@
 import { Card, CardHeader, EmptyState, PageHeader, Pill } from "@/components/ui";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
-import { date } from "@/lib/format";
+import { bankVsBooks } from "@/lib/bank-balances";
+import { date, money } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
 import { ConnectBankButton } from "./feed-forms";
+import { BalanceCells } from "./balance-cells";
 import { NewAccountForm } from "./forms";
 
 export const metadata = { title: "Bank accounts" };
@@ -10,12 +12,15 @@ export const metadata = { title: "Bank accounts" };
 export default async function BankAccountsPage() {
   const { supabase, company, membership } = await requireCompany();
   const [{ data: accounts }, { data: owners }] = await Promise.all([
-    supabase.from("bank_account").select("id, name, institution, last4, gl_number, fc_account_id, fc_synced_at, entity(name), reconciliation(statement_date), bank_transaction(status)").eq("company_id", company.id).order("name"),
+    supabase.from("bank_account").select("id, name, institution, last4, gl_number, entity_id, fc_account_id, fc_synced_at, fc_balance_cents, fc_balance_as_of, entity(name), reconciliation(statement_date), bank_transaction(status)").eq("company_id", company.id).order("name"),
     supabase.from("entity").select("id, name").eq("company_id", company.id).order("name"),
   ]);
+  const balances = await bankVsBooks(supabase, company.id, company.time_zone, accounts ?? []);
+  const totalBank = (accounts ?? []).reduce((s, a) => s + (balances[a.id].bankCents ?? 0), 0);
+  const totalBooks = (accounts ?? []).reduce((s, a) => s + balances[a.id].bookCents, 0);
   return (
     <>
-      <PageHeader title="Bank accounts" subtitle="Each owner's operating and security deposit trust accounts. Connect the bank (or import statements), match to the books, and reconcile to $0.00." />
+      <PageHeader title="Bank accounts" subtitle="Each owner's operating and security deposit trust accounts, with the bank's balance next to Parcel Manage's on the same day. Connect the bank (or import statements), match to the books, and reconcile to $0.00." />
       {["admin", "accountant"].includes(membership.role) && (
         <Card className="mb-6">
           <CardHeader
@@ -34,6 +39,9 @@ export default async function BankAccountsPage() {
               <Th>Account</Th>
               <Th>Owner</Th>
               <Th>Feed</Th>
+              <Th right>Bank balance</Th>
+              <Th right>Parcel Manage</Th>
+              <Th right>Difference</Th>
               <Th>Unmatched</Th>
               <Th>Last reconciled</Th>
             </Thead>
@@ -51,11 +59,22 @@ export default async function BankAccountsPage() {
                     </Td>
                     <Td className="text-[13px]">{a.entity.name}</Td>
                     <Td className="text-[13px]">{a.fc_account_id ? <Pill tone="success">Connected</Pill> : <span className="text-subtle">Not connected</span>}</Td>
+                    <BalanceCells b={balances[a.id]} />
                     <Td>{unmatched ? <Pill tone="warn">{unmatched}</Pill> : "—"}</Td>
                     <Td className="text-[13px]">{last ? date(last.statement_date) : <span className="text-subtle">Never</span>}</Td>
                   </tr>
                 );
               })}
+              <tr className="bg-surface-muted font-semibold">
+                <Td>Total</Td>
+                <Td />
+                <Td />
+                <Td right>{money(totalBank)}</Td>
+                <Td right>{money(totalBooks)}</Td>
+                <Td />
+                <Td />
+                <Td />
+              </tr>
             </Tbody>
           </Table>
         ) : (
@@ -73,3 +92,4 @@ export default async function BankAccountsPage() {
     </>
   );
 }
+

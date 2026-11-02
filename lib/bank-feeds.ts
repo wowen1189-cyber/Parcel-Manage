@@ -61,3 +61,10 @@ export function balanceAtEndOf(day: string, currentCents: number, rows: { posted
 
 /** "2026-11-01": the usage row a moment counts toward. */
 export const usageMonth = (d = new Date()) => `${d.toISOString().slice(0, 7)}-01`;
+
+/** Bank balance next to the books (Parcel Manage) on the same day: how far apart they are. */
+export function compareBalances(bankCents: number | null, bookCents: number): { diffCents: number | null; status: "match" | "off" | "no_bank" } {
+  if (bankCents == null) return { diffCents: null, status: "no_bank" };
+  const diff = bankCents - bookCents;
+  return { diffCents: diff, status: diff === 0 ? "match" : "off" };
+}
