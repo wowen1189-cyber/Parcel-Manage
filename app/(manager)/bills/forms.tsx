@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { Button, Field, Input, Notice, Select } from "@/components/ui";
-import { approveBill, createBill, payBill, type BillState } from "./actions";
+import { approveBill, createBill, editBill, payBill, type BillState } from "./actions";
 
 const empty: BillState = {};
 function Status({ state }: { state: BillState }) {
@@ -137,6 +137,53 @@ export function PayForm({ id, today, blocked }: { id: string; today: string; blo
       </div>
       <Button type="submit" small disabled={pending || Boolean(blocked)}>
         {pending ? "Saving…" : "Record payment"}
+      </Button>
+    </form>
+  );
+}
+
+export function EditBillForm({ bill, vendors, properties }: { bill: { id: string; vendor_id: string | null; property_id: string | null; work_order: string; invoice_number: string; invoice_date: string; memo: string }; vendors: { id: string; name: string }[]; properties: { id: string; name: string }[] }) {
+  const [state, action, pending] = useActionState(editBill, empty);
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="id" value={bill.id} />
+      <Status state={state} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Vendor">
+          <Select name="vendor_id" defaultValue={bill.vendor_id ?? ""}>
+            <option value="">Choose…</option>
+            {vendors.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Property" hint="Posts to that property's owner">
+          <Select name="property_id" defaultValue={bill.property_id ?? ""}>
+            <option value="">Choose…</option>
+            {properties.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Work order # (optional)">
+          <Input name="work_order" inputMode="numeric" defaultValue={bill.work_order} />
+        </Field>
+        <Field label="Invoice number">
+          <Input name="invoice_number" defaultValue={bill.invoice_number} />
+        </Field>
+        <Field label="Invoice date">
+          <Input type="date" name="invoice_date" defaultValue={bill.invoice_date} />
+        </Field>
+        <Field label="Memo">
+          <Input name="memo" defaultValue={bill.memo} />
+        </Field>
+      </div>
+      <Button type="submit" small variant="secondary" disabled={pending}>
+        {pending ? "Saving…" : "Save details"}
       </Button>
     </form>
   );

@@ -804,6 +804,7 @@ export type Database = {
           due_date: string | null
           entity_id: string | null
           expense_account: string
+          from_email: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
@@ -816,6 +817,7 @@ export type Database = {
           project_id: string | null
           property_id: string | null
           purchase_order_id: string | null
+          review_notes: string[]
           source: string
           status: string
           unit_id: string | null
@@ -833,6 +835,7 @@ export type Database = {
           due_date?: string | null
           entity_id?: string | null
           expense_account?: string
+          from_email?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -845,6 +848,7 @@ export type Database = {
           project_id?: string | null
           property_id?: string | null
           purchase_order_id?: string | null
+          review_notes?: string[]
           source?: string
           status?: string
           unit_id?: string | null
@@ -862,6 +866,7 @@ export type Database = {
           due_date?: string | null
           entity_id?: string | null
           expense_account?: string
+          from_email?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -874,6 +879,7 @@ export type Database = {
           project_id?: string | null
           property_id?: string | null
           purchase_order_id?: string | null
+          review_notes?: string[]
           source?: string
           status?: string
           unit_id?: string | null
@@ -1579,6 +1585,57 @@ export type Database = {
             columns: ["undone_by"]
             isOneToOne: false
             referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbound_email: {
+        Row: {
+          bill_id: string | null
+          company_id: string
+          created_at: string
+          from_address: string
+          id: string
+          note: string | null
+          provider_id: string
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          bill_id?: string | null
+          company_id: string
+          created_at?: string
+          from_address: string
+          id?: string
+          note?: string | null
+          provider_id: string
+          status: string
+          subject?: string | null
+        }
+        Update: {
+          bill_id?: string | null
+          company_id?: string
+          created_at?: string
+          from_address?: string
+          id?: string
+          note?: string | null
+          provider_id?: string
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_email_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bill"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_email_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
         ]

@@ -73,6 +73,7 @@ export async function approveBill(_: BillState, form: FormData): Promise<BillSta
   const { data: bill } = await supabase.from("bill").select("id, status, entity_id, property_id, unit_id, memo, invoice_number, vendor(contact(first_name, last_name, business_name, kind))").eq("id", p.data.id).eq("company_id", company.id).maybeSingle();
   if (!bill) return { error: "Bill not found." };
   if (bill.status !== "received") return { error: "This bill was already approved." };
+  if (!bill.vendor) return { error: "Choose the vendor first (Correct the details)." };
   if (!bill.entity_id) return { error: "Choose the property first so it posts to the right owner's books." };
   const vendor = bill.vendor ? [bill.vendor.contact.business_name, bill.vendor.contact.first_name, bill.vendor.contact.last_name].filter(Boolean).join(" ") : "Vendor";
   const memo = `${vendor}${bill.invoice_number ? ` invoice ${bill.invoice_number}` : ""}${bill.memo ? `: ${bill.memo}` : ""}`;
@@ -91,6 +92,46 @@ export async function approveBill(_: BillState, form: FormData): Promise<BillSta
   await supabase.from("bill").update({ status: "approved", amount_cents: p.data.amount, expense_account: p.data.expense_account, due_date: p.data.due_date, approved_by: user.id, approved_at: new Date().toISOString(), journal_entry_id: entry }).eq("id", bill.id);
   refresh(bill.id);
   return { message: "Approved and posted to the owner's books." };
+}
+
+/** Correct a bill that's still waiting for approval (an e-mailed invoice the AI read wrong, for example). */
+export async function editBill(_: BillState, form: FormData): Promise<BillState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!APPROVE_ROLES.includes(membership.role)) return { error: "Your role can't change bills." };
+  const p = z
+    .object({
+      id: z.string().uuid(),
+      vendor_id: z.string().uuid("Choose the vendor."),
+      property_id: z.string().uuid("Choose the property."),
+      work_order: z.union([z.literal(""), z.string().regex(/^#?\d{1,7}$/, "Enter the work order number, like 1042.")]),
+      invoice_number: z.string().trim().max(60),
+      invoice_date: day,
+      memo: z.string().trim().max(300),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!p.success) return { error: p.error.issues[0].message };
+  const { data: bill } = await supabase.from("bill").select("id, status, review_notes").eq("id", p.data.id).eq("company_id", company.id).maybeSingle();
+  if (!bill) return { error: "Bill not found." };
+  if (bill.status !== "received") return { error: "Only a bill waiting for approval can be changed. Void it instead." };
+  const [{ data: property }, { data: vendor }] = await Promise.all([
+    supabase.from("property").select("id, entity_id").eq("id", p.data.property_id).eq("company_id", company.id).maybeSingle(),
+    supabase.from("vendor").select("id").eq("id", p.data.vendor_id).eq("company_id", company.id).maybeSingle(),
+  ]);
+  if (!property || !vendor) return { error: "Choose the vendor and property again." };
+  let workOrderId: string | null = null;
+  if (p.data.work_order) {
+    const { data: wo } = await supabase.from("work_order").select("id, property_id").eq("company_id", company.id).eq("number", Number(p.data.work_order.replace("#", ""))).maybeSingle();
+    if (!wo) return { error: `There's no work order #${p.data.work_order.replace("#", "")}.` };
+    if (wo.property_id !== property.id) return { error: "That work order is for a different property." };
+    workOrderId = wo.id;
+  }
+  const { error } = await supabase
+    .from("bill")
+    .update({ vendor_id: vendor.id, property_id: property.id, entity_id: property.entity_id, work_order_id: workOrderId, invoice_number: p.data.invoice_number || null, invoice_date: p.data.invoice_date, memo: p.data.memo || null, review_notes: bill.review_notes.filter((n) => !/^(Vendor|Property) not identified/.test(n)) })
+    .eq("id", bill.id);
+  if (error) return { error: error.message };
+  refresh(bill.id);
+  return { message: "Saved." };
 }
 
 /** Record payment of an approved bill (check, ACH or card paid outside Parcel Manage for now). */

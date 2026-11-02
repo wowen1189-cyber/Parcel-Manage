@@ -4,19 +4,27 @@ import { exportLink, ListFilters, param } from "@/components/list-filters";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { BILL_STATUS, listBills } from "@/lib/bills";
 import { date, money, todayIn } from "@/lib/format";
+import { inboundAddress } from "@/lib/invoice-intake-rules";
 import { requireCompany } from "@/lib/session";
 
 export const metadata = { title: "Bills" };
+
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
 
 export default async function BillsPage({ searchParams }: PageProps<"/bills">) {
   const { supabase, company } = await requireCompany();
   const sp = await searchParams;
   const filters = { status: param(sp, "status") || "open", property: param(sp, "property"), q: param(sp, "q") };
-  const [bills, { data: properties }, open] = await Promise.all([
+  const since = daysAgo(30);
+  const [bills, { data: properties }, open, { data: unread }, { data: me }] = await Promise.all([
     listBills(supabase, company.id, filters),
     supabase.from("property").select("id, name").eq("company_id", company.id).order("name"),
     listBills(supabase, company.id, { status: "open", property: "", q: "" }),
+    supabase.from("inbound_email").select("id, from_address, subject, status, note, created_at").eq("company_id", company.id).neq("status", "bill").gte("created_at", since).order("created_at", { ascending: false }).limit(10),
+    supabase.from("company").select("subdomain").eq("id", company.id).single(),
   ]);
+  const inboundDomain = process.env.RESEND_INBOUND_DOMAIN;
+  const address = inboundDomain && me?.subdomain ? inboundAddress(me.subdomain, inboundDomain) : null;
   const today = todayIn(company.time_zone);
   const needsApproval = open.filter((b) => b.status === "received");
   const unpaid = open.filter((b) => b.status !== "received");
@@ -37,6 +45,26 @@ export default async function BillsPage({ searchParams }: PageProps<"/bills">) {
         <StatTile label="Approved, unpaid" value={money(unpaid.reduce((s, b) => s + b.amount_cents, 0))} note={`${unpaid.length} bills`} />
         <StatTile label="Past due" value={open.filter((b) => b.due_date && b.due_date < today).length} note="Open bills past their due date" />
       </div>
+      {address && (
+        <Card className="mb-6 p-5 text-[14px]">
+          <p className="font-semibold">Vendors can e-mail invoices to {address}</p>
+          <p className="mt-1 text-muted">
+            Each one becomes a bill that waits here for approval. {company.name}&apos;s AI reads the vendor, property, work order and total from the PDF, and notes anything to check. Nothing is paid or posted until someone approves it.
+          </p>
+          {unread && unread.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[13px] font-semibold">E-mails that didn&apos;t become bills (last 30 days)</p>
+              <ul className="mt-1 space-y-1 text-[13px] text-muted">
+                {unread.map((e) => (
+                  <li key={e.id}>
+                    {date(e.created_at.slice(0, 10))} · {e.from_address} · {e.subject || "(no subject)"} · {e.note}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      )}
       <Card className="overflow-hidden">
         <ListFilters
           action="/bills"
@@ -72,13 +100,13 @@ export default async function BillsPage({ searchParams }: PageProps<"/bills">) {
                   <Td>
                     <Pill tone={BILL_STATUS[b.status]?.tone ?? "neutral"}>{BILL_STATUS[b.status]?.label ?? b.status}</Pill>
                   </Td>
-                  <Td right>{money(b.amount_cents)}</Td>
+                  <Td right>{b.amount_cents ? money(b.amount_cents) : <span className="text-[13px] font-semibold text-warn">Enter total</span>}</Td>
                 </tr>
               ))}
             </Tbody>
           </Table>
         ) : (
-          <EmptyState title="No bills here">Invoices vendors upload from their job link land here for approval.</EmptyState>
+          <EmptyState title="No bills here">Invoices vendors upload from their job link or e-mail in land here for approval.</EmptyState>
         )}
       </Card>
     </>

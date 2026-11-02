@@ -7,7 +7,7 @@ import { requireCompany } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canPay } from "@/lib/vendor-requests";
 import { voidBill } from "../actions";
-import { ApproveForm, PayForm } from "../forms";
+import { ApproveForm, EditBillForm, PayForm } from "../forms";
 
 export const metadata = { title: "Bill" };
 
@@ -28,6 +28,14 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
   const blocked = b.vendor && !canPay(b.vendor) ? `${vendorName} can't be paid until their W-9 is on file. Send a paperwork request from their vendor page.` : null;
   const canApprove = ["admin", "property_manager", "accountant"].includes(membership.role);
   const canPayRole = ["admin", "accountant"].includes(membership.role);
+  const editing = b.status === "received" && canApprove;
+  const [{ data: vendors }, { data: properties }] = editing
+    ? await Promise.all([
+        supabase.from("vendor").select("id, contact(kind, first_name, last_name, business_name)").eq("company_id", company.id),
+        supabase.from("property").select("id, name").eq("company_id", company.id).order("name"),
+      ])
+    : [{ data: null }, { data: null }];
+  const SOURCES: Record<string, string> = { "vendor portal": "Vendor's job link", email: `E-mail${b.from_email ? ` from ${b.from_email}` : ""}`, recurring: "Recurring bill", manual: "Entered by hand" };
 
   return (
     <>
@@ -38,6 +46,16 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
       </p>
       <PageHeader title={`${vendorName} · ${money(b.amount_cents)}`} subtitle={[b.invoice_number && `Invoice ${b.invoice_number}`, b.property?.name, b.entity?.name].filter(Boolean).join(" · ")} action={<Pill tone={BILL_STATUS[b.status]?.tone ?? "neutral"}>{BILL_STATUS[b.status]?.label}</Pill>} />
       {sp.added && <Notice tone="success">Bill saved. Approve it to post the expense.</Notice>}
+      {b.status === "received" && b.review_notes.length > 0 && (
+        <Notice tone="warn">
+          <p className="font-semibold">Check before approving</p>
+          <ul className="mt-1 list-disc pl-5">
+            {b.review_notes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </Notice>
+      )}
       <Card className="mt-4 p-5 text-[14px]">
         <dl className="grid gap-3 sm:grid-cols-3">
           <div>
@@ -50,7 +68,7 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
           </div>
           <div>
             <dt className="text-[12px] font-semibold text-subtle">From</dt>
-            <dd>{b.source === "vendor portal" ? "Vendor's job link" : b.source}</dd>
+            <dd>{SOURCES[b.source] ?? b.source}</dd>
           </div>
           {b.work_order && (
             <div>
@@ -103,11 +121,23 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
           </p>
         )}
       </Card>
+      {editing && (
+        <Card className="mt-6">
+          <CardHeader title="Correct the details" description="Fix anything read wrong from the invoice before approving." />
+          <div className="px-5 py-4">
+            <EditBillForm
+              bill={{ id: b.id, vendor_id: b.vendor_id, property_id: b.property_id, work_order: b.work_order ? String(b.work_order.number) : "", invoice_number: b.invoice_number ?? "", invoice_date: b.invoice_date ?? today, memo: b.memo ?? "" }}
+              vendors={(vendors ?? []).map((v) => ({ id: v.id, name: contactName(v.contact) })).sort((x, y) => x.name.localeCompare(y.name))}
+              properties={properties ?? []}
+            />
+          </div>
+        </Card>
+      )}
       {b.status === "received" && canApprove && (
         <Card className="mt-6">
           <CardHeader title="Approve" description="Check the amount and account against the invoice. Approving posts the expense and what's owed to the vendor." />
           <div className="px-5 py-4">
-            <ApproveForm id={b.id} amount={(b.amount_cents / 100).toFixed(2)} account={b.expense_account} due={b.due_date ?? today} accounts={EXPENSE_ACCOUNTS} />
+            <ApproveForm id={b.id} amount={b.amount_cents ? (b.amount_cents / 100).toFixed(2) : ""} account={b.expense_account} due={b.due_date ?? today} accounts={EXPENSE_ACCOUNTS} />
           </div>
         </Card>
       )}
