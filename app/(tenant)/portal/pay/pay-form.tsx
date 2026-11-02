@@ -2,16 +2,15 @@
 
 import { useActionState, useState } from "react";
 import { Button, Field, Input, Notice } from "@/components/ui";
-import { startAutopay, startPayment, type PayState } from "./actions";
+import { payWithCard, startAutopay, startPayment, type PayState } from "./actions";
 
 const empty: PayState = {};
 
-export function PayForm({ balanceCents, feePercent }: { balanceCents: number; feePercent: number }) {
+export function PayForm({ balanceCents }: { balanceCents: number }) {
   const [state, action, pending] = useActionState(startPayment, empty);
   const [amount, setAmount] = useState(balanceCents > 0 ? (balanceCents / 100).toFixed(2) : "");
   const [method, setMethod] = useState<"ach" | "card">("ach");
   const cents = Math.round(Number(amount.replace(/[$,\s]/g, "")) * 100) || 0;
-  const fee = method === "card" ? Math.round((cents * feePercent) / 100) : 0;
   const fmt = (c: number) => `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return (
     <form action={action} className="space-y-4">
@@ -24,7 +23,7 @@ export function PayForm({ balanceCents, feePercent }: { balanceCents: number; fe
         {(
           [
             ["ach", "Bank account (free)", "Takes 3–5 business days to clear."],
-            ["card", `Debit or credit card (+${feePercent}% fee)`, "Clears right away."],
+            ["card", "Debit or credit card", "Clears right away. Debit cards: no fee. Credit cards: a fee of up to 3%, shown before you pay."],
           ] as const
         ).map(([k, label, hint]) => (
           <label key={k} className="flex min-h-12 cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border border-line-strong px-3 py-2.5 has-[:checked]:border-accent has-[:checked]:bg-accent-softer">
@@ -37,25 +36,28 @@ export function PayForm({ balanceCents, feePercent }: { balanceCents: number; fe
         ))}
       </fieldset>
       <div className="rounded-[var(--radius-control)] bg-surface-muted px-4 py-3 text-[15px]">
-        <p className="flex justify-between">
+        <p className="flex justify-between font-bold">
           <span>Payment</span>
           <span>{fmt(cents)}</span>
         </p>
-        {fee > 0 && (
-          <p className="flex justify-between">
-            <span>Card convenience fee ({feePercent}%)</span>
-            <span>{fmt(fee)}</span>
-          </p>
-        )}
-        <p className="mt-1 flex justify-between border-t border-line pt-1 font-bold">
-          <span>Total charged</span>
-          <span>{fmt(cents + fee)}</span>
-        </p>
+        {method === "card" && <p className="mt-1 text-[13px] text-muted">Next, enter your card. Nothing is charged until you see the total and tap Pay.</p>}
       </div>
       <Button type="submit" disabled={pending || cents < 100} className="w-full sm:w-auto">
-        {pending ? "Opening secure checkout…" : `Continue to pay ${fmt(cents + fee)}`}
+        {pending ? "Opening secure page…" : method === "card" ? "Continue to enter card" : `Continue to pay ${fmt(cents)}`}
       </Button>
       <p className="text-[12px] text-subtle">Payments are processed securely by Stripe. Your card or bank details never touch our servers.</p>
+    </form>
+  );
+}
+
+export function ConfirmCardForm({ sessionId, totalLabel }: { sessionId: string; totalLabel: string }) {
+  const [state, action, pending] = useActionState(payWithCard.bind(null, sessionId), empty);
+  return (
+    <form action={action} className="space-y-3">
+      {state.error && <Notice tone="danger">{state.error}</Notice>}
+      <Button type="submit" disabled={pending} className="w-full">
+        {pending ? "Paying…" : `Pay ${totalLabel}`}
+      </Button>
     </form>
   );
 }

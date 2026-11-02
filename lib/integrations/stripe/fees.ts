@@ -1,6 +1,18 @@
-// Card convenience fee: shown before the tenant pays (CLAUDE.md rule 6). Bank transfers (ACH) are free to tenants.
-export function cardFeeCents(amountCents: number, percent: number): number {
-  return Math.round((amountCents * percent) / 100);
+// Card fees (CLAUDE.md rule 6, shown before the tenant pays). Only credit cards carry a fee: card network rules
+// don't allow a surcharge on debit or prepaid cards, and bank transfers (ACH) are always free to tenants.
+// The fee is what the processor charges the company for that payment, never more than Visa's 3% US cap
+// (Wesley Owen, Nov 2, 2026: "credit at cost, debit free").
+export const CARD_SURCHARGE_CAP_PERCENT = 3;
+
+/**
+ * The credit card fee for a payment: the processor's cost on the total charged (percent + fixed part), so the
+ * company receives the full payment, capped at 3% of the payment. Debit, prepaid or unknown cards: no fee.
+ */
+export function cardFeeCents(amountCents: number, funding: string, cost: { percent: number; fixedCents: number }): number {
+  if (funding !== "credit" || amountCents <= 0) return 0;
+  const gross = Math.ceil((amountCents + cost.fixedCents) / (1 - cost.percent / 100));
+  const cap = Math.floor((amountCents * CARD_SURCHARGE_CAP_PERCENT) / 100);
+  return Math.max(0, Math.min(gross - amountCents, cap));
 }
 
 /** Stripe-Signature header check (scheme v1: HMAC-SHA256 of "timestamp.payload"), within 5 minutes. */

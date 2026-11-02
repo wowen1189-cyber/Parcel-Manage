@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { emailHtml, emailText } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/integrations/resend/send";
 import { stripe, verifyStripeWebhook } from "@/lib/integrations/stripe/client";
-import { sendReceipt } from "@/lib/receipts";
+import { recordOnline } from "@/lib/online-payments";
 import { companyForAccount } from "@/lib/payment-account";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
   if (dup) return NextResponse.json({ received: true, duplicate: true });
   if (!company) return NextResponse.json({ received: true });
 
-  if (event.type === "checkout.session.completed" && (event.data.object as Session).mode === "setup") {
+  if (event.type === "checkout.session.completed" && (event.data.object as Session).mode === "setup" && (event.data.object as Session).metadata?.purpose === "card_payment") {
+    // A card saved for a one-time payment (lib/card-payment.ts): nothing to do until the tenant confirms it.
+  } else if (event.type === "checkout.session.completed" && (event.data.object as Session).mode === "setup") {
     // Autopay setup finished: save the bank account, replacing any earlier one on this lease.
     const s = event.data.object as Session;
     if (s.metadata?.company_id !== company.id || !s.metadata.lease_id || !s.setup_intent || !s.customer) return NextResponse.json({ received: true });
@@ -52,6 +54,12 @@ export async function POST(request: NextRequest) {
     const pi = event.data.object as Intent;
     if (pi.metadata.company_id !== company.id) return NextResponse.json({ received: true });
     const err = await recordOnline(db, company.id, pi.metadata.lease_id, "ach", pi.amount, pi.id, 0, "Autopay");
+    if (err) return NextResponse.json({ error: err }, { status: 500 });
+  } else if (event.type === "payment_intent.succeeded" && (event.data.object as Intent).metadata?.card_payment) {
+    // A confirmed card payment; usually already recorded when the tenant paid. Recording is once per reference.
+    const pi = event.data.object as Intent;
+    if (pi.metadata.company_id !== company.id) return NextResponse.json({ received: true });
+    const err = await recordOnline(db, company.id, pi.metadata.lease_id, "card", Number(pi.metadata.amount_cents), pi.id, Number(pi.metadata.fee_cents ?? 0), "Online card payment");
     if (err) return NextResponse.json({ error: err }, { status: 500 });
   } else if (event.type === "payment_intent.payment_failed" && (event.data.object as Intent).metadata?.autopay) {
     const pi = event.data.object as Intent;
@@ -81,15 +89,4 @@ export async function POST(request: NextRequest) {
     }
   }
   return NextResponse.json({ received: true });
-}
-
-/** Records a cleared online payment once (by Stripe reference) and e-mails the receipt. Returns an error message. */
-async function recordOnline(db: ReturnType<typeof createAdminClient>, companyId: string, leaseId: string, method: "ach" | "card", amount: number, ref: string, fee: number, label: string) {
-  const { data: existing } = await db.from("payment").select("id").eq("company_id", companyId).eq("processor_ref", ref).maybeSingle();
-  if (existing) return null;
-  const { data: paymentId, error } = await db.rpc("record_payment", { p_lease: leaseId, p_method: method, p_amount: amount, p_received: new Date().toISOString().slice(0, 10), p_reference: label });
-  if (error) return error.message;
-  await db.from("payment").update({ processor_ref: ref, fee_cents: fee }).eq("id", paymentId as string);
-  await sendReceipt(db, companyId, paymentId as string);
-  return null;
 }

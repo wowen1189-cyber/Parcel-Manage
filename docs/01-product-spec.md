@@ -91,7 +91,7 @@ See `docs/04-reports-and-metrics.md`: 41-report library (each with options inste
 CSV import for rent roll, tenant contacts, vendors and owners from any software (AppFolio, Buildium, Rent Manager, Yardi, …) or a spreadsheet: upload → columns matched by heading, AI fills gaps (override per column) → review rows (ready / flagged / needs a fix) → import; logged and undoable for 30 days.
 
 ### Settings & team
-Payments (card convenience fee %, ACH free), Integrations (connect/disconnect), API keys and webhooks, Team (invite by email with role and property access; permission matrix), company profile (name, phones, addresses, logo, time zone), **business rules** (see `docs/02-business-rules.md`), AI connection (shared with the leasing agent).
+Payments (credit card fee at the processor's cost, at most 3%; debit cards and ACH free), Integrations (connect/disconnect), API keys and webhooks, Team (invite by email with role and property access; permission matrix), company profile (name, phones, addresses, logo, time zone), **business rules** (see `docs/02-business-rules.md`), AI connection (shared with the leasing agent).
 
 ## 4. Tenant portal
 - **Home**: balance due, pay (ACH free / card with fee shown before confirming), autopay toggle, recent activity, Request maintenance.

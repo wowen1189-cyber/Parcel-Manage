@@ -24,8 +24,18 @@ describe("books", () => {
 import { cardFeeCents, parseStripeSignature } from "@/lib/integrations/stripe/fees";
 describe("online payments", () => {
   it("adds the card fee only to card payments, rounded to the cent", () => {
-    expect(cardFeeCents(150000, 3)).toBe(4500);
-    expect(cardFeeCents(123456, 3)).toBe(3704);
+    const stripeCost = { percent: 2.9, fixedCents: 30 };
+    // $10,000 by credit card: the company still receives $10,000 after Stripe's 2.9% + 30¢.
+    const fee = cardFeeCents(1000000, "credit", stripeCost);
+    expect(fee).toBe(29898);
+    expect(1000000 + fee - Math.round((1000000 + fee) * 0.029) - 30).toBeGreaterThanOrEqual(1000000);
+    // Typical rent: Stripe's cost is a little over 3%, so the fee stops at 3% (Visa's US cap).
+    expect(cardFeeCents(150000, "credit", stripeCost)).toBe(4500);
+    expect(cardFeeCents(5000, "credit", stripeCost)).toBe(150);
+    // Debit, prepaid and unknown cards never carry a fee (card network rules).
+    expect(cardFeeCents(150000, "debit", stripeCost)).toBe(0);
+    expect(cardFeeCents(150000, "prepaid", stripeCost)).toBe(0);
+    expect(cardFeeCents(150000, "unknown", stripeCost)).toBe(0);
   });
   it("reads Stripe's signature header", () => {
     expect(parseStripeSignature("t=1700000000,v1=abc,v1=def,v0=zzz")).toEqual({ t: 1700000000, v1: ["abc", "def"] });

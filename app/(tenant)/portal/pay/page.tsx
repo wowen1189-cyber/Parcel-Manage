@@ -37,7 +37,7 @@ export default async function PayPage({ searchParams }: PageProps<"/portal/pay">
         <Notice tone="warn">Your account requires payment by money order or cashier&apos;s check. Contact the office.</Notice>
       ) : (
         <Card className="p-5">
-          <PayForm balanceCents={balanceCents} feePercent={rules.rent.cardFeePercent} />
+          <PayForm balanceCents={balanceCents} />
         </Card>
       )}
       {online && !full?.certified_funds_only && (

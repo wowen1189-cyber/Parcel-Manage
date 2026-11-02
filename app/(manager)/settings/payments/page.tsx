@@ -17,7 +17,7 @@ export default async function PaymentsSettingsPage({ searchParams }: PageProps<"
       <Card>
         <CardHeader
           title="Online rent payments"
-          description={`Tenants pay from their portal by bank transfer (free to them) or card (a ${rules.rent.cardFeePercent}% convenience fee, shown before they pay). Money goes to your own Stripe account and out to your bank.`}
+          description={`Tenants pay from their portal by bank transfer (free to them) or card (debit cards free; credit cards pay your processing cost of ${rules.rent.cardCostPercent}% + $${(rules.rent.cardCostFixedCents / 100).toFixed(2)}, never more than 3%, shown before they pay). Money goes to your own Stripe account and out to your bank.`}
           action={company.stripe_charges_enabled ? <Pill tone="success">On</Pill> : company.stripe_account_id ? <Pill tone="warn">Setup not finished</Pill> : <Pill>Off</Pill>}
         />
         <div className="space-y-3 px-5 py-4">

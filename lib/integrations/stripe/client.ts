@@ -16,13 +16,14 @@ function encode(params: Params): string {
     .join("&");
 }
 
-export async function stripe<T = Record<string, unknown>>(method: "GET" | "POST", path: string, params: Params = {}, account?: string | null): Promise<T> {
+/** One Stripe API call. `idempotencyKey` makes a repeated POST (a double tap) return the first result. */
+export async function stripe<T = Record<string, unknown>>(method: "GET" | "POST", path: string, params: Params = {}, account?: string | null, idempotencyKey?: string): Promise<T> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("Stripe isn't set up for Parcel Manage yet.");
   const body = encode(params);
   const res = await fetch(`https://api.stripe.com/v1/${path}${method === "GET" && body ? `?${body}` : ""}`, {
     method,
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded", ...(account ? { "Stripe-Account": account } : {}) },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded", ...(account ? { "Stripe-Account": account } : {}), ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}) },
     body: method === "POST" ? body : undefined,
   });
   const json = await res.json();
