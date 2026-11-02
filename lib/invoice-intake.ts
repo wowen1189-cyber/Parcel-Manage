@@ -99,6 +99,8 @@ export async function receiveInvoiceEmail(emailId: string): Promise<IntakeResult
     const today = todayIn(company.time_zone);
     const allText = [body, ...texts].join("\n");
     const sender = vendorByEmail(from, vendors);
+    // Forwarded by someone on the company's own team: trusted, and the vendor comes from the invoice itself.
+    const { data: staff } = await db.from("membership").select("id, profile!inner(email, full_name)").eq("company_id", company.id).eq("status", "active").ilike("profile.email", from.replace(/[%_]/g, "")).limit(1).maybeSingle();
 
     const ai = await aiComplete({
       companyId: company.id,
@@ -122,7 +124,8 @@ export async function receiveInvoiceEmail(emailId: string): Promise<IntakeResult
     ]);
     const average = history?.length ? Math.round(history.reduce((s, b) => s + b.amount_cents, 0) / history.length) : null;
     const notes = [
-      ...invoiceFlags({ senderKnown: !!sender, vendorFound: !!vendorId, propertyFound: !!propertyId, amountCents: c.amountCents, duplicateOf: dupBill?.invoice_number ?? null, vendorAverageCents: average, noAttachment: !saved.length, aiUsed: !!read }),
+      ...(staff ? [`Forwarded by ${staff.profile.full_name || from}.`] : []),
+      ...invoiceFlags({ senderKnown: !!sender || !!staff, vendorFound: !!vendorId, propertyFound: !!propertyId, amountCents: c.amountCents, duplicateOf: dupBill?.invoice_number ?? null, vendorAverageCents: average, noAttachment: !saved.length, aiUsed: !!read }),
       ...c.notes.map((n) => `AI: ${n}`),
     ];
 
