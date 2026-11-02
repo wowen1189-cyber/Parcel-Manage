@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { fingerprint, parseBankCsv, suggestMatch } from "@/lib/bank";
-import { bookLines } from "@/lib/bank-books";
+import { fingerprint, parseBankCsv } from "@/lib/bank";
+import { autoMatch, bookLines } from "@/lib/bank-books";
 import { requireCompany } from "@/lib/session";
 
 export type BankState = { error?: string; message?: string };
@@ -36,27 +36,11 @@ export async function importStatement(_: BankState, form: FormData): Promise<Ban
   const rows = parsed.rows.map((r) => ({ company_id: company.id, bank_account_id: id.data, ...r, fingerprint: fingerprint(r) }));
   const { data, error } = await supabase.from("bank_transaction").upsert(rows, { onConflict: "bank_account_id,fingerprint", ignoreDuplicates: true }).select("id");
   if (error) return { error: error.message };
-  const matched = await autoMatch(id.data);
+  const matched = await autoMatch(supabase, company.id, id.data);
   revalidatePath(`/bank-accounts/${id.data}`);
   return { message: `Imported ${data?.length ?? 0} new transactions (${parsed.rows.length - (data?.length ?? 0)} already here). Matched ${matched} automatically.` };
 }
 
-async function autoMatch(accountId: string): Promise<number> {
-  const { supabase, company } = await requireCompany();
-  const { data: account } = await supabase.from("bank_account").select("entity_id, gl_number").eq("id", accountId).eq("company_id", company.id).single();
-  if (!account) return 0;
-  const [lines, { data: txs }] = await Promise.all([bookLines(supabase, company.id, account), supabase.from("bank_transaction").select("id, posted_on, description, amount_cents").eq("bank_account_id", accountId).eq("status", "unmatched")]);
-  const used = new Set(lines.filter((l) => l.matched || l.cleared).map((l) => l.id));
-  let n = 0;
-  for (const tx of txs ?? []) {
-    const m = suggestMatch({ ...tx, amount_cents: Number(tx.amount_cents) }, lines, used);
-    if (!m) continue;
-    used.add(m.id);
-    await supabase.from("bank_transaction").update({ journal_line_id: m.id, status: "matched" }).eq("id", tx.id);
-    n++;
-  }
-  return n;
-}
 
 export async function setTransaction(form: FormData): Promise<void> {
   const { supabase, company, membership } = await requireCompany();

@@ -2,6 +2,7 @@ import { Card, CardHeader, EmptyState, PageHeader, Pill } from "@/components/ui"
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
+import { ConnectBankButton } from "./feed-forms";
 import { NewAccountForm } from "./forms";
 
 export const metadata = { title: "Bank accounts" };
@@ -9,18 +10,30 @@ export const metadata = { title: "Bank accounts" };
 export default async function BankAccountsPage() {
   const { supabase, company, membership } = await requireCompany();
   const [{ data: accounts }, { data: owners }] = await Promise.all([
-    supabase.from("bank_account").select("id, name, institution, last4, gl_number, entity(name), reconciliation(statement_date), bank_transaction(status)").eq("company_id", company.id).order("name"),
+    supabase.from("bank_account").select("id, name, institution, last4, gl_number, fc_account_id, fc_synced_at, entity(name), reconciliation(statement_date), bank_transaction(status)").eq("company_id", company.id).order("name"),
     supabase.from("entity").select("id, name").eq("company_id", company.id).order("name"),
   ]);
   return (
     <>
-      <PageHeader title="Bank accounts" subtitle="Each owner's operating and security deposit trust accounts. Import statements, match them to the books, and reconcile to $0.00." />
+      <PageHeader title="Bank accounts" subtitle="Each owner's operating and security deposit trust accounts. Connect the bank (or import statements), match to the books, and reconcile to $0.00." />
+      {["admin", "accountant"].includes(membership.role) && (
+        <Card className="mb-6">
+          <CardHeader
+            title="Bank feeds"
+            description="Sign in to each bank once in Stripe's secure window (Parcel Manage never sees the bank password). Accounts are matched to the ones below by their last 4 digits, and new transactions come in every night."
+          />
+          <div className="px-5 py-4">
+            <ConnectBankButton />
+          </div>
+        </Card>
+      )}
       <Card className="overflow-hidden">
         {accounts?.length ? (
           <Table minWidth={720}>
             <Thead>
               <Th>Account</Th>
               <Th>Owner</Th>
+              <Th>Feed</Th>
               <Th>Unmatched</Th>
               <Th>Last reconciled</Th>
             </Thead>
@@ -37,6 +50,7 @@ export default async function BankAccountsPage() {
                       {a.gl_number === "1010" && <Pill tone="info">Trust</Pill>}
                     </Td>
                     <Td className="text-[13px]">{a.entity.name}</Td>
+                    <Td className="text-[13px]">{a.fc_account_id ? <Pill tone="success">Connected</Pill> : <span className="text-subtle">Not connected</span>}</Td>
                     <Td>{unmatched ? <Pill tone="warn">{unmatched}</Pill> : "—"}</Td>
                     <Td className="text-[13px]">{last ? date(last.statement_date) : <span className="text-subtle">Never</span>}</Td>
                   </tr>

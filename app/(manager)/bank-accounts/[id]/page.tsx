@@ -7,6 +7,7 @@ import { bookLines } from "@/lib/bank-books";
 import { date, money, todayIn } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
 import { setTransaction } from "../actions";
+import { FeedControls } from "../feed-forms";
 import { ImportForm, ReconcileForm } from "../forms";
 
 export const metadata = { title: "Bank account" };
@@ -14,7 +15,7 @@ export const metadata = { title: "Bank account" };
 export default async function BankAccountPage({ params }: PageProps<"/bank-accounts/[id]">) {
   const { id } = await params;
   const { supabase, company, membership } = await requireCompany();
-  const { data: a } = await supabase.from("bank_account").select("id, name, institution, last4, gl_number, entity_id, entity(name), reconciliation(id, statement_date, statement_balance_cents, completed_at)").eq("id", id).eq("company_id", company.id).maybeSingle();
+  const { data: a } = await supabase.from("bank_account").select("id, name, institution, last4, gl_number, entity_id, fc_account_id, fc_institution, fc_status, fc_synced_at, fc_balance_cents, fc_balance_as_of, entity(name), reconciliation(id, statement_date, statement_balance_cents, completed_at)").eq("id", id).eq("company_id", company.id).maybeSingle();
   if (!a) notFound();
   const [lines, { data: txs }] = await Promise.all([bookLines(supabase, company.id, a), supabase.from("bank_transaction").select("id, posted_on, description, amount_cents, status, journal_line_id").eq("bank_account_id", id).order("posted_on", { ascending: false }).limit(300)]);
   const byId = new Map(lines.map((l) => [l.id, l]));
@@ -31,6 +32,32 @@ export default async function BankAccountPage({ params }: PageProps<"/bank-accou
         </Link>
       </p>
       <PageHeader title={`${a.name} …${a.last4}`} subtitle={`${a.entity.name} · ${a.gl_number === "1010" ? "Security deposit trust" : "Operating"}${a.institution ? ` · ${a.institution}` : ""}`} />
+      {a.fc_account_id ? (
+        <Card className="mb-6">
+          <CardHeader
+            title="Bank feed"
+            description={`Connected to ${a.fc_institution ?? "the bank"} through Stripe. New transactions come in every night${a.fc_synced_at ? `; last brought in ${new Date(a.fc_synced_at).toLocaleString("en-US", { timeZone: company.time_zone, dateStyle: "medium", timeStyle: "short" })}` : ""}.`}
+          />
+          <div className="space-y-3 px-5 py-4">
+            {a.fc_balance_cents != null && (
+              <p className="text-sm">
+                Bank balance: <span className="font-semibold">{money(Number(a.fc_balance_cents))}</span>
+                <span className="text-subtle"> as of {a.fc_balance_as_of ? new Date(a.fc_balance_as_of).toLocaleString("en-US", { timeZone: company.time_zone, dateStyle: "medium", timeStyle: "short" }) : "—"}</span>
+              </p>
+            )}
+            {a.fc_status && a.fc_status !== "active" && <p className="text-[13px] font-medium text-danger">The bank connection is {a.fc_status}. Disconnect and connect the bank again.</p>}
+            {canEdit && <FeedControls id={a.id} />}
+          </div>
+        </Card>
+      ) : (
+        <p className="mb-4 text-[13px] text-muted">
+          No bank feed yet.{" "}
+          <Link href="/bank-accounts" className="font-semibold text-accent hover:underline">
+            Connect the bank
+          </Link>{" "}
+          for nightly transactions, or import a statement below.
+        </p>
+      )}
       {canEdit && (
         <Card className="mb-6">
           <CardHeader title="Import transactions" />

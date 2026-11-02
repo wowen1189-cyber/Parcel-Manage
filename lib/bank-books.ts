@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { BookLine } from "@/lib/bank";
+import { suggestMatch, type BookLine } from "@/lib/bank";
 import type { Database } from "@/lib/supabase/database.types";
 
 // Book lines on a bank account's cash account (operating 1000 or trust 1010) for its owner, signed the way the
@@ -32,4 +32,21 @@ export async function bookLines(supabase: Db, companyId: string, account: { enti
     matched: matchedSet.has(l.id),
     cleared: clearedSet.has(l.id),
   })) as (BookLine & { matched: boolean; cleared: boolean })[];
+}
+
+/** Match a bank account's unmatched transactions to book lines (same amount, within a few days). */
+export async function autoMatch(supabase: Db, companyId: string, accountId: string): Promise<number> {
+  const { data: account } = await supabase.from("bank_account").select("entity_id, gl_number").eq("id", accountId).eq("company_id", companyId).single();
+  if (!account) return 0;
+  const [lines, { data: txs }] = await Promise.all([bookLines(supabase, companyId, account), supabase.from("bank_transaction").select("id, posted_on, description, amount_cents").eq("bank_account_id", accountId).eq("status", "unmatched")]);
+  const used = new Set(lines.filter((l) => l.matched || l.cleared).map((l) => l.id));
+  let n = 0;
+  for (const tx of txs ?? []) {
+    const m = suggestMatch({ ...tx, amount_cents: Number(tx.amount_cents) }, lines, used);
+    if (!m) continue;
+    used.add(m.id);
+    await supabase.from("bank_transaction").update({ journal_line_id: m.id, status: "matched" }).eq("id", tx.id);
+    n++;
+  }
+  return n;
 }

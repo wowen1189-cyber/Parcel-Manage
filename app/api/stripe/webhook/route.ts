@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { emailHtml, emailText } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/integrations/resend/send";
 import { stripe, verifyStripeWebhook } from "@/lib/integrations/stripe/client";
+import { syncFeed } from "@/lib/bank-feed-sync";
 import { recordOnline } from "@/lib/online-payments";
 import { companyForAccount } from "@/lib/payment-account";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
   if (!verifyStripeWebhook(raw, request.headers.get("stripe-signature"))) return NextResponse.json({ error: "Bad signature" }, { status: 400 });
   const event = JSON.parse(raw) as { id: string; type: string; account?: string; data: { object: unknown } };
   const db = createAdminClient();
+  // Bank feeds (Financial Connections) happen on Parcel Manage's own Stripe account, not a company's.
+  if (event.type.startsWith("financial_connections.account.")) return bankFeedEvent(db, event);
   // Events come from the company's own account or one of its owners' accounts.
   const company = event.account ? await companyForAccount(db, event.account) : null;
   const { error: dup } = await db.from("stripe_event").insert({ id: event.id, company_id: company?.id ?? null, type: event.type });
@@ -88,5 +91,18 @@ export async function POST(request: NextRequest) {
       }
     }
   }
+  return NextResponse.json({ received: true });
+}
+
+/** A linked bank account changed at Stripe: new transactions or a balance are ready, or the link stopped working. */
+async function bankFeedEvent(db: ReturnType<typeof createAdminClient>, event: { id: string; type: string; data: { object: unknown } }) {
+  const fc = event.data.object as { id: string; status?: string };
+  const { data: a } = await db.from("bank_account").select("id, company_id, fc_account_id, fc_synced_at, company(time_zone)").eq("fc_account_id", fc.id).maybeSingle();
+  if (!a) return NextResponse.json({ received: true });
+  const { error: dup } = await db.from("stripe_event").insert({ id: event.id, company_id: a.company_id, type: event.type });
+  if (dup) return NextResponse.json({ received: true, duplicate: true });
+  if (event.type === "financial_connections.account.refreshed_transactions" || event.type === "financial_connections.account.refreshed_balance") await syncFeed(db, a, a.company.time_zone);
+  else if (event.type === "financial_connections.account.deactivated" || event.type === "financial_connections.account.disconnected") await db.from("bank_account").update({ fc_status: fc.status ?? "inactive" }).eq("id", a.id);
+  else if (event.type === "financial_connections.account.reactivated") await db.from("bank_account").update({ fc_status: "active" }).eq("id", a.id);
   return NextResponse.json({ received: true });
 }

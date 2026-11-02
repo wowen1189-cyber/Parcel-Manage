@@ -12,6 +12,9 @@
 //                                           AppFolio Accounting › Bank Accounts. Never full account or routing numbers.
 //                                           "corporate" is the management company's own account (Fee billing's books).
 //   bank_balances-YYYYMMDD.csv (optional)   last4, balance: each account's bank statement balance on the switch date.
+//                                           Not needed for an account with a bank feed (Bank accounts › Connect a
+//                                           bank, then "Get today's balance"): its balance on the switch date is
+//                                           worked back from the bank's current balance and the feed's transactions.
 //
 // Opening entries carry the balance sheet only (docs/02 "Owner money"):
 //   - managed owners (we hold their money): cash, deposit trust cash, deposits held and prepaid rent per property
@@ -25,6 +28,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { balanceAtEndOf } from "../lib/bank-feeds.ts";
 import { parseCsv } from "../lib/import/appfolio.ts";
 import type { Database } from "../lib/supabase/database.types.ts";
 
@@ -72,7 +76,7 @@ if (!company) throw new Error(`No company ${subdomain}`);
 const [{ data: entities }, { data: properties }, { data: existingBanks }, { data: openings }] = await Promise.all([
   db.from("entity").select("id, name, books_mode, is_manager").eq("company_id", company.id),
   db.from("property").select("id, name, entity_id").eq("company_id", company.id),
-  db.from("bank_account").select("id, entity_id, gl_number, last4").eq("company_id", company.id),
+  db.from("bank_account").select("id, entity_id, gl_number, last4, fc_balance_cents, fc_balance_as_of, bank_transaction(posted_on, amount_cents, fingerprint)").eq("company_id", company.id),
   db.from("journal_entry").select("entity_id").eq("company_id", company.id).eq("source", "opening_balance").neq("status", "reversed"),
 ]);
 const entityByName = new Map((entities ?? []).map((e) => [norm(e.name), e]));
@@ -85,6 +89,13 @@ const blocking: string[] = [];
 const banks = newest("bank_accounts")!;
 const balances = newest("bank_balances", false);
 const balanceOf = new Map((balances?.rows ?? []).map((r) => [r.last4, cents(r.balance)]));
+const switchDate = newest("trial_balance_by_property")!.date;
+// Accounts with a bank feed: the balance at the end of the switch date, from the bank's current balance.
+for (const b of existingBanks ?? []) {
+  if (!b.last4 || balanceOf.has(b.last4) || b.fc_balance_cents == null || !b.fc_balance_as_of || b.fc_balance_as_of.slice(0, 10) < switchDate) continue;
+  const fed = b.bank_transaction.filter((t) => t.fingerprint.startsWith("fc:"));
+  balanceOf.set(b.last4, balanceAtEndOf(switchDate, Number(b.fc_balance_cents), fed.map((t) => ({ posted_on: t.posted_on, amount_cents: Number(t.amount_cents) }))));
+}
 console.log(`\n${company.name}: bank accounts (AppFolio list of ${banks.date})${balances ? `, bank balances of ${balances.date}` : ", no bank balances file yet"}`);
 const toAdd: Database["public"]["Tables"]["bank_account"]["Insert"][] = [];
 type Bank = { entityId: string; gl: string; last4: string; name: string };

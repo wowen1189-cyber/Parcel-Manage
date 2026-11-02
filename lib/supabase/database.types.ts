@@ -649,6 +649,13 @@ export type Database = {
           company_id: string
           created_at: string
           entity_id: string
+          fc_account_id: string | null
+          fc_balance_as_of: string | null
+          fc_balance_cents: number | null
+          fc_institution: string | null
+          fc_linked_at: string | null
+          fc_status: string | null
+          fc_synced_at: string | null
           gl_number: string
           id: string
           institution: string | null
@@ -659,6 +666,13 @@ export type Database = {
           company_id: string
           created_at?: string
           entity_id: string
+          fc_account_id?: string | null
+          fc_balance_as_of?: string | null
+          fc_balance_cents?: number | null
+          fc_institution?: string | null
+          fc_linked_at?: string | null
+          fc_status?: string | null
+          fc_synced_at?: string | null
           gl_number?: string
           id?: string
           institution?: string | null
@@ -669,6 +683,13 @@ export type Database = {
           company_id?: string
           created_at?: string
           entity_id?: string
+          fc_account_id?: string | null
+          fc_balance_as_of?: string | null
+          fc_balance_cents?: number | null
+          fc_institution?: string | null
+          fc_linked_at?: string | null
+          fc_status?: string | null
+          fc_synced_at?: string | null
           gl_number?: string
           id?: string
           institution?: string | null
@@ -728,6 +749,35 @@ export type Database = {
             columns: ["reconciliation_id"]
             isOneToOne: false
             referencedRelation: "reconciliation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_feed_usage: {
+        Row: {
+          balance_pulls: number
+          company_id: string
+          linked_accounts: number
+          month: string
+        }
+        Insert: {
+          balance_pulls?: number
+          company_id: string
+          linked_accounts?: number
+          month: string
+        }
+        Update: {
+          balance_pulls?: number
+          company_id?: string
+          linked_accounts?: number
+          month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_feed_usage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
         ]
@@ -1118,6 +1168,7 @@ export type Database = {
           settings: Json
           stripe_account_id: string | null
           stripe_charges_enabled: boolean
+          stripe_fc_customer_id: string | null
           subdomain: string | null
           time_zone: string
           updated_at: string
@@ -1134,6 +1185,7 @@ export type Database = {
           settings?: Json
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
+          stripe_fc_customer_id?: string | null
           subdomain?: string | null
           time_zone?: string
           updated_at?: string
@@ -1150,6 +1202,7 @@ export type Database = {
           settings?: Json
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
+          stripe_fc_customer_id?: string | null
           subdomain?: string | null
           time_zone?: string
           updated_at?: string
@@ -5219,6 +5272,7 @@ export type Database = {
           office_phone: string
         }[]
       }
+      count_balance_pull: { Args: { p_company: string }; Returns: undefined }
       create_company: {
         Args: { p_name: string; p_subdomain: string; p_time_zone?: string }
         Returns: string
