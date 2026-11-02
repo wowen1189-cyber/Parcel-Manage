@@ -12,7 +12,7 @@ import { listTenants } from "@/lib/tenants";
 import { listVendors } from "@/lib/vendor-list";
 import { listWorkOrders } from "@/lib/work-order-list";
 import { formatWhen, WO_PRIORITY } from "@/lib/work-orders";
-import { claimDeadlines, daysUntil, depositDeadlines } from "@/lib/deposits";
+import { nextDepositStep } from "@/lib/deposits";
 import { contactName } from "@/lib/format";
 import { saveDashboardLayout } from "../preferences";
 
@@ -37,11 +37,9 @@ export default async function DashboardPage() {
   ]);
   const depositRows = (moveOuts ?? [])
     .map((m) => {
-      const d = depositDeadlines(m.vacated_on);
-      const next = m.claim_notice_sent_on ? claimDeadlines(m.claim_notice_sent_on, (m.claim_notice_method ?? "certified_mail") as "certified_mail" | "email_addendum").balanceDueBy : m.decision === "claim" ? d.claimNoticeBy : d.returnBy;
-      const label = m.claim_notice_sent_on ? "Pay remaining deposit" : m.decision === "claim" ? "Send claim notice" : "Return deposit or send claim";
+      const { next, label, left } = nextDepositStep(m, today);
       const t = [...m.lease.lease_tenant].filter((x) => x.role === "tenant").sort((a, b) => Number(b.is_primary) - Number(a.is_primary))[0];
-      return { id: m.id, leaseId: m.lease_id, name: contactName(t?.contact), where: m.lease.unit.property.name, next, label, left: daysUntil(today, next) };
+      return { id: m.id, leaseId: m.lease_id, name: contactName(t?.contact), where: m.lease.unit.property.name, next, label, left };
     })
     .sort((a, b) => a.next.localeCompare(b.next));
   const total = units?.length ?? 0;

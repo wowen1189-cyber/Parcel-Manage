@@ -37,3 +37,11 @@ export function depositHeldCents(payments: { purpose: string; status: string; am
   const applied = payments.filter((p) => p.reference === "Security deposit applied" && p.status === "succeeded").reduce((s, p) => s + p.amount_cents, 0);
   return Math.max(0, received - applied - (refundedCents ?? 0));
 }
+
+/** The next step on an open move-out and its 83.49(3) deadline. */
+export function nextDepositStep(m: { vacated_on: string; decision: string | null; claim_notice_sent_on: string | null; claim_notice_method: string | null }, today: string) {
+  const d = depositDeadlines(m.vacated_on);
+  const next = m.claim_notice_sent_on ? claimDeadlines(m.claim_notice_sent_on, (m.claim_notice_method ?? "certified_mail") as "certified_mail" | "email_addendum").balanceDueBy : m.decision === "claim" ? d.claimNoticeBy : d.returnBy;
+  const label = m.claim_notice_sent_on ? "Pay remaining deposit" : m.decision === "claim" ? "Send claim notice" : "Return deposit or send claim";
+  return { next, label, left: daysUntil(today, next) };
+}
