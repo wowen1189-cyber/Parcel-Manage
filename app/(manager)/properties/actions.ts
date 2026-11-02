@@ -4,10 +4,42 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { contactName, type NamedContact } from "@/lib/format";
+import { legalDescriptionText, lookupLegalDescription } from "@/lib/integrations/property-appraiser/lookup";
 import { personName } from "@/lib/import/appfolio";
 import { MAX_OWNERS } from "@/lib/property-form";
-import { allowsRepairDeductible, defaultLeaseSettings, leaseSettingsSchema } from "@/lib/property-lease-settings";
+import { allowsRepairDeductible, defaultLeaseSettings, leaseSettingsSchema, readLeaseSettings } from "@/lib/property-lease-settings";
 import { requireCompany } from "@/lib/session";
+
+type Supabase = Awaited<ReturnType<typeof requireCompany>>["supabase"];
+
+/**
+ * Fills the property's legal description from the county property appraiser (Exhibit A of the commercial
+ * lease). Only when it's blank, unless `replace`; a typed-in description is never overwritten silently.
+ */
+async function fillLegal(supabase: Supabase, companyId: string, propertyId: string, replace = false): Promise<{ error?: string; legal?: string }> {
+  const { data: p } = await supabase.from("property").select("id, property_type, address_line1, city, state, county, lease_settings, unit(id)").eq("id", propertyId).eq("company_id", companyId).maybeSingle();
+  if (!p) return { error: "Property not found." };
+  const settings = readLeaseSettings(p.lease_settings, p.property_type, p.unit.length);
+  if (settings.legalDescription && !replace) return { legal: settings.legalDescription };
+  const r = await lookupLegalDescription(p);
+  if ("error" in r) return { error: r.error };
+  const legal = legalDescriptionText(r);
+  const stored = p.lease_settings && typeof p.lease_settings === "object" ? p.lease_settings : {};
+  const { error } = await supabase.from("property").update({ lease_settings: { ...stored, legalDescription: legal } }).eq("id", p.id).eq("company_id", companyId);
+  return error ? { error: error.message } : { legal };
+}
+
+/** The "Fill from county records" button on the lease settings. */
+export async function fillLegalDescription(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
+  const id = z.string().uuid().safeParse(form.get("property_id"));
+  if (!id.success) return { error: "Property not found." };
+  const r = await fillLegal(supabase, company.id, id.data, true);
+  if (r.error) return { error: r.error };
+  revalidatePath(`/properties/${id.data}`);
+  return { message: "Filled from the county property appraiser. Check it against the deed." };
+}
 
 export type FormState = { error?: string; message?: string; values?: Record<string, string> };
 
@@ -112,6 +144,9 @@ export async function updateProperty(_: FormState, form: FormData): Promise<Form
     if (ins.error) return { error: ins.error.message, values: typed(form) };
   }
 
+  // A new or corrected address: fill a blank legal description from the county records.
+  await fillLegal(supabase, company.id, id);
+
   revalidatePath("/properties");
   revalidatePath(`/properties/${id}`);
   return { message: "Saved." };
@@ -164,6 +199,7 @@ export async function createProperty(_: FormState, form: FormData): Promise<Form
   if (fields.property_type === "single_family") {
     await supabase.from("unit").insert({ company_id: company.id, property_id: property.id, label: "Home", kind: "residential", status: "vacant" });
   }
+  await fillLegal(supabase, company.id, property.id);
   revalidatePath("/properties");
   redirect(`/properties/${property.id}?added=1`);
 }

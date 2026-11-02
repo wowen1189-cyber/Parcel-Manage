@@ -116,10 +116,10 @@ const sections: DocumentTemplate["sections"] = [
         title: "Lease Term and Renewal",
         blocks: [
           p("This Lease begins on the Commencement Date and ends on the Expiration Date. {{renewal_clause}}"),
-          p("Tenant may renew only if (i) this Lease is in full force when Tenant gives notice and when the renewal term begins, (ii) no Event of Default exists, and (iii) Tenant has not assigned this Lease or sublet any part of the Premises; the right to renew is personal to Tenant. If Tenant does not give timely written notice, Tenant has waived the renewal option, time being of the essence. Each renewal term is on the terms of this Lease, except that Base Rent for the renewal term will be agreed in writing before it begins; if the parties do not agree in writing at least thirty (30) days before the Expiration Date, this Lease ends on the Expiration Date. The initial term and any renewal terms are together the \"Lease Term\"."),
+          p("Tenant may renew only if (i) this Lease is in full force when Tenant gives notice and when the renewal term begins, (ii) no Event of Default exists, and (iii) Tenant has not assigned this Lease or sublet any part of the Premises; the right to renew is personal to Tenant. If Tenant does not give timely written notice, Tenant has waived the renewal option, time being of the essence. Each renewal term is on the terms of this Lease, with Base Rent set as stated above. The initial term and any renewal terms are together the \"Lease Term\"."),
         ],
         changes: [
-          ch("C4", "Fla. Stat. 83.04", "cleanup", "Renewal notice period and number of renewal terms are now per-lease terms printed in the summary. Added what happens if renewal rent is not agreed, so the option can't leave the lease in limbo."),
+          ch("C4", "Fla. Stat. 83.04", "cleanup", "Renewal notice period and number of renewal terms are now per-lease terms printed in the summary. Renewal rent is set by formula (last rent plus the renewal increase), so the option never leaves the lease in limbo."),
         ],
       },
       {
@@ -875,8 +875,8 @@ const fields: Record<string, TemplateField> = {
   lease_start_date: f("Commencement Date", "lease", "November 1, 2026"),
   lease_end_date: f("Expiration Date", "lease", "October 31, 2029"),
   lease_term_months: f("Initial term (months)", "lease", "36"),
-  renewal_summary: f("Renewal option summary", "lease", "One renewal term of 36 months; written notice at least 90 days before the Expiration Date"),
-  renewal_clause: f("Renewal option clause", "lease", "Tenant has the option to renew this Lease for one (1) renewal term of 36 months by giving Landlord written notice at least 90 days before the Expiration Date."),
+  renewal_summary: f("Renewal option summary", "lease", "One renewal term of 12 months at a 5% higher Base Rent; written notice at least 90 days before the Expiration Date"),
+  renewal_clause: f("Renewal option clause", "lease", "Tenant has the option to renew this Lease for one (1) renewal term of 12 months by giving Landlord written notice at least 90 days before the Expiration Date. Base Rent for the renewal term is the monthly Base Rent in effect on the last day of the prior term, increased by 5%."),
   rent_schedule: f("Rent schedule", "computed", "Nov 1, 2026 – Oct 31, 2027: $1,000.00; Nov 1, 2027 – Oct 31, 2028: $1,050.00; Nov 1, 2028 – Oct 31, 2029: $1,102.50"),
   first_month_rent: f("First month's Base Rent", "lease", "$1,000.00"),
   annual_increase_percent: f("Yearly Base Rent increase (%)", "lease", "5"),

@@ -60,10 +60,11 @@ function observed(d: Date) {
 }
 
 /**
- * Court-observed holidays (Florida state courts follow the legal holidays in s. 110.117 plus the day after
- * Thanksgiving). The 3-day notice in 83.56(3) excludes Saturday, Sunday and court-observed holidays.
- * Juneteenth is included even where state courts stay open: an extra excluded day only gives the tenant
- * more time, which keeps the notice valid. The local chief judge can add days; confirm with the county clerk.
+ * Holidays the 3-day notice in 83.56(3) skips ("excluding Saturday, Sunday, and legal holidays"). The company
+ * counts the federal holidays (5 U.S.C. 6103), observed on the nearest weekday. The day after Thanksgiving is
+ * kept too: it is a Florida legal holiday (s. 110.117) and the clerks close, so dropping it could make the
+ * deadline a day short and the notice defective. Each extra excluded day only gives the tenant more time,
+ * which keeps the notice valid.
  */
 export function courtHolidays(year: number): Set<string> {
   const thanksgiving = nthWeekday(year, 10, 4, 4);
@@ -71,13 +72,15 @@ export function courtHolidays(year: number): Set<string> {
     [
       observed(new Date(Date.UTC(year, 0, 1))),
       nthWeekday(year, 0, 1, 3), // Martin Luther King Jr. Day
+      nthWeekday(year, 1, 1, 3), // Washington's Birthday
       lastWeekday(year, 4, 1), // Memorial Day
-      observed(new Date(Date.UTC(year, 5, 19))), // Juneteenth (federal courts; many clerks close)
+      observed(new Date(Date.UTC(year, 5, 19))), // Juneteenth
       observed(new Date(Date.UTC(year, 6, 4))),
       nthWeekday(year, 8, 1, 1), // Labor Day
+      nthWeekday(year, 9, 1, 2), // Columbus Day
       observed(new Date(Date.UTC(year, 10, 11))), // Veterans Day
       thanksgiving,
-      new Date(thanksgiving.getTime() + 86_400_000),
+      new Date(thanksgiving.getTime() + 86_400_000), // Day after Thanksgiving (Florida, s. 110.117)
       observed(new Date(Date.UTC(year, 11, 25))),
     ].map(iso),
   );
@@ -120,7 +123,7 @@ export const LETTERS: LetterTemplate[] = [
     group: "Florida notices",
     cite: "Fla. Stat. 83.56(3)",
     legal: true,
-    description: "Rent only (no late fees or other charges). The deadline skips weekends and court holidays.",
+    description: "Rent only (no late fees or other charges). The deadline skips weekends and federal holidays.",
     inputs: [
       { id: "amount", label: "Rent owed ($)", kind: "money", hint: "Rent only. Don't include late fees, utilities or other charges." },
       { id: "delivered", label: "Date it will be delivered", kind: "date" },

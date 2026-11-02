@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, Field, Input, Notice, Textarea } from "@/components/ui";
-import type { CommercialTerms } from "@/lib/commercial-terms";
+import { Button, Field, Input, Notice, Select, Textarea } from "@/components/ui";
+import { ESCALATION_CHOICES, RENEWAL_INCREASE_CHOICES, RENEWAL_TERM_CHOICES, withCurrent, type CommercialTerms } from "@/lib/commercial-terms";
 import { saveCommercialTerms, type FormState } from "./actions";
 
 const dollars = (c: number) => (c ? (c / 100).toFixed(2) : "");
@@ -22,7 +22,13 @@ export function CommercialTermsFields({ terms, values }: { terms: CommercialTerm
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Yearly rent increase (%)" hint="On each lease anniversary">
-          <Input name="annual_increase" inputMode="decimal" defaultValue={v("annual_increase", String(terms.annualIncreasePercent))} />
+          <Select name="annual_increase" defaultValue={v("annual_increase", String(terms.annualIncreasePercent))}>
+            {withCurrent(ESCALATION_CHOICES, terms.annualIncreasePercent).map((n) => (
+              <option key={n} value={n}>
+                {n === 0 ? "None (flat rent)" : `${n}% a year`}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label="CAM fee a month ($)" hint="Common area maintenance; 0 for none">
           <Input name="cam_monthly" inputMode="decimal" defaultValue={v("cam_monthly", dollars(terms.camMonthlyCents))} placeholder="0" />
@@ -35,12 +41,27 @@ export function CommercialTermsFields({ terms, values }: { terms: CommercialTerm
         <input type="checkbox" name="cam_fixed" defaultChecked={values ? values.cam_fixed === "on" : terms.camFixed} className="size-[18px] accent-[var(--color-accent)]" />
         CAM fee is fixed for the whole lease (otherwise the landlord can adjust it on 30 days&apos; notice)
       </label>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <Field label="Renewal terms offered" hint="0 for no renewal option">
           <Input name="renewal_options" inputMode="numeric" defaultValue={v("renewal_options", String(terms.renewalOptions))} />
         </Field>
-        <Field label="Each renewal (months)">
-          <Input name="renewal_term_months" inputMode="numeric" defaultValue={v("renewal_term_months", String(terms.renewalTermMonths))} />
+        <Field label="Each renewal">
+          <Select name="renewal_term_months" defaultValue={v("renewal_term_months", String(terms.renewalTermMonths))}>
+            {withCurrent(RENEWAL_TERM_CHOICES, terms.renewalTermMonths).map((n) => (
+              <option key={n} value={n}>
+                {n % 12 === 0 ? `${n / 12} year${n === 12 ? "" : "s"}` : `${n} months`}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Renewal rent increase" hint="Over the last rent of the prior term">
+          <Select name="renewal_increase" defaultValue={v("renewal_increase", String(terms.renewalIncreasePercent))}>
+            {withCurrent(RENEWAL_INCREASE_CHOICES, terms.renewalIncreasePercent).map((n) => (
+              <option key={n} value={n}>
+                {n}%
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label="Renewal notice (days before end)">
           <Input name="renewal_notice_days" inputMode="numeric" defaultValue={v("renewal_notice_days", String(terms.renewalNoticeDays))} />

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button, Card, CardHeader, Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import { PROPERTY_TYPE_LABEL } from "@/lib/format";
 import { MAX_OWNERS } from "@/lib/property-form";
-import { createProperty, saveLeaseSettings, saveUnit, updateProperty, type FormState } from "./actions";
+import { createProperty, fillLegalDescription, saveLeaseSettings, saveUnit, updateProperty, type FormState } from "./actions";
 import type { LeaseSettings } from "@/lib/property-lease-settings";
 
 type PropertyValues = {
@@ -358,6 +358,7 @@ export function LeaseSettingsForm({
 }) {
   const residential = mode !== "commercial";
   const [state, action, pending] = useActionState(saveLeaseSettings, empty);
+  const [fillState, fillAction, filling] = useActionState(fillLegalDescription, empty);
   const s = (k: keyof LeaseSettings) => (state.values?.[k] ?? String(settings[k] ?? "")) as string;
   const [leadKnown, setLeadKnown] = useState(s("leadKnown"));
   const [leadRecords, setLeadRecords] = useState(s("leadRecords"));
@@ -469,8 +470,15 @@ export function LeaseSettingsForm({
         )}
 
         {(mode !== "residential") && (
-          <Group title="Legal description of the land" hint="Exhibit A of the commercial lease. Copy it from the deed or the county property appraiser.">
-            <Textarea name="legalDescription" defaultValue={s("legalDescription")} placeholder="e.g. EUSTIS PB 1 PG 79 LOTS 5, 6, 7, 8 BLOCK 36" />
+          <Group title="Legal description of the land" hint="Exhibit A of the commercial lease. Filled in from the county property appraiser when the property is saved; the appraiser's version is abbreviated, so check it against the deed.">
+            {fillState.error && <Notice tone="danger">{fillState.error}</Notice>}
+            {fillState.message && <Notice tone="success">{fillState.message}</Notice>}
+            <Textarea key={settings.legalDescription} name="legalDescription" defaultValue={s("legalDescription")} placeholder="e.g. EUSTIS PB 1 PG 79 LOTS 5, 6, 7, 8 BLOCK 36" />
+            <div className="mt-2">
+              <Button type="submit" variant="secondary" formAction={fillAction} disabled={filling}>
+                {filling ? "Looking it up…" : "Fill from county records"}
+              </Button>
+            </div>
           </Group>
         )}
         {mode === "residential" && <input type="hidden" name="legalDescription" value={s("legalDescription")} />}

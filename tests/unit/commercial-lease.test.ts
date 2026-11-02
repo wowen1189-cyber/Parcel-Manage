@@ -66,7 +66,8 @@ describe("filling the commercial lease", () => {
     expect(values.late_after_day).toBe("6th");
     expect(values.repair_threshold).toBe("$750.00");
     expect(values.legal_description).toBe("Lot 1, Block 1");
-    expect(values.renewal_summary).toMatch(/^one \(1\) renewal term of 36 months; written notice at least 90 days/);
+    expect(values.renewal_summary).toMatch(/^one \(1\) renewal term of 12 months at a 5% higher Base Rent; written notice at least 90 days/);
+    expect(values.renewal_clause).toContain("increased by 5%");
     expect(conditions.has("has_guarantor")).toBe(true);
     expect(parties.guarantors).toEqual(["Casey Sample"]);
   });

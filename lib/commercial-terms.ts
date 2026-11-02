@@ -15,6 +15,8 @@ export const commercialTermsSchema = z.object({
   renewalOptions: z.coerce.number().int().min(0).max(5),
   renewalTermMonths: z.coerce.number().int().min(1).max(120),
   renewalNoticeDays: z.coerce.number().int().min(0).max(365),
+  // Base Rent for a renewal term: the last rent of the prior term, increased by this percent.
+  renewalIncreasePercent: z.coerce.number().min(0).max(25),
   camMonthlyCents: cents,
   camFixed: z.boolean(),
   utilitiesMonthlyCents: cents,
@@ -34,8 +36,9 @@ export const DEFAULT_COMMERCIAL_TERMS: CommercialTerms = {
   permittedUse: "",
   annualIncreasePercent: 5,
   renewalOptions: 1,
-  renewalTermMonths: 36,
+  renewalTermMonths: 12,
   renewalNoticeDays: 90,
+  renewalIncreasePercent: 5,
   camMonthlyCents: 0,
   camFixed: true,
   utilitiesMonthlyCents: 0,
@@ -50,6 +53,18 @@ export const DEFAULT_COMMERCIAL_TERMS: CommercialTerms = {
 
 /** Commercial leases run longer than residential ones; Florida sets no maximum. */
 export const COMMERCIAL_TERM_MONTHS = { min: 1, max: 120, default: 36 };
+
+// The choices SIM REI offers (a company setting later): 3- to 5-year terms with 0%, 3% or 5% yearly
+// increases, renewed for 1 or 2 years at an increased rent. A lease saved with another value keeps it.
+export const COMMERCIAL_TERM_CHOICES = [36, 48, 60];
+export const ESCALATION_CHOICES = [0, 3, 5];
+export const RENEWAL_TERM_CHOICES = [12, 24];
+export const RENEWAL_INCREASE_CHOICES = [3, 5];
+
+/** The choices, plus the current value when a lease already has a different one. */
+export function withCurrent(choices: number[], current: number): number[] {
+  return choices.includes(current) ? choices : [...choices, current].sort((a, b) => a - b);
+}
 
 export function readCommercialTerms(stored: unknown): CommercialTerms {
   const parsed = commercialTermsSchema.safeParse({ ...DEFAULT_COMMERCIAL_TERMS, ...(stored && typeof stored === "object" ? stored : {}) });
@@ -112,6 +127,7 @@ export function commercialTermsFromForm(raw: Record<string, FormDataEntryValue>,
     renewalOptions: num("renewal_options", base.renewalOptions),
     renewalTermMonths: num("renewal_term_months", base.renewalTermMonths),
     renewalNoticeDays: num("renewal_notice_days", base.renewalNoticeDays),
+    renewalIncreasePercent: num("renewal_increase", base.renewalIncreasePercent),
     camMonthlyCents: money("cam_monthly", base.camMonthlyCents),
     camFixed: "cam_fixed" in raw || "cam_monthly" in raw ? raw.cam_fixed === "on" : base.camFixed,
     utilitiesMonthlyCents: money("utilities_monthly", base.utilitiesMonthlyCents),
@@ -134,6 +150,7 @@ export function commercialTermsFromForm(raw: Record<string, FormDataEntryValue>,
       renewalOptions: "Renewal terms must be between 0 and 5.",
       renewalTermMonths: "Each renewal term must be 1 to 120 months.",
       renewalNoticeDays: "Renewal notice must be 0 to 365 days.",
+      renewalIncreasePercent: "The renewal increase must be between 0% and 25%.",
       warrantyDays: "The warranty period must be 0 to 365 days.",
     };
     return { error: label[field] ?? "Check the commercial terms." };

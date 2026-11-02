@@ -17,6 +17,14 @@ describe("3-day notice deadline (83.56(3))", () => {
     expect(h.has("2027-11-25")).toBe(true); // Thanksgiving
     expect(h.has("2027-12-24")).toBe(true); // Christmas observed (Christmas is a Saturday)
   });
+  it("counts every federal holiday", () => {
+    const h = courtHolidays(2027);
+    expect(h.has("2027-02-15")).toBe(true); // Washington's Birthday
+    expect(h.has("2027-06-18")).toBe(true); // Juneteenth observed (June 19 is a Saturday)
+    expect(h.has("2027-10-11")).toBe(true); // Columbus Day
+    expect(h.size).toBe(12); // 11 federal holidays plus the day after Thanksgiving
+    expect(threeDayDeadline("2027-10-08")).toBe("2027-10-14"); // Fri → Tue, Wed, Thu (Mon is Columbus Day)
+  });
 });
 
 describe("month-to-month ending (83.57(3))", () => {

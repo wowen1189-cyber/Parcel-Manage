@@ -170,10 +170,10 @@ export function fillCommercialLease(
     lease_end_date: l.end_date ? date(l.end_date) : "",
     lease_term_months: months ? String(months) : "",
     renewal_summary: terms.renewalOptions
-      ? `${renewalTerms} of ${terms.renewalTermMonths} months; written notice at least ${terms.renewalNoticeDays} days before the Expiration Date`
+      ? `${renewalTerms} of ${terms.renewalTermMonths} months at a ${terms.renewalIncreasePercent}% higher Base Rent; written notice at least ${terms.renewalNoticeDays} days before the Expiration Date`
       : "None",
     renewal_clause: terms.renewalOptions
-      ? `Tenant has the option to renew this Lease for ${renewalTerms} of ${terms.renewalTermMonths} months each by giving Landlord written notice at least ${terms.renewalNoticeDays} days before the Expiration Date (or the end of the then-current renewal term).`
+      ? `Tenant has the option to renew this Lease for ${renewalTerms} of ${terms.renewalTermMonths} months each by giving Landlord written notice at least ${terms.renewalNoticeDays} days before the Expiration Date (or the end of the then-current renewal term). Base Rent for each renewal term is the monthly Base Rent in effect on the last day of the prior term, increased by ${terms.renewalIncreasePercent}%${terms.annualIncreasePercent ? `, and then increases by ${terms.annualIncreasePercent}% on each anniversary of the renewal term's start` : ""}.`
       : "Tenant has no option to renew; any renewal must be agreed in writing.",
     rent_schedule: schedule.map((r) => `${shortDate(r.from)} – ${shortDate(r.to)}: ${money(r.monthlyCents)}`).join("; ") || money(l.rent_cents),
     first_month_rent: money(l.rent_cents),

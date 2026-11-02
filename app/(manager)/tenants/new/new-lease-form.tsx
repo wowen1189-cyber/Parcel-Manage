@@ -5,7 +5,7 @@ import { Button, Card, CardHeader, Field, Input, Notice, Pill, Select } from "@/
 import type { BusinessRules } from "@/lib/business-rules";
 import { date, money } from "@/lib/format";
 import { countExpirations, recommendTerms, type LeaseEnd } from "@/lib/lease-expirations";
-import { COMMERCIAL_TERM_MONTHS, DEFAULT_COMMERCIAL_TERMS } from "@/lib/commercial-terms";
+import { COMMERCIAL_TERM_CHOICES, COMMERCIAL_TERM_MONTHS, DEFAULT_COMMERCIAL_TERMS } from "@/lib/commercial-terms";
 import { createLease, type FormState } from "../actions";
 import { CommercialTermsFields } from "../commercial-terms";
 
@@ -53,7 +53,10 @@ export function NewLeaseForm({
   const best = options.find((o) => o.recommended);
   const [pickedMonths, setMonths] = useState<number | null>(state.values?.months ? Number(state.values.months) : null);
   const commercial = unit?.kind === "commercial";
-  const [commercialMonths, setCommercialMonths] = useState(Number(v("months", String(COMMERCIAL_TERM_MONTHS.default))));
+  const [commercialMonths, setCommercialMonths] = useState(() => {
+    const m = Number(v("months", ""));
+    return COMMERCIAL_TERM_CHOICES.includes(m) ? m : COMMERCIAL_TERM_MONTHS.default;
+  });
   const months = commercial ? commercialMonths : (pickedMonths ?? best?.months ?? 12);
   const chosen = options.find((o) => o.months === months);
   const [rent, setRent] = useState(v("rent", unit?.marketRentCents ? (unit.marketRentCents / 100).toFixed(2) : ""));
@@ -115,8 +118,14 @@ export function NewLeaseForm({
         <Card>
           <CardHeader title="Lease length" description="Commercial leases commonly run 3 to 5 years." />
           <div className="grid gap-4 p-5 sm:grid-cols-3">
-            <Field label="Initial term (months)" hint={`${COMMERCIAL_TERM_MONTHS.min} to ${COMMERCIAL_TERM_MONTHS.max} months`}>
-              <Input name="months" inputMode="numeric" value={String(commercialMonths || "")} onChange={(e) => setCommercialMonths(Number(e.target.value.replace(/\D/g, "")) || 0)} />
+            <Field label="Initial term">
+              <Select name="months" value={String(commercialMonths)} onChange={(e) => setCommercialMonths(Number(e.target.value))}>
+                {COMMERCIAL_TERM_CHOICES.map((n) => (
+                  <option key={n} value={n}>
+                    {n / 12} years
+                  </option>
+                ))}
+              </Select>
             </Field>
           </div>
         </Card>
