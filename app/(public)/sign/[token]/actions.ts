@@ -14,7 +14,7 @@ async function findSigner(token: string) {
   const subdomain = await getRequestSubdomain();
   const { data: s } = await db
     .from("signature_signer")
-    .select("id, company_id, request_id, name, status, signature_request!inner(id, status, company(id, name, legal_name, subdomain, office_email, office_phone, time_zone))")
+    .select("id, company_id, request_id, name, status, signature_request!inner(id, status, management_agreement_id, company(id, name, legal_name, subdomain, office_email, office_phone, time_zone))")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
   if (!s || s.signature_request.status !== "sent" || s.signature_request.company.subdomain !== subdomain || s.status === "signed" || s.status === "declined") return null;
@@ -24,19 +24,20 @@ async function findSigner(token: string) {
 /** Sign: consent, typed name and initials, recorded with time, IP address and device. */
 export async function sign(_: SignState, form: FormData): Promise<SignState> {
   const p = z
-    .object({ token: z.string().min(20), consent: z.literal("on", { message: "Check the box to agree to sign electronically." }), typed: z.string().trim().min(2, "Type your full name to sign.").max(120), initials: z.string().trim().min(1, "Type your initials.").max(6) })
+    .object({ token: z.string().min(20), consent: z.literal("on", { message: "Check the box to agree to sign electronically." }), typed: z.string().trim().min(2, "Type your full name to sign.").max(120), initials: z.string().trim().max(6).optional() })
     .safeParse(Object.fromEntries(form));
   if (!p.success) return { error: p.error.issues[0].message };
   const found = await findSigner(p.data.token);
   if (!found) return { error: "This link no longer works. Contact the office." };
   const { db, s } = found;
+  if (!s.signature_request.management_agreement_id && !p.data.initials) return { error: "Type your initials." };
   const norm = (x: string) => x.toLowerCase().replace(/[^a-z]/g, "");
-  if (norm(p.data.typed) !== norm(s.name)) return { error: `Type your name exactly as it appears on the lease: ${s.name}.` };
+  if (norm(p.data.typed) !== norm(s.name)) return { error: `Type your name exactly as it appears on the document: ${s.name}.` };
   const h = await headers();
   const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? null;
   const ua = h.get("user-agent");
   const now = new Date().toISOString();
-  await db.from("signature_signer").update({ status: "signed", consented_at: now, signed_at: now, typed_signature: p.data.typed, initials: p.data.initials, ip, user_agent: ua, token_hash: null }).eq("id", s.id);
+  await db.from("signature_signer").update({ status: "signed", consented_at: now, signed_at: now, typed_signature: p.data.typed, initials: p.data.initials || null, ip, user_agent: ua, token_hash: null }).eq("id", s.id);
   await db.from("signature_event").insert([
     { company_id: s.company_id, request_id: s.request_id, signer_id: s.id, kind: "consented", ip, user_agent: ua },
     { company_id: s.company_id, request_id: s.request_id, signer_id: s.id, kind: "signed", ip, user_agent: ua },

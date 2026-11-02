@@ -30,6 +30,7 @@ type CompanyValues = {
   address: string | null;
   default_county: string | null;
   time_zone: string;
+  broker_license: string | null;
 };
 
 const TIME_ZONES = ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu"];
@@ -63,6 +64,9 @@ export function CompanyProfileForm({ company, canEdit, webAddress }: { company: 
           </Field>
           <Field label="Default county" hint="Used on notices.">
             <Input name="default_county" defaultValue={v("default_county")} />
+          </Field>
+          <Field label="Florida broker license number" hint="Printed on management agreements.">
+            <Input name="broker_license" defaultValue={v("broker_license")} placeholder="e.g. CQ1234567" />
           </Field>
           <Field label="Time zone">
             <Select name="time_zone" defaultValue={v("time_zone")}>

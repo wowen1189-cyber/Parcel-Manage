@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardHeader, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { bedBath, contactName, date, money, oneLineAddress, PROPERTY_TYPE_LABEL, UNIT_STATUS } from "@/lib/format";
+import { AGREEMENT_STATUS } from "@/lib/management-agreement";
 import { requireCompany } from "@/lib/session";
 import { LeaseSettingsForm, PropertyForm, UnitForm } from "../forms";
 import { allowsRepairDeductible, missingLeaseSettings, readLeaseSettings } from "@/lib/property-lease-settings";
@@ -34,6 +35,9 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
     supabase.from("entity").select("id, name").eq("company_id", company.id).order("name"),
   ]);
   if (!p) notFound();
+  // The owner's agreement that covers this property (signed first, else the newest not ended).
+  const { data: agreements } = await supabase.from("management_agreement").select("id, status, end_date, property_ids").eq("company_id", company.id).eq("entity_id", p.entity_id).contains("property_ids", [p.id]).order("created_at", { ascending: false });
+  const agreement = agreements?.find((x) => x.status === "signed") ?? agreements?.find((x) => x.status !== "ended") ?? null;
 
   const units = [...(p.unit ?? [])].sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
   const current = (u: (typeof units)[number]) => (u.lease ?? []).find((l) => l.status === "active" || l.status === "notice");
@@ -69,6 +73,17 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
         <StatTile label="Owed by tenants" value={money(owed)} note="Current ledger balances" />
         <StatTile label="Owner" value={p.entity ? <Link href={`/owners/${p.entity.id}`} className="text-lg hover:underline">{p.entity.name === UNASSIGNED_OWNER ? "Not set yet" : p.entity.name}</Link> : "—"} note={p.property_owner.map((o) => `${contactName(o.contact)} ${Number(o.ownership_pct)}%`).join(" · ") || "Ownership split not set"} />
       </div>
+
+      <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+        <span>
+          <span className="font-semibold">Management agreement</span>{" "}
+          {agreement ? <Pill tone={AGREEMENT_STATUS[agreement.status].tone}>{AGREEMENT_STATUS[agreement.status].label}</Pill> : <Pill tone="warn">None</Pill>}
+          <span className="block text-[13px] text-subtle">{agreement ? `With the owner, through ${date(agreement.end_date)}` : "No agreement with the owner covers this property yet."}</span>
+        </span>
+        <Link href={agreement ? `/management-agreements/${agreement.id}` : p.entity ? `/owners/${p.entity.id}` : "/management-agreements"} className="min-h-11 rounded-[var(--radius-control)] border border-line-strong px-4 py-2.5 text-sm font-semibold">
+          {agreement ? "Open agreement" : "Set one up"}
+        </Link>
+      </Card>
 
       {sp.added && (
         <div className="mt-6">

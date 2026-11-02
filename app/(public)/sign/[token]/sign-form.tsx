@@ -6,7 +6,7 @@ import { decline, sign, type SignState } from "./actions";
 
 const empty: SignState = {};
 
-export function SignForm({ token, name, consentText }: { token: string; name: string; consentText: string }) {
+export function SignForm({ token, name, consentText, initials = true }: { token: string; name: string; consentText: string; initials?: boolean }) {
   const [state, action, pending] = useActionState(sign, empty);
   const [d, declineAction, declining] = useActionState(decline, empty);
   const [showDecline, setShowDecline] = useState(false);
@@ -25,13 +25,15 @@ export function SignForm({ token, name, consentText }: { token: string; name: st
           <input type="checkbox" name="consent" className="mt-1 size-5 shrink-0 accent-[var(--color-accent)]" />
           <span>{consentText}</span>
         </label>
-        <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-          <Field label="Type your full name to sign" hint={`Exactly as on the lease: ${name}`}>
+        <div className={initials ? "grid gap-3 sm:grid-cols-[1fr_140px]" : "grid gap-3"}>
+          <Field label="Type your full name to sign" hint={`Exactly as on the document: ${name}`}>
             <Input name="typed" autoComplete="name" className="font-serif text-[18px] italic" />
           </Field>
-          <Field label="Your initials" hint="Applied to every initials line">
-            <Input name="initials" maxLength={6} className="font-serif text-[18px] italic" />
-          </Field>
+          {initials && (
+            <Field label="Your initials" hint="Applied to every initials line">
+              <Input name="initials" maxLength={6} className="font-serif text-[18px] italic" />
+            </Field>
+          )}
         </div>
         <Button type="submit" disabled={pending}>
           {pending ? "Signing…" : "Sign"}

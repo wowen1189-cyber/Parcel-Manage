@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardHeader, EmptyState, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
-import { money } from "@/lib/format";
+import { date, money } from "@/lib/format";
+import { AGREEMENT_STATUS } from "@/lib/management-agreement";
 import { describeFee, effectiveFee, FEE_SOURCE_LABEL, readCompanyFee } from "@/lib/management-fees";
 import { getOwner, UNASSIGNED_OWNER } from "@/lib/owners";
 import { requireCompany } from "@/lib/session";
+import { createAgreement } from "../../management-agreements/actions";
 import { DeleteOwnerForm, FeeForm, MovePropertiesForm, OwnerForm } from "../forms";
 
 export async function generateMetadata({ params }: PageProps<"/owners/[id]">) {
@@ -20,9 +22,10 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
   const sp = await searchParams;
   const { supabase, company, membership } = await requireCompany();
   const companyFee = readCompanyFee(company.settings);
-  const [owner, { data: others }] = await Promise.all([
+  const [owner, { data: others }, { data: agreements }] = await Promise.all([
     getOwner(supabase, company.id, id, companyFee),
     supabase.from("property").select("id, name, entity(id, name)").eq("company_id", company.id).neq("entity_id", id).order("name"),
+    supabase.from("management_agreement").select("id, status, start_date, end_date").eq("company_id", company.id).eq("entity_id", id).order("created_at", { ascending: false }),
   ]);
   if (!owner) notFound();
 
@@ -145,8 +148,36 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
         </Card>
       )}
       {!unassigned && (
+        <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+          {(() => {
+            const current = agreements?.find((x) => x.status === "signed") ?? agreements?.find((x) => x.status !== "ended");
+            return (
+              <>
+                <span>
+                  <span className="font-semibold">Signed management agreement</span>{" "}
+                  {current ? <Pill tone={AGREEMENT_STATUS[current.status].tone}>{AGREEMENT_STATUS[current.status].label}</Pill> : <Pill tone="warn">None</Pill>}
+                  <span className="block text-[13px] text-subtle">{current ? `${date(current.start_date)} – ${date(current.end_date)}` : "Prepare it from this owner's fees and send it for e-signature."}</span>
+                </span>
+                {current ? (
+                  <Link href={`/management-agreements/${current.id}`} className="min-h-11 rounded-[var(--radius-control)] border border-line-strong px-4 py-2.5 text-sm font-semibold">
+                    Open agreement
+                  </Link>
+                ) : canEdit ? (
+                  <form action={createAgreement}>
+                    <input type="hidden" name="entity_id" value={owner.id} />
+                    <button type="submit" className="min-h-11 rounded-[var(--radius-control)] bg-accent px-4 py-2.5 text-sm font-semibold text-white">
+                      Start agreement
+                    </button>
+                  </form>
+                ) : null}
+              </>
+            );
+          })()}
+        </Card>
+      )}
+      {!unassigned && (
         <Card className="mt-6">
-          <CardHeader title="Management agreement" description="The management, leasing and renewal fees you charge this owner. Every property they own uses them unless that property has its own." />
+          <CardHeader title="Fees" description="The management, leasing and renewal fees you charge this owner. Every property they own uses them unless that property has its own." />
           <FeeForm scope="owner" targetId={owner.id} fee={agreement.fee} custom={agreement.source === "owner"} inheritLabel={`Use the company default (${describeFee(companyFee)})`} canEdit={canEdit} />
         </Card>
       )}

@@ -46,11 +46,15 @@ export async function updateCompanyProfile(_: SettingsState, form: FormData): Pr
       address: optional(200),
       default_county: optional(60),
       time_zone: z.string().min(1),
+      broker_license: optional(30),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message, values: typed(form) };
 
-  const { error } = await supabase.from("company").update(parsed.data).eq("id", company.id);
+  // The broker license lives in settings (printed on management agreements).
+  const { broker_license, ...fields } = parsed.data;
+  const settings = { ...((company.settings as Record<string, unknown>) ?? {}), brokerLicense: broker_license };
+  const { error } = await supabase.from("company").update({ ...fields, settings }).eq("id", company.id);
   if (error) return { error: error.message, values: typed(form) };
   revalidatePath("/", "layout");
   return { message: "Saved." };

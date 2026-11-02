@@ -6,7 +6,7 @@ import type { Block, Condition, DocumentTemplate, Party, PartyNames } from "@/li
 
 export type { PartyNames };
 
-const PARTY_LABEL: Record<Party, string> = { tenants: "Tenant", guarantors: "Co-signer (guarantor)", landlord: "Landlord", agent: "Agent" };
+const PARTY_LABEL: Record<Party, string> = { tenants: "Tenant", guarantors: "Co-signer (guarantor)", landlord: "Landlord", agent: "Agent", owner: "Owner" };
 
 function applies(when: Condition[] | undefined, conditions: Set<Condition>) {
   return !when || when.every((c) => conditions.has(c));

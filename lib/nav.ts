@@ -24,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: "maintenance", label: "Maintenance", phase: 1, description: "Work orders from request to completed invoice." },
   { slug: "inspections", label: "Inspections & deposits", phase: 2, description: "Move-in and move-out inspections and deposit returns." },
   { slug: "owners", label: "Owners", phase: 0, description: "Who owns each property, their management agreement and fees." },
+  { slug: "management-agreements", label: "Management agreements", phase: 1, description: "Prepare each owner's agreement and send it for e-signature." },
   { slug: "e-sign", label: "E-sign", phase: 2, description: "Send anything for signature, with a full audit trail." },
   { slug: "settings", label: "Settings & team", phase: 0, description: "Company profile, business rules and your team." },
   { slug: "vendors", label: "Vendors", phase: 1, description: "Vendor directory with W-9 and insurance tracking." },
@@ -37,7 +38,7 @@ export type NavGroup = { id: string; label: string; items: string[] };
 export const NAV_GROUPS: NavGroup[] = [
   { id: "home", label: "Dashboard", items: ["dashboard"] },
   { id: "leasing", label: "Leasing", items: ["tenants", "leasing", "expirations", "lease-template", "leasing-agent", "e-sign"] },
-  { id: "portfolio", label: "Properties", items: ["properties", "owners", "vendors"] },
+  { id: "portfolio", label: "Properties", items: ["properties", "owners", "management-agreements", "vendors"] },
   { id: "maintenance", label: "Maintenance", items: ["maintenance", "inspections"] },
   { id: "money", label: "Accounting", items: ["accounting", "bills", "recurring-bills", "journal-entries", "bank-accounts"] },
   { id: "insights", label: "Reports", items: ["reports", "metrics"] },

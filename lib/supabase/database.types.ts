@@ -1062,10 +1062,12 @@ export type Database = {
           company_id: string
           contact_id: string | null
           created_at: string
+          entity_id: string | null
           expires_on: string | null
           file_name: string
           id: string
           lease_id: string | null
+          management_agreement_id: string | null
           property_id: string | null
           source: string | null
           storage_path: string
@@ -1079,10 +1081,12 @@ export type Database = {
           company_id: string
           contact_id?: string | null
           created_at?: string
+          entity_id?: string | null
           expires_on?: string | null
           file_name: string
           id?: string
           lease_id?: string | null
+          management_agreement_id?: string | null
           property_id?: string | null
           source?: string | null
           storage_path: string
@@ -1096,10 +1100,12 @@ export type Database = {
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          entity_id?: string | null
           expires_on?: string | null
           file_name?: string
           id?: string
           lease_id?: string | null
+          management_agreement_id?: string | null
           property_id?: string | null
           source?: string | null
           storage_path?: string
@@ -1130,10 +1136,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "document_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "document_lease_id_fkey"
             columns: ["lease_id"]
             isOneToOne: false
             referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_management_agreement_id_fkey"
+            columns: ["management_agreement_id"]
+            isOneToOne: false
+            referencedRelation: "management_agreement"
             referencedColumns: ["id"]
           },
           {
@@ -1818,6 +1838,85 @@ export type Database = {
             columns: ["unit_id"]
             isOneToOne: true
             referencedRelation: "unit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      management_agreement: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          end_date: string
+          ended_on: string | null
+          entity_id: string
+          id: string
+          owner_signer_email: string | null
+          owner_signer_name: string | null
+          owner_signer_title: string | null
+          property_ids: string[]
+          signed_at: string | null
+          start_date: string
+          status: string
+          terms: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          ended_on?: string | null
+          entity_id: string
+          id?: string
+          owner_signer_email?: string | null
+          owner_signer_name?: string | null
+          owner_signer_title?: string | null
+          property_ids?: string[]
+          signed_at?: string | null
+          start_date: string
+          status?: string
+          terms?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          ended_on?: string | null
+          entity_id?: string
+          id?: string
+          owner_signer_email?: string | null
+          owner_signer_name?: string | null
+          owner_signer_title?: string | null
+          property_ids?: string[]
+          signed_at?: string | null
+          start_date?: string
+          status?: string
+          terms?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_agreement_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_agreement_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_agreement_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
             referencedColumns: ["id"]
           },
         ]
@@ -3111,6 +3210,7 @@ export type Database = {
           created_by: string | null
           id: string
           lease_id: string | null
+          management_agreement_id: string | null
           signed_document_id: string | null
           snapshot: Json
           snapshot_sha256: string
@@ -3124,6 +3224,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           lease_id?: string | null
+          management_agreement_id?: string | null
           signed_document_id?: string | null
           snapshot: Json
           snapshot_sha256: string
@@ -3137,6 +3238,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           lease_id?: string | null
+          management_agreement_id?: string | null
           signed_document_id?: string | null
           snapshot?: Json
           snapshot_sha256?: string
@@ -3163,6 +3265,13 @@ export type Database = {
             columns: ["lease_id"]
             isOneToOne: false
             referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_request_management_agreement_id_fkey"
+            columns: ["management_agreement_id"]
+            isOneToOne: false
+            referencedRelation: "management_agreement"
             referencedColumns: ["id"]
           },
           {

@@ -4,7 +4,7 @@
 // Text may contain merge fields written {{field_name}} (see TemplateField) and **bold** spans.
 // Nothing else is markup: no HTML.
 
-export type Party = "tenants" | "guarantors" | "landlord" | "agent";
+export type Party = "tenants" | "guarantors" | "landlord" | "agent" | "owner";
 
 export type Block =
   | { kind: "p"; text: string }
@@ -55,7 +55,13 @@ export type Condition =
   /** Property setting: the home has an irrigation system. */
   | "irrigation"
   /** The lease runs longer than 12 months. */
-  | "long_term";
+  | "long_term"
+  /** Management agreement: powers the owner grants, and whether the term renews on its own. */
+  | "pma_leasing"
+  | "pma_evictions"
+  | "pma_contractors"
+  | "pma_disbursements"
+  | "pma_auto_renew";
 
 export type Clause = { id: string; number?: string; title?: string; blocks: Block[]; changes?: Change[]; when?: Condition[] };
 

@@ -10,7 +10,8 @@ import { companyUrl } from "@/lib/tenant";
 import { newToken } from "@/lib/vendor-requests";
 
 // E-signature (ch. 668, Florida Electronic Signature Act and UETA; federal E-SIGN): frozen documents,
-// signers in order, consent, typed signatures, a full audit trail, and a signed PDF filed on the lease.
+// signers in order, consent, typed signatures, a full audit trail, and a signed PDF filed on the lease (or,
+// for a management agreement, on the owner).
 
 export const CONSENT_TEXT =
   "I agree to sign these documents electronically. My typed name is my signature and has the same effect as a handwritten signature (Florida Electronic Signature Act, chapter 668, Florida Statutes; federal E-SIGN Act). I can ask for a paper copy at no cost, and I can withdraw this consent by contacting the sender before I sign.";
@@ -45,7 +46,7 @@ export async function inviteNextSigner(company: Company, requestId: string): Pro
 /** Everyone signed: build the signed PDF with its certificate, file it, and send everyone a copy. */
 export async function completeRequest(company: Company & { legal_name?: string | null; time_zone: string }, requestId: string) {
   const db = createAdminClient();
-  const { data: req } = await db.from("signature_request").select("id, lease_id, title, snapshot, snapshot_sha256, created_at, signature_signer(name, email, role, signed_at, typed_signature, initials, ip, user_agent, consented_at, sign_order)").eq("id", requestId).single();
+  const { data: req } = await db.from("signature_request").select("id, lease_id, management_agreement_id, title, snapshot, snapshot_sha256, created_at, signature_signer(name, email, role, signed_at, typed_signature, initials, ip, user_agent, consented_at, sign_order)").eq("id", requestId).single();
   if (!req) return;
   const tz = company.time_zone;
   const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-US", { timeZone: tz, dateStyle: "medium", timeStyle: "long" }) : "");
@@ -58,7 +59,7 @@ export async function completeRequest(company: Company & { legal_name?: string |
       `Document fingerprint (SHA-256 of the frozen text): ${req.snapshot_sha256}`,
       "",
       ...signers.flatMap((s) => [
-        `${s.role === "agent" ? "Landlord's agent" : s.role === "guarantor" ? "Guarantor" : "Tenant"}: ${s.name} <${s.email}>`,
+        `${s.role === "agent" ? (req.management_agreement_id ? "Agent (broker)" : "Landlord's agent") : s.role === "owner" ? "Owner" : s.role === "guarantor" ? "Guarantor" : "Tenant"}: ${s.name} <${s.email}>`,
         `  Consented to sign electronically: ${when(s.consented_at)}`,
         `  Signed: ${when(s.signed_at)} as "${s.typed_signature}"${s.initials ? `, initials "${s.initials}" on every page with initials` : ""}`,
         `  From: ${s.ip ?? "unknown"} · ${s.user_agent?.slice(0, 120) ?? ""}`,
@@ -69,9 +70,18 @@ export async function completeRequest(company: Company & { legal_name?: string |
   });
   const path = `${company.id}/signed/${req.id}.pdf`;
   await db.storage.from("documents").upload(path, pdf, { contentType: "application/pdf", upsert: true });
-  const { data: doc } = await db.from("document").insert({ company_id: company.id, lease_id: req.lease_id, storage_path: path, file_name: `${req.title} (signed).pdf`, category: "lease", source: "e-sign" }).select("id").single();
+  const agreement = req.management_agreement_id
+    ? (await db.from("management_agreement").select("id, entity_id").eq("id", req.management_agreement_id).single()).data
+    : null;
+  const { data: doc } = await db
+    .from("document")
+    .insert({ company_id: company.id, lease_id: req.lease_id, entity_id: agreement?.entity_id ?? null, management_agreement_id: agreement?.id ?? null, storage_path: path, file_name: `${req.title} (signed).pdf`, category: agreement ? "agreement" : "lease", source: "e-sign" })
+    .select("id")
+    .single();
   await db.from("signature_request").update({ status: "completed", completed_at: new Date().toISOString(), signed_document_id: doc?.id ?? null }).eq("id", req.id);
   await db.from("signature_event").insert({ company_id: company.id, request_id: req.id, kind: "completed" });
+  // A management agreement is in force once both sides sign.
+  if (agreement) await db.from("management_agreement").update({ status: "signed", signed_at: new Date().toISOString() }).eq("id", agreement.id);
   // A draft lease becomes active once signed; the unit is occupied once the lease has started.
   if (req.lease_id) {
     const { data: lease } = await db.from("lease").select("id, status, start_date, unit_id").eq("id", req.lease_id).single();
