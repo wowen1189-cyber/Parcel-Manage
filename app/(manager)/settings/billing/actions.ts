@@ -5,11 +5,12 @@ import { z } from "zod";
 import { runBilling } from "@/lib/billing-run";
 import { todayIn } from "@/lib/format";
 import { isAdmin, requireCompany } from "@/lib/session";
+import { CUTOVER_CREDIT_REF, CUTOVER_CREDIT_REFS, CUTOVER_DEPOSIT_REF, previousSoftware } from "@/lib/switch-over";
 
 export type BillingState = { error?: string; message?: string };
 const ADMIN_ONLY = "Only an admin can change billing.";
 
-/** Turn automatic billing on from a month (the AppFolio cutover), or off. */
+/** Turn automatic billing on from a month (the cutover from the old software), or off. */
 export async function saveBillingStart(_: BillingState, form: FormData): Promise<BillingState> {
   const { supabase, company, membership } = await requireCompany();
   if (!isAdmin(membership)) return { error: ADMIN_ONLY };
@@ -35,8 +36,8 @@ export async function runBillingNow(): Promise<BillingState> {
 }
 
 /**
- * Cutover: bring AppFolio's tenant balances (and, optionally, security deposits held) onto the books as of
- * the cutover date, so ledgers continue from where AppFolio left off. Each lease only once.
+ * Cutover: bring the old software's tenant balances (and, optionally, security deposits held) onto the books as of
+ * the cutover date, so ledgers continue from where it left off. Each lease only once.
  */
 export async function postOpeningBalances(_: BillingState, form: FormData): Promise<BillingState> {
   const { supabase, company, membership } = await requireCompany();
@@ -44,6 +45,7 @@ export async function postOpeningBalances(_: BillingState, form: FormData): Prom
   const parsed = z.object({ as_of: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the cutover date."), deposits: z.literal("on").optional() }).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const asOf = parsed.data.as_of;
+  const from = previousSoftware(company.settings) ?? "previous software";
   const { data: leases, error } = await supabase
     .from("lease")
     .select("id, deposit_cents, opening_balance_cents, unit(id, property(id, entity_id)), charge(charge_type), payment(purpose, reference)")
@@ -56,9 +58,9 @@ export async function postOpeningBalances(_: BillingState, form: FormData): Prom
   const failed: string[] = [];
   for (const l of leases ?? []) {
     const bal = l.opening_balance_cents ?? 0;
-    const already = l.charge.some((c) => c.charge_type === "opening_balance") || l.payment.some((p) => p.reference === "Credit from AppFolio");
+    const already = l.charge.some((c) => c.charge_type === "opening_balance") || l.payment.some((p) => CUTOVER_CREDIT_REFS.includes(p.reference ?? ""));
     if (bal > 0 && !already) {
-      const { error: e } = await supabase.rpc("post_charge", { p_lease: l.id, p_type: "opening_balance", p_description: "Balance from AppFolio", p_amount: bal, p_due: asOf });
+      const { error: e } = await supabase.rpc("post_charge", { p_lease: l.id, p_type: "opening_balance", p_description: `Balance from ${from}`, p_amount: bal, p_due: asOf });
       if (e) failed.push(e.message);
       else balances++;
     } else if (bal < 0 && !already) {
@@ -67,7 +69,7 @@ export async function postOpeningBalances(_: BillingState, form: FormData): Prom
         p_company: company.id,
         p_entity: l.unit.property.entity_id,
         p_date: asOf,
-        p_memo: "Credit from AppFolio",
+        p_memo: `Credit from ${from}`,
         p_source: "opening",
         p_lines: [
           { account: "3900", debit: -bal, property_id: l.unit.property.id, unit_id: l.unit.id },
@@ -76,12 +78,12 @@ export async function postOpeningBalances(_: BillingState, form: FormData): Prom
       });
       if (e) failed.push(e.message);
       else {
-        await supabase.from("payment").insert({ company_id: company.id, lease_id: l.id, method: "other", amount_cents: -bal, received_on: asOf, status: "succeeded", purpose: "rent", reference: "Credit from AppFolio", journal_entry_id: entry });
+        await supabase.from("payment").insert({ company_id: company.id, lease_id: l.id, method: "other", amount_cents: -bal, received_on: asOf, status: "succeeded", purpose: "rent", reference: CUTOVER_CREDIT_REF, journal_entry_id: entry });
         credits++;
       }
     }
     if (parsed.data.deposits && l.deposit_cents > 0 && !l.payment.some((p) => p.purpose === "deposit")) {
-      const { error: e } = await supabase.rpc("record_payment", { p_lease: l.id, p_method: "other", p_amount: l.deposit_cents, p_received: asOf, p_purpose: "deposit", p_reference: "Held at AppFolio cutover" });
+      const { error: e } = await supabase.rpc("record_payment", { p_lease: l.id, p_method: "other", p_amount: l.deposit_cents, p_received: asOf, p_purpose: "deposit", p_reference: CUTOVER_DEPOSIT_REF });
       if (e) failed.push(e.message);
       else deposits++;
     }

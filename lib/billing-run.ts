@@ -7,8 +7,8 @@ import type { Database } from "@/lib/supabase/database.types";
 
 // Automatic billing for one company, run daily: rent and recurring charges post on the due day of each
 // month, and late fees post when rent is still unpaid on the late day. Safe to run more than once a day:
-// it only posts what's missing. Nothing runs until the company sets a billing start date (the AppFolio
-// cutover), so the two systems never both bill a tenant.
+// it only posts what's missing. Nothing runs until the company sets a billing start date (the cutover from the
+// old software), so the two systems never both bill a tenant.
 
 type Db = SupabaseClient<Database>;
 

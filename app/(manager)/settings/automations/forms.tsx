@@ -26,7 +26,7 @@ export function AutomationsForm({ s, canEdit }: { s: AutomationSettings; canEdit
       {state.error && <Notice tone="danger">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       <div className="rounded-[var(--radius-card)] border border-line-strong p-4">
-        <Toggle name="enabled" on={s.enabled} label="Turn automations on" hint="Leave off until you've switched from AppFolio, so tenants don't get two sets of reminders." />
+        <Toggle name="enabled" on={s.enabled} label="Turn automations on" hint="Leave off until you've finished switching from your old software, so tenants don't get two sets of reminders." />
       </div>
       <fieldset disabled={!canEdit} className="space-y-4">
         <legend className="mb-1 text-[13px] font-semibold uppercase tracking-wide text-subtle">Sent automatically (routine)</legend>

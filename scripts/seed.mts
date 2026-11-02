@@ -63,7 +63,7 @@ async function main() {
         office_phone: "(352) 715-6203",
         address: "432 N Eustis St, Eustis, FL 32726",
         default_county: "Lake",
-        settings: { businessRules: DEFAULT_BUSINESS_RULES },
+        settings: { businessRules: DEFAULT_BUSINESS_RULES, switchOver: { from: "AppFolio" } },
       })
       .select()
       .single(),

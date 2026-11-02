@@ -61,7 +61,7 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
       {unassigned && (
         <div className="mb-4">
           <Notice tone="warn">
-            These properties came from AppFolio without their owning LLC. Open the right owner (or{" "}
+            These properties were imported without their owning LLC. Open the right owner (or{" "}
             <Link href="/owners/new" className="font-semibold underline">
               add one
             </Link>

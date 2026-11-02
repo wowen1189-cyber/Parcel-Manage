@@ -28,8 +28,8 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: "e-sign", label: "E-sign", phase: 2, description: "Send anything for signature, with a full audit trail." },
   { slug: "settings", label: "Settings & team", phase: 0, description: "Company profile, business rules and your team." },
   { slug: "vendors", label: "Vendors", phase: 1, description: "Vendor directory with W-9 and insurance tracking." },
-  { slug: "switch-over", label: "Switch-over checklist", phase: 4, description: "The steps to leave AppFolio safely." },
-  { slug: "import", label: "Import data", phase: 1, description: "Bring in rent rolls, tenants, vendors and AppFolio exports." },
+  { slug: "switch-over", label: "Switch-over checklist", phase: 4, description: "The steps to leave your old software safely." },
+  { slug: "import", label: "Import data", phase: 1, description: "Bring in rent rolls, tenants, vendors and owners from AppFolio, Buildium, Rent Manager, Yardi or a spreadsheet." },
 ];
 
 export type NavGroup = { id: string; label: string; items: string[] };

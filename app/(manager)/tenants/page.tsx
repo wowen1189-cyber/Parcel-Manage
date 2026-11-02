@@ -4,6 +4,7 @@ import { exportLink, ListFilters, param } from "@/components/list-filters";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money, todayIn } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
+import { oldSystemName } from "@/lib/switch-over";
 import { listTenants, TENANT_SHOW_OPTIONS } from "@/lib/tenants";
 
 export const metadata = { title: "Tenants & leases" };
@@ -112,7 +113,7 @@ export default async function TenantsPage({ searchParams }: PageProps<"/tenants"
           </Table>
         )}
         <p className="border-t border-line px-5 py-3 text-[13px] text-subtle">
-          &ldquo;Owes&rdquo; is each tenant&apos;s balance brought over from AppFolio on Nov 1, 2026. It becomes a live ledger once charges and payments are recorded here.
+          &ldquo;Owes&rdquo; is each tenant&apos;s balance brought over from {oldSystemName(company.settings)} at cutover. It becomes a live ledger once charges and payments are recorded here.
         </p>
       </Card>
     </>

@@ -46,13 +46,13 @@ export function RunBillingButton({ canEdit }: { canEdit: boolean }) {
   );
 }
 
-export function OpeningBalancesForm({ defaultDate, canEdit }: { defaultDate: string; canEdit: boolean }) {
+export function OpeningBalancesForm({ defaultDate, canEdit, old }: { defaultDate: string; canEdit: boolean; old: string }) {
   const [state, action, pending] = useActionState(postOpeningBalances, empty);
   return (
     <form action={action} className="space-y-3">
       <Status state={state} />
       <fieldset disabled={!canEdit} className="space-y-3">
-        <Field label="Cutover date" hint="The date of the AppFolio balances you imported">
+        <Field label="Cutover date" hint={`The date of the ${old} balances you imported`}>
           <Input type="date" name="as_of" defaultValue={defaultDate} className="w-48" />
         </Field>
         <label className="flex min-h-10 items-center gap-3 text-sm">
@@ -60,7 +60,7 @@ export function OpeningBalancesForm({ defaultDate, canEdit }: { defaultDate: str
           Also record each lease&apos;s security deposit as held in trust
         </label>
         <Button type="submit" small disabled={pending}>
-          {pending ? "Posting…" : "Post AppFolio balances to the books"}
+          {pending ? "Posting…" : "Post opening balances to the books"}
         </Button>
       </fieldset>
     </form>

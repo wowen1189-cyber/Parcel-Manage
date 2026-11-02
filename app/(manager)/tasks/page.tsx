@@ -24,7 +24,7 @@ export default async function TasksPage() {
           <Link href="/settings/automations" className="font-semibold text-accent underline">
             Turn them on in Settings
           </Link>{" "}
-          once you&apos;ve switched from AppFolio.
+          once you&apos;ve switched from your old software.
         </p>
       )}
       <Card>

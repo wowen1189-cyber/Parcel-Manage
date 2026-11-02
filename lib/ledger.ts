@@ -19,7 +19,7 @@ export const CHARGE_TYPES: Record<string, string> = {
   cam: "CAM",
   move_out: "Move-out charge",
   false_emergency: "False emergency charge",
-  opening_balance: "Balance from AppFolio",
+  opening_balance: "Opening balance",
   other: "Other",
 };
 
@@ -119,7 +119,7 @@ export type LedgerRow = { id: string; kind: "charge" | "payment" | "returned" | 
 export function buildLedger(charges: LedgerCharge[], payments: LedgerPayment[], opening: { cents: number | null; asOf: string | null }): { rows: LedgerRow[]; balanceCents: number } {
   const items: Omit<LedgerRow, "balanceCents">[] = [];
   const openingPosted = charges.some((c) => c.charge_type === "opening_balance");
-  if (!openingPosted && opening.cents) items.push({ id: "opening", kind: "opening", date: opening.asOf ?? "1900-01-01", description: "Balance carried over from AppFolio", chargeCents: Math.max(opening.cents, 0), paymentCents: Math.max(-opening.cents, 0) });
+  if (!openingPosted && opening.cents) items.push({ id: "opening", kind: "opening", date: opening.asOf ?? "1900-01-01", description: "Balance carried over from the old software", chargeCents: Math.max(opening.cents, 0), paymentCents: Math.max(-opening.cents, 0) });
   for (const c of charges) items.push({ id: c.id, kind: "charge", date: c.due_date, description: c.description, chargeCents: c.amount_cents, paymentCents: 0, entered: c.created_at });
   for (const p of payments.filter((x) => x.purpose === "rent" && x.status !== "failed" && x.status !== "pending")) {
     const label = `${PAYMENT_METHODS[p.method] ?? "Payment"}${p.reference ? ` ${p.reference}` : ""}`;
