@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AiPanel } from "@/components/ai-panel";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo } from "@/components/logo";
@@ -139,28 +140,5 @@ function NewMenu() {
         </div>
       )}
     </div>
-  );
-}
-
-function AiPanel({ onClose }: { onClose: () => void }) {
-  return (
-    <aside
-      aria-label="AI assistant"
-      className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[380px] flex-col border-l border-line bg-surface lg:sticky lg:top-[61px] lg:z-10 lg:h-[calc(100vh-61px)]"
-    >
-      <div className="flex items-center justify-between border-b border-line px-4 py-3">
-        <p className="font-bold">AI assistant</p>
-        <button type="button" className={buttonClass("ghost", true)} onClick={onClose}>
-          Close
-        </button>
-      </div>
-      <div className="flex-1 space-y-3 overflow-y-auto p-4 text-muted">
-        <p>Ask questions about your properties, tenants and books, and approve what the AI drafts.</p>
-        <p>
-          This needs your company&apos;s own AI key, which you&apos;ll connect in Settings in Phase 1. Until then, everything else
-          works without AI.
-        </p>
-      </div>
-    </aside>
   );
 }
