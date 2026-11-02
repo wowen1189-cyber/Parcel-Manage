@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, EmptyState, Notice, PageHeader, Pill, buttonClass } from "@/components/ui";
+import { Card, CardHeader, EmptyState, Notice, PageHeader, Pill, buttonClass } from "@/components/ui";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money, todayIn } from "@/lib/format";
 import { readFilters } from "@/lib/report-filters";
 import type { Column } from "@/lib/report-math";
 import { reportById } from "@/lib/reports";
 import { requireCompany } from "@/lib/session";
+import { ScheduleForm } from "../schedule-form";
 
 const show = (v: unknown, kind?: Column["kind"]) => {
   if (v === null || v === undefined || v === "") return kind === "money" ? "" : "—";
@@ -25,7 +26,7 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
   const { id } = await params;
   const r = reportById(id);
   if (!r) notFound();
-  const { supabase, company } = await requireCompany();
+  const { supabase, company, membership } = await requireCompany();
   const sp = await searchParams;
   const f = readFilters(sp, todayIn(company.time_zone), r.forward);
   const [{ data: owners }, { data: properties }] = await Promise.all([
@@ -148,6 +149,14 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
               ) : (
                 <EmptyState title="Nothing for these filters" />
               )}
+            </Card>
+          )}
+          {["admin", "accountant", "property_manager"].includes(membership.role) && (
+            <Card className="mt-6">
+              <CardHeader title="Schedule e-mail" />
+              <div className="px-5 py-4">
+                <ScheduleForm reportKey={r.id} owner={f.owner} property={f.property} />
+              </div>
             </Card>
           )}
         </>

@@ -43,3 +43,20 @@ describe("metric status", () => {
     expect(formatMetric(5_000_000, "money")).toBe("$50,000");
   });
 });
+
+import { dueOn, periodFor } from "@/lib/report-schedule";
+
+describe("scheduled reports", () => {
+  it("knows its send days", () => {
+    expect(dueOn("weekly_mon", "2026-11-02")).toBe(true);
+    expect(dueOn("weekly_mon", "2026-11-03")).toBe(false);
+    expect(dueOn("monthly_10", "2026-11-10")).toBe(true);
+    expect(dueOn("quarterly", "2027-01-01")).toBe(true);
+    expect(dueOn("quarterly", "2026-11-01")).toBe(false);
+  });
+  it("covers the period just ended", () => {
+    expect(periodFor("monthly_5", "2026-11-05")).toEqual({ from: "2026-10-01", to: "2026-10-31" });
+    expect(periodFor("weekly_mon", "2026-11-02")).toEqual({ from: "2026-10-26", to: "2026-11-01" });
+    expect(periodFor("quarterly", "2027-01-01")).toEqual({ from: "2026-10-01", to: "2026-12-31" });
+  });
+});

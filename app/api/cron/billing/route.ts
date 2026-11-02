@@ -3,6 +3,7 @@ import { runAutomations } from "@/lib/automations";
 import { runAutopay } from "@/lib/autopay";
 import { runBilling } from "@/lib/billing-run";
 import { snapshotMetrics } from "@/lib/metrics";
+import { runScheduledReports } from "@/lib/scheduled-reports";
 import { runRecurringBills } from "@/lib/bills";
 import { todayIn } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
   const results: Record<string, unknown> = {};
   for (const c of companies ?? []) {
     const today = todayIn(c.time_zone);
-    results[c.name] = { ...(await runBilling(db, c, today)), recurringBills: await runRecurringBills(db, c.id, today), autopay: await runAutopay(db, c.id, today), automations: await runAutomations(db, c, today), metrics: await snapshotMetrics(db, c.id, today) };
+    results[c.name] = { ...(await runBilling(db, c, today)), recurringBills: await runRecurringBills(db, c.id, today), autopay: await runAutopay(db, c.id, today), automations: await runAutomations(db, c, today), metrics: await snapshotMetrics(db, c.id, today), reports: await runScheduledReports(db, c, today) };
   }
   return NextResponse.json(results);
 }
