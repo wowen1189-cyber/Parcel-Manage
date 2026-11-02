@@ -14,6 +14,7 @@
     "db:types": "sh scripts/db-types.sh",
     "import:appfolio": "node --env-file=.env.local scripts/import-appfolio.mts",
     "sync:appfolio": "node --env-file=.env.local scripts/sync-appfolio.mts",
+    "import:appfolio-docs": "node --env-file=.env.local scripts/import-appfolio-docs.mts",
     "auth:emails": "node scripts/auth-emails.mts",
     "import:tenants": "node --env-file=.env.local scripts/import-tenant-directory.mts",
     "import:owners": "node --env-file=.env.local scripts/import-owners.mts"

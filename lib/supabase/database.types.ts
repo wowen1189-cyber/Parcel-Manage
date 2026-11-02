@@ -1202,6 +1202,7 @@ export type Database = {
           id: string
           lease_id: string | null
           management_agreement_id: string | null
+          office_only: boolean
           photo_stage: string | null
           property_id: string | null
           source: string | null
@@ -1222,6 +1223,7 @@ export type Database = {
           id?: string
           lease_id?: string | null
           management_agreement_id?: string | null
+          office_only?: boolean
           photo_stage?: string | null
           property_id?: string | null
           source?: string | null
@@ -1242,6 +1244,7 @@ export type Database = {
           id?: string
           lease_id?: string | null
           management_agreement_id?: string | null
+          office_only?: boolean
           photo_stage?: string | null
           property_id?: string | null
           source?: string | null
