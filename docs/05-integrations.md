@@ -27,6 +27,7 @@ Each integration lives in `lib/integrations/<name>/` behind a small interface, s
 - Prompts live in `lib/ai/prompts/` as versioned files; business rules are injected from company settings, never hard-coded.
 
 ## Public API, webhooks, MCP
+- Built Nov 2, 2026: keys in Settings › API (scopes `read`, `write:work_orders`; SHA-256 at rest; 120 requests/minute/key); REST GET `/api/v1/{properties,units,leases,owners,vendors,work-orders}` (`limit` up to 200, `offset`, `property_id`) and POST `/api/v1/work-orders`; MCP server at `/api/mcp`. Never returned: door codes, access notes, tax IDs, bank details.
 - REST `/api/v1/*` for properties, units, tenants, leases, charges, payments, journal entries, bills, vendors, work orders, documents, messages. Scoped API keys per integration (read / read-write / per-object), shown once, hashed at rest.
 - Webhooks with signed payloads and retries: `payment.received`, `payment.returned`, `lease.signed`, `workorder.created`, `workorder.status_changed`, `bill.approved`, `application.submitted`, `screening.completed`, `metric.off_target`.
 - MCP server exposing the same operations as tools (Phase 4).
