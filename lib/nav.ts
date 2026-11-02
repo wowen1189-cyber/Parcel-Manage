@@ -27,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: "e-sign", label: "E-sign", phase: 2, description: "Send anything for signature, with a full audit trail." },
   { slug: "settings", label: "Settings & team", phase: 0, description: "Company profile, business rules and your team." },
   { slug: "vendors", label: "Vendors", phase: 1, description: "Vendor directory with W-9 and insurance tracking." },
+  { slug: "switch-over", label: "Switch-over checklist", phase: 4, description: "The steps to leave AppFolio safely." },
   { slug: "import", label: "Import data", phase: 1, description: "Bring in rent rolls, tenants, vendors and AppFolio exports." },
 ];
 
@@ -41,7 +42,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { id: "money", label: "Accounting", items: ["accounting", "bills", "recurring-bills", "journal-entries", "bank-accounts"] },
   { id: "insights", label: "Reports", items: ["reports", "metrics"] },
   { id: "communications", label: "Communications", items: ["communications", "tasks"] },
-  { id: "admin", label: "Admin", items: ["settings", "import"] },
+  { id: "admin", label: "Admin", items: ["settings", "import", "switch-over"] },
 ];
 
 // "+ New" menu. Items without an href aren't built yet and show as "Soon".
