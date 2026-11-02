@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { previousSoftware } from "@/lib/switch-over";
 import { notFound } from "next/navigation";
-import { Card, CardHeader, EmptyState, Notice, PageHeader, Pill, buttonClass } from "@/components/ui";
+import { Card, CardHeader, EmptyState, Notice, PageHeader, buttonClass } from "@/components/ui";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money, todayIn } from "@/lib/format";
 import { readFilters } from "@/lib/report-filters";
@@ -42,7 +43,7 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
     <>
       <PageHeader
         title={r.title}
-        subtitle={`Replaces in AppFolio: ${r.replaces}`}
+        subtitle={/appfolio/i.test(previousSoftware(company.settings) ?? "") ? `Replaces in AppFolio: ${r.replaces}` : `Covers: ${r.replaces}`}
         action={
           <Link href="/reports" className="text-[14px] font-semibold text-accent">
             ← Reports
@@ -97,16 +98,22 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
           )}
           <button className={buttonClass("primary", true)}>Run</button>
           {result && result.rows.length > 0 && (
-            <a href={`/reports/${r.id}/csv?${qs}`} className={buttonClass("secondary", true)}>
-              Export CSV
-            </a>
+            <>
+              <a href={`/reports/${r.id}/xlsx?${qs}`} className={buttonClass("secondary", true)}>
+                Excel
+              </a>
+              <a href={`/reports/${r.id}/pdf?${qs}`} target="_blank" rel="noreferrer" className={buttonClass("secondary", true)}>
+                PDF
+              </a>
+              <a href={`/reports/${r.id}/csv?${qs}`} className={buttonClass("secondary", true)}>
+                CSV
+              </a>
+            </>
           )}
         </form>
       )}
       {!r.run ? (
-        <EmptyState title="Coming soon">
-          <Pill>Not built yet</Pill>
-        </EmptyState>
+        <EmptyState title="Not built yet">{r.needs ? `This report is waiting for ${r.needs.charAt(0).toLowerCase()}${r.needs.slice(1)}` : "This report isn't built yet."}</EmptyState>
       ) : (
         <>
           {result?.note && (

@@ -37,3 +37,35 @@ export function toCsv(columns: Column[], rows: Record<string, unknown>[]): strin
   };
   return [columns.map((c) => cell(c.label)).join(","), ...rows.map((r) => columns.map((c) => cell(r[c.key], c.kind)).join(","))].join("\n");
 }
+
+export type CashLine = { account: string; cash: boolean; debit: number; credit: number };
+export type CashFlowRow = { account: string; cashIn: number; cashOut: number; net: number };
+
+/**
+ * Direct-method cash flow: for each journal entry that moves cash, the cash goes to (or comes from) the
+ * entry's other accounts. An entry with one other account is straightforward; with several, the cash is
+ * split by each account's share of the non-cash side. Cash-to-cash moves (operating to trust) net to zero.
+ */
+export function cashFlow(entries: CashLine[][]): CashFlowRow[] {
+  const by = new Map<string, CashFlowRow>();
+  for (const lines of entries) {
+    const cashNet = lines.filter((l) => l.cash).reduce((s, l) => s + l.debit - l.credit, 0);
+    const others = lines.filter((l) => !l.cash);
+    if (!cashNet || !others.length) continue;
+    // Each other account's effect, signed like the cash (credits to income are cash in).
+    const effects = others.map((l) => ({ account: l.account, amount: l.credit - l.debit }));
+    const total = effects.reduce((s, e) => s + e.amount, 0);
+    let left = cashNet;
+    effects.forEach((e, i) => {
+      const share = i === effects.length - 1 ? left : total ? Math.round((cashNet * e.amount) / total) : 0;
+      left -= share;
+      if (!share) return;
+      const row = by.get(e.account) ?? { account: e.account, cashIn: 0, cashOut: 0, net: 0 };
+      if (share > 0) row.cashIn += share;
+      else row.cashOut += -share;
+      row.net += share;
+      by.set(e.account, row);
+    });
+  }
+  return [...by.values()].sort((a, b) => b.cashIn - a.cashIn || a.cashOut - b.cashOut);
+}

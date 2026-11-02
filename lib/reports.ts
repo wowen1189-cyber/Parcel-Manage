@@ -4,7 +4,7 @@ import { BILL_STATUS } from "@/lib/bills";
 import { normalBalance, type AccountBalance } from "@/lib/books";
 import { contactName, PROPERTY_TYPE_LABEL } from "@/lib/format";
 import { APPLICATION_STATUS, GUEST_SOURCES, GUEST_STATUS } from "@/lib/leasing";
-import { aging, type Column } from "@/lib/report-math";
+import { aging, cashFlow, type CashLine, type Column } from "@/lib/report-math";
 import type { Database } from "@/lib/supabase/database.types";
 
 // The reports library (docs/04-reports-and-metrics.md). Each report reads the same records and ledger as the
@@ -22,6 +22,8 @@ export type ReportDef = {
   /** Date range defaults to the next 12 months instead of the year so far. */
   forward?: boolean;
   run?: (db: Db, companyId: string, f: Filters) => Promise<ReportResult>;
+  /** For a report that isn't built yet: the records it's waiting for. */
+  needs?: string;
 };
 
 const sum = (rows: Record<string, unknown>[], key: string) => rows.reduce((s, r) => s + (Number(r[key]) || 0), 0);
@@ -134,8 +136,40 @@ export const REPORTS: ReportDef[] = [
       };
     },
   },
-  { id: "cash-flow", ...financial("Cash flow"), replaces: "Cash Flow, 12 Month, Property Comparison, Cash Flow Detail", filters: ["range", "owner"] },
-  { id: "budget", ...financial("Budget vs actual and forecast"), replaces: "Annual Budget Comparative, Budget Comparative, Budget Detail", filters: ["range", "owner"] },
+  {
+    id: "cash-flow",
+    ...financial("Cash flow"),
+    replaces: "Cash Flow, 12 Month, Property Comparison, Cash Flow Detail",
+    filters: ["range", "owner", "property"],
+    run: async (db, companyId, f) => {
+      if (!f.owner) return { columns: [], rows: [], note: "Choose an owner: each owner keeps its own books." };
+      // Cash is the operating and trust bank accounts (1000 and 1010).
+      const { data } = await db
+        .from("journal_line")
+        .select("journal_entry_id, debit_cents, credit_cents, property_id, journal_entry!inner(entry_date, entity_id, status), gl_account!inner(number, name)")
+        .eq("company_id", companyId)
+        .eq("journal_entry.entity_id", f.owner)
+        .in("journal_entry.status", ["posted", "reversed"])
+        .gte("journal_entry.entry_date", f.from)
+        .lte("journal_entry.entry_date", f.to)
+        .limit(20000);
+      const entries = new Map<string, (CashLine & { property: string | null })[]>();
+      for (const l of data ?? []) {
+        const list = entries.get(l.journal_entry_id) ?? [];
+        list.push({ account: `${l.gl_account.number} ${l.gl_account.name}`, cash: ["1000", "1010"].includes(l.gl_account.number), debit: Number(l.debit_cents), credit: Number(l.credit_cents), property: l.property_id });
+        entries.set(l.journal_entry_id, list);
+      }
+      const picked = [...entries.values()].filter((lines) => !f.property || lines.some((l) => l.property === f.property));
+      const rows = cashFlow(picked).map((r) => ({ account: r.account, cashIn: r.cashIn, cashOut: r.cashOut, net: r.net }));
+      return {
+        columns: [{ key: "account", label: "Where the cash came from or went" }, { key: "cashIn", label: "Cash in", kind: "money" }, { key: "cashOut", label: "Cash out", kind: "money" }, { key: "net", label: "Net", kind: "money" }],
+        rows,
+        totals: { account: "Net change in cash", cashIn: sum(rows, "cashIn"), cashOut: sum(rows, "cashOut"), net: sum(rows, "net") },
+        note: "Cash is the operating and trust bank accounts. Moves between them aren't counted. Rent shows against Rent receivable because rent posts as a charge first.",
+      };
+    },
+  },
+  { id: "budget", ...financial("Budget vs actual and forecast"), replaces: "Annual Budget Comparative, Budget Comparative, Budget Detail", filters: ["range", "owner"], needs: "Budgets: an annual budget for each owner, by account and month." },
   {
     id: "expenses-by-vendor",
     ...financial("Expenses by vendor and category"),
@@ -150,10 +184,43 @@ export const REPORTS: ReportDef[] = [
       return { columns: [{ key: "vendor", label: "Vendor" }, { key: "date", label: "Invoice date", kind: "date" }, { key: "account", label: "Account" }, { key: "property", label: "Property" }, { key: "memo", label: "What for" }, { key: "amount", label: "Amount", kind: "money" }], rows, totals: { vendor: "Total", amount: sum(rows, "amount") } };
     },
   },
-  { id: "loans", ...financial("Loans and debt service"), replaces: "Loans", filters: ["owner"] },
-  { id: "fixed-assets", ...financial("Fixed assets and depreciation"), replaces: "Fixed Assets", filters: ["owner"] },
+  { id: "loans", ...financial("Loans and debt service"), replaces: "Loans", filters: ["owner"], needs: "Loan records for each property: lender, balance, rate and monthly payment." },
+  { id: "fixed-assets", ...financial("Fixed assets and depreciation"), replaces: "Fixed Assets", filters: ["owner"], needs: "Fixed asset records: what was bought, when, the cost and how it's depreciated." },
 
-  { id: "bank-activity", group: "Banking", title: "Bank account activity", replaces: "Bank Account Activity, Deposit Register, Check Register", filters: ["range", "owner"] },
+  {
+    id: "bank-activity",
+    group: "Banking",
+    title: "Bank account activity",
+    replaces: "Bank Account Activity, Deposit Register, Check Register",
+    filters: ["range", "owner"],
+    run: async (db, companyId, f) => {
+      let q = db
+        .from("bank_transaction")
+        .select("posted_on, description, amount_cents, status, bank_account!inner(name, last4, entity_id, entity(name))")
+        .eq("company_id", companyId)
+        .gte("posted_on", f.from)
+        .lte("posted_on", f.to)
+        .order("posted_on")
+        .limit(10000);
+      if (f.owner) q = q.eq("bank_account.entity_id", f.owner);
+      const { data } = await q;
+      const STATUS: Record<string, string> = { matched: "Matched", unmatched: "Not matched yet", ignored: "Ignored" };
+      const rows = (data ?? []).map((t) => ({
+        date: t.posted_on,
+        account: `${t.bank_account.entity?.name ?? ""} · ${t.bank_account.name}${t.bank_account.last4 ? ` …${t.bank_account.last4}` : ""}`,
+        description: t.description,
+        deposit: t.amount_cents > 0 ? t.amount_cents : null,
+        withdrawal: t.amount_cents < 0 ? -t.amount_cents : null,
+        status: STATUS[t.status] ?? t.status,
+      }));
+      return {
+        columns: [{ key: "date", label: "Date", kind: "date" }, { key: "account", label: "Bank account" }, { key: "description", label: "Description" }, { key: "deposit", label: "Deposit", kind: "money" }, { key: "withdrawal", label: "Withdrawal", kind: "money" }, { key: "status", label: "Matched to the books" }],
+        rows,
+        totals: { description: "Totals", deposit: sum(rows, "deposit"), withdrawal: sum(rows, "withdrawal") },
+        note: rows.length ? undefined : "No bank lines in this range. Import a statement in Accounting › Bank accounts (live bank feeds arrive with Plaid).",
+      };
+    },
+  },
   {
     id: "trust-reconciliation",
     group: "Banking",
@@ -230,7 +297,7 @@ export const REPORTS: ReportDef[] = [
         columns: [{ key: "tenant", label: "Tenant" }, { key: "unit", label: "Unit" }, { key: "status", label: "Status" }, { key: "current", label: "0–30 days", kind: "money" }, { key: "d30", label: "31–60", kind: "money" }, { key: "d60", label: "61–90", kind: "money" }, { key: "d90", label: "Over 90", kind: "money" }, { key: "total", label: "Total", kind: "money" }],
         rows,
         totals: { tenant: "Total", current: sum(rows, "current"), d30: sum(rows, "d30"), d60: sum(rows, "d60"), d90: sum(rows, "d90"), total: sum(rows, "total") },
-        note: "Payments pay the oldest charges first. Balances carried over from AppFolio count once they're posted at cutover.",
+        note: "Payments pay the oldest charges first. Balances carried over from your old software count once they're posted at cutover.",
       };
     },
   },
@@ -263,8 +330,72 @@ export const REPORTS: ReportDef[] = [
     },
   },
   { id: "tenant-ledger", group: "Rent and collections", title: "Tenant ledger", replaces: "Tenant Ledger, Tenant Transactions Summary", filters: [], run: async () => ({ columns: [], rows: [], note: "Open any tenant and use Export CSV on their ledger." }) },
-  { id: "payment-plans", group: "Rent and collections", title: "Payment plans", replaces: "Payment Plans", filters: [] },
-  { id: "collections", group: "Rent and collections", title: "Collections and write-offs", replaces: "Debt Collections Status, Eligible Debt Summary", filters: [] },
+  { id: "payment-plans", group: "Rent and collections", title: "Payment plans", replaces: "Payment Plans", filters: [], needs: "Payment plans, which arrive with the collections agent." },
+  {
+    id: "collections",
+    group: "Rent and collections",
+    title: "Collections and write-offs",
+    replaces: "Debt Collections Status, Eligible Debt Summary",
+    filters: ["asOf", "owner", "property"],
+    run: async (db, companyId, f) => {
+      // Past tenants who still owe, and current tenants over 30 days behind, with the notices on file.
+      const leases = await leasesFor(db, companyId, f, ["active", "notice", "ended"]);
+      const ids = leases.map((l) => l.id);
+      const [{ data: charges }, { data: payments }, { data: notices }, { data: moveOuts }] = ids.length
+        ? await Promise.all([
+            db.from("charge").select("lease_id, amount_cents, due_date").in("lease_id", ids).lte("due_date", f.asOf),
+            db.from("payment").select("lease_id, amount_cents, received_on, status, purpose").in("lease_id", ids).lte("received_on", f.asOf),
+            db.from("message").select("lease_id, template_id, created_at").in("lease_id", ids).in("template_id", ["three-day", "past-due", "deposit-claim"]),
+            db.from("move_out").select("lease_id, vacated_on, forwarding_address").in("lease_id", ids),
+          ])
+        : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+      const NOTICE: Record<string, string> = { "three-day": "3-day notice", "past-due": "Past-due letter", "deposit-claim": "Deposit claim" };
+      const rows = leases
+        .map((l) => {
+          const mine = (payments ?? []).filter((p) => p.lease_id === l.id && p.purpose !== "deposit" && p.status === "succeeded");
+          const a = aging((charges ?? []).filter((c) => c.lease_id === l.id && c.amount_cents > 0), mine.reduce((s, p) => s + p.amount_cents, 0), f.asOf);
+          const last = mine.map((p) => p.received_on).sort().at(-1) ?? null;
+          const sent = (notices ?? []).filter((n) => n.lease_id === l.id).sort((x, y) => y.created_at.localeCompare(x.created_at));
+          const mo = (moveOuts ?? []).find((m) => m.lease_id === l.id);
+          const past = l.status === "ended";
+          return {
+            tenant: tenantsOf(l.lease_tenant),
+            unit: unitLabel(l.unit),
+            status: past ? "Past tenant" : "Current",
+            owed: a.total,
+            over30: a.d30 + a.d60 + a.d90,
+            lastPayment: last,
+            notice: sent[0] ? `${NOTICE[sent[0].template_id ?? ""] ?? "Letter"} ${sent[0].created_at.slice(0, 10)}` : "",
+            movedOut: mo?.vacated_on ?? null,
+            forwarding: mo?.forwarding_address ? "On file" : past ? "Missing" : "",
+            include: past ? a.total > 0 : a.d30 + a.d60 + a.d90 > 0,
+          };
+        })
+        .filter((r) => r.include)
+        .map((r) => {
+          const row: Record<string, unknown> = { ...r };
+          delete row.include;
+          return row as Omit<typeof r, "include">;
+        })
+        .sort((a, b) => Number(b.status === "Past tenant") - Number(a.status === "Past tenant") || b.owed - a.owed);
+      return {
+        columns: [
+          { key: "tenant", label: "Tenant" },
+          { key: "unit", label: "Unit" },
+          { key: "status", label: "Status" },
+          { key: "owed", label: "Owed", kind: "money" },
+          { key: "over30", label: "Over 30 days", kind: "money" },
+          { key: "lastPayment", label: "Last payment", kind: "date" },
+          { key: "notice", label: "Last notice" },
+          { key: "movedOut", label: "Moved out", kind: "date" },
+          { key: "forwarding", label: "Forwarding address" },
+        ],
+        rows,
+        totals: { tenant: "Total", owed: sum(rows, "owed"), over30: sum(rows, "over30") },
+        note: "Past tenants who still owe after the deposit was applied, and current tenants more than 30 days behind. Writing off a balance is a reversing entry in Accounting; sending a debt to a collection agency follows the Florida Consumer Collection Practices Act (Fla. Stat. 559.72).",
+      };
+    },
+  },
 
   {
     id: "tenant-directory",
@@ -313,7 +444,7 @@ export const REPORTS: ReportDef[] = [
       return { columns: [{ key: "date", label: "Date", kind: "date" }, { key: "kind", label: "Event" }, { key: "tenant", label: "Tenant" }, { key: "unit", label: "Unit" }], rows };
     },
   },
-  { id: "surveys", group: "Tenants and leases", title: "Resident surveys", replaces: "Survey Responses", filters: [] },
+  { id: "surveys", group: "Tenants and leases", title: "Resident surveys", replaces: "Survey Responses", filters: [], needs: "Resident surveys, sent after move-in and after repairs." },
 
   {
     id: "vacancy",
@@ -374,7 +505,7 @@ export const REPORTS: ReportDef[] = [
       return { columns: [{ key: "applied", label: "Submitted", kind: "date" }, { key: "applicants", label: "Applicants" }, { key: "unit", label: "Unit" }, { key: "status", label: "Status" }, { key: "deposit", label: "Deposit", kind: "money" }, { key: "fees", label: "Fees paid", kind: "money" }, { key: "adverse", label: "Adverse action notice" }], rows };
     },
   },
-  { id: "leasing-agent", group: "Leasing", title: "AI leasing agent", replaces: "New", filters: ["range"] },
+  { id: "leasing-agent", group: "Leasing", title: "AI leasing agent", replaces: "New", filters: ["range"], needs: "The AI leasing agent, which needs Twilio texting and Google Calendar connected." },
 
   {
     id: "work-orders",
@@ -390,7 +521,43 @@ export const REPORTS: ReportDef[] = [
       return { columns: [{ key: "number", label: "#" }, { key: "opened", label: "Opened", kind: "date" }, { key: "title", label: "What" }, { key: "property", label: "Where" }, { key: "priority", label: "Priority" }, { key: "status", label: "Status" }, { key: "vendor", label: "Vendor" }, { key: "days", label: "Days to complete", kind: "number" }, { key: "cost", label: "Cost", kind: "money" }], rows, totals: { number: "Total", cost: sum(rows, "cost") } };
     },
   },
-  { id: "inspections", group: "Maintenance and vendors", title: "Inspections and unit turns", replaces: "Inspection Detail, Unit Inspection, Unit Turn Detail", filters: [] },
+  {
+    id: "inspections",
+    group: "Maintenance and vendors",
+    title: "Inspections and unit turns",
+    replaces: "Inspection Detail, Unit Inspection, Unit Turn Detail",
+    filters: ["range", "property"],
+    run: async (db, companyId, f) => {
+      const { data } = await db
+        .from("inspection")
+        .select("kind, inspected_on, rooms, lease!inner(unit!inner(label, property!inner(id, name)), lease_tenant(role, is_primary, contact(kind, first_name, last_name, business_name)), move_out(decision, closed_at, refund_cents))")
+        .eq("company_id", companyId)
+        .gte("inspected_on", f.from)
+        .lte("inspected_on", f.to)
+        .order("inspected_on", { ascending: false });
+      const rows = (data ?? [])
+        .filter((i) => !f.property || i.lease.unit.property.id === f.property)
+        .map((i) => {
+          const rooms = Array.isArray(i.rooms) ? (i.rooms as { condition?: string; photos?: unknown[] }[]) : [];
+          const mo = i.lease.move_out;
+          return {
+            date: i.inspected_on,
+            kind: i.kind === "move_in" ? "Move-in" : "Move-out",
+            tenant: tenantsOf(i.lease.lease_tenant),
+            unit: unitLabel(i.lease.unit),
+            rooms: rooms.length,
+            damaged: rooms.filter((r) => r.condition === "damaged" || r.condition === "missing").length,
+            photos: rooms.reduce((s, r) => s + (Array.isArray(r.photos) ? r.photos.length : 0), 0),
+            deposit: i.kind === "move_out" && mo ? (mo.closed_at ? (mo.decision === "claim" ? "Claim settled" : "Returned in full") : mo.decision === "claim" ? "Claim in progress" : "Open") : "",
+          };
+        });
+      return {
+        columns: [{ key: "date", label: "Date", kind: "date" }, { key: "kind", label: "Inspection" }, { key: "tenant", label: "Tenant" }, { key: "unit", label: "Unit" }, { key: "rooms", label: "Rooms", kind: "number" }, { key: "damaged", label: "Damaged or missing", kind: "number" }, { key: "photos", label: "Photos", kind: "number" }, { key: "deposit", label: "Deposit" }],
+        rows,
+        totals: { date: "Total", rooms: sum(rows, "rooms"), damaged: sum(rows, "damaged"), photos: sum(rows, "photos") },
+      };
+    },
+  },
   {
     id: "vendor-compliance",
     group: "Maintenance and vendors",
@@ -443,8 +610,8 @@ export const REPORTS: ReportDef[] = [
       return { columns: [{ key: "vendor", label: "Vendor" }, { key: "invoice", label: "Invoice" }, { key: "property", label: "Property" }, { key: "status", label: "Status" }, { key: "due", label: "Due", kind: "date" }, { key: "late", label: "Past due" }, { key: "amount", label: "Amount", kind: "money" }], rows, totals: { vendor: "Total", amount: sum(rows, "amount") } };
     },
   },
-  { id: "projects", group: "Maintenance and vendors", title: "Projects and purchase orders", replaces: "Project Budget Detail, Project Directory, Purchase Order", filters: [] },
-  { id: "inventory", group: "Maintenance and vendors", title: "Inventory and keys", replaces: "Inventory Status, Inventory Usage, Keys Detail", filters: [] },
+  { id: "projects", group: "Maintenance and vendors", title: "Projects and purchase orders", replaces: "Project Budget Detail, Project Directory, Purchase Order", filters: [], needs: "Projects and purchase orders." },
+  { id: "inventory", group: "Maintenance and vendors", title: "Inventory and keys", replaces: "Inventory Status, Inventory Usage, Keys Detail", filters: [], needs: "Inventory and key tracking." },
 
   {
     id: "properties",
@@ -473,7 +640,7 @@ export const REPORTS: ReportDef[] = [
       return { columns: [{ key: "owner", label: "Owner" }, { key: "type", label: "Type" }, { key: "email", label: "E-mail" }, { key: "phone", label: "Phone" }, { key: "address", label: "Mailing address" }, { key: "properties", label: "Properties" }], rows };
     },
   },
-  { id: "property-insurance", group: "Properties and owners", title: "Property insurance", replaces: "Owner Insurance, Owner Insurance Audit", filters: [] },
+  { id: "property-insurance", group: "Properties and owners", title: "Property insurance", replaces: "Owner Insurance, Owner Insurance Audit", filters: [], needs: "Each property's insurance policy: carrier, coverage and renewal date." },
 
   {
     id: "1099",
@@ -538,7 +705,37 @@ export const REPORTS: ReportDef[] = [
       return { columns: [{ key: "name", label: "Name" }, { key: "email", label: "E-mail" }, { key: "role", label: "Role" }, { key: "title", label: "Title" }, { key: "access", label: "Access" }, { key: "status", label: "Status" }, { key: "since", label: "Added", kind: "date" }], rows };
     },
   },
-  { id: "delivery-log", group: "Admin", title: "Delivery and import log", replaces: "Email Delivery Errors, Import Variances, Merge Variances", filters: [] },
+  {
+    id: "delivery-log",
+    group: "Admin",
+    title: "Delivery and import log",
+    replaces: "Email Delivery Errors, Import Variances, Merge Variances",
+    filters: ["range"],
+    run: async (db, companyId, f) => {
+      const end = `${f.to}T23:59:59.999Z`;
+      const [{ data: messages }, { data: imports }] = await Promise.all([
+        db.from("message").select("created_at, channel, subject, status, delivery, legal, contact(kind, first_name, last_name, business_name)").eq("company_id", companyId).eq("direction", "outbound").gte("created_at", f.from).lte("created_at", end).order("created_at", { ascending: false }).limit(5000),
+        db.from("import_batch").select("created_at, kind, file_name, summary, undone_at").eq("company_id", companyId).gte("created_at", f.from).lte("created_at", end).order("created_at", { ascending: false }),
+      ]);
+      const STATUS: Record<string, string> = { queued: "Waiting to send", sent: "Sent", delivered: "Delivered", opened: "Opened", failed: "Failed", simulated: "Not sent (e-mail not set up)" };
+      const rows = [
+        ...(messages ?? []).map((m) => ({
+          date: m.created_at.slice(0, 10),
+          what: `${m.legal ? "Legal notice" : m.channel === "letter" ? "Letter" : m.channel === "email" ? "E-mail" : m.channel === "sms" ? "Text" : "Portal message"}${m.subject ? `: ${m.subject}` : ""}`,
+          to: contactName(m.contact),
+          status: STATUS[m.status] ?? m.status,
+          detail: m.delivery ?? "",
+          problem: ["failed", "simulated", "queued"].includes(m.status) ? "Check" : "",
+        })),
+        ...(imports ?? []).map((b) => ({ date: b.created_at.slice(0, 10), what: `Import: ${b.kind.replace(/_/g, " ")}${b.file_name ? ` (${b.file_name})` : ""}`, to: "", status: b.undone_at ? `Undone ${b.undone_at.slice(0, 10)}` : "Imported", detail: b.summary ?? "", problem: "" })),
+      ].sort((a, b) => Number(Boolean(b.problem)) - Number(Boolean(a.problem)) || b.date.localeCompare(a.date));
+      return {
+        columns: [{ key: "date", label: "Date", kind: "date" }, { key: "what", label: "What" }, { key: "to", label: "To" }, { key: "status", label: "Status" }, { key: "detail", label: "How it was delivered / result" }, { key: "problem", label: "Needs a look" }],
+        rows,
+        note: "Problems first: anything that failed, is still waiting, or wasn't sent because e-mail isn't set up.",
+      };
+    },
+  },
 ];
 
 export const reportById = (id: string) => REPORTS.find((r) => r.id === id);

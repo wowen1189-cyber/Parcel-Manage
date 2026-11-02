@@ -14,7 +14,7 @@ export default async function ReportsPage() {
   const groups = [...new Set(REPORTS.map((r) => r.group))];
   return (
     <>
-      <PageHeader title="Reports" subtitle={`${REPORTS.filter((r) => r.run).length} of ${REPORTS.length} reports ready. Each one replaces several AppFolio reports, with filters and CSV export.`} />
+      <PageHeader title="Reports" subtitle={`${REPORTS.filter((r) => r.run).length} of ${REPORTS.length} reports ready. Each one replaces several reports from your old software, with filters and Excel, PDF and CSV export.`} />
       {schedules && schedules.length > 0 && (
         <Card className="mb-6 p-5">
           <h2 className="mb-3 text-[17px] font-bold">Scheduled e-mails</h2>
@@ -51,10 +51,11 @@ export default async function ReportsPage() {
                     </Link>
                   ) : (
                     <span className="font-semibold text-muted">
-                      {r.title} <Pill>Coming</Pill>
+                      {r.title} <Pill>Not built yet</Pill>
                     </span>
                   )}
                   <p className="text-[12px] text-subtle">Replaces: {r.replaces}</p>
+                  {!r.run && r.needs && <p className="text-[12px] text-subtle">Waiting for: {r.needs}</p>}
                 </li>
               ))}
             </ul>
