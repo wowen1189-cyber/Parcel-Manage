@@ -42,7 +42,7 @@ export function AppShell({
         aria-hidden
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:w-[220px] lg:translate-x-0 ${navOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed top-0 left-0 z-40 flex h-dvh w-[240px] flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:w-[220px] lg:translate-x-0 ${navOpen ? "translate-x-0" : "-translate-x-full"}`}
         aria-label="Main"
       >
         <div className="border-b border-line px-4 py-4">
@@ -51,7 +51,7 @@ export function AppShell({
         <div className="flex-1 overflow-y-auto">
           <SidebarNav groups={navGroups} saveNav={saveNav} />
         </div>
-        <div className="border-t border-line px-4 py-3">
+        <div className="border-t border-line px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <p className="truncate text-[13px] font-semibold">{userName}</p>
           {userTitle && <p className="truncate text-[12px] text-subtle">{userTitle}</p>}
           <div className="mt-1 flex gap-4">
@@ -61,7 +61,7 @@ export function AppShell({
               </button>
             </form>
             <Link href="/set-password?next=/dashboard" className="inline-flex min-h-9 items-center text-[13px] font-semibold text-muted hover:underline">
-              Password
+              Change password
             </Link>
           </div>
         </div>
