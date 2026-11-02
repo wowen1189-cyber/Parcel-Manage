@@ -88,7 +88,7 @@ Directory with trade, contact, W-9 and insurance (COI) status and expiration; a 
 See `docs/04-reports-and-metrics.md`: 41-report library (each with options instead of separate variants, each showing which AppFolio reports it replaces), custom report builder (data source, columns, group, filter, sort, save), PDF/Excel/CSV export, **Scheduled emails** (report or Metrics summary, properties, frequency, format, recipients who don't need a login; pause/remove), and the **Metrics** page with company-editable targets and alerts.
 
 ### Import data
-CSV import for rent roll, tenant contacts, vendors, owners and AppFolio exports: upload → AI matches columns (override per column) → review rows (ready / flagged / needs a fix) → import; logged and undoable for 30 days.
+CSV import for rent roll, tenant contacts, vendors and owners from any software (AppFolio, Buildium, Rent Manager, Yardi, …) or a spreadsheet: upload → columns matched by heading, AI fills gaps (override per column) → review rows (ready / flagged / needs a fix) → import; logged and undoable for 30 days.
 
 ### Settings & team
 Payments (card convenience fee %, ACH free), Integrations (connect/disconnect), API keys and webhooks, Team (invite by email with role and property access; permission matrix), company profile (name, phones, addresses, logo, time zone), **business rules** (see `docs/02-business-rules.md`), AI connection (shared with the leasing agent).

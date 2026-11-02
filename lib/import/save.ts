@@ -146,12 +146,22 @@ async function saveRentRoll(db: Db, cid: string, rows: RentRollRow[], { commit, 
   }
 
   if (commit) {
-    await insertAll(db, "entity", newEntities);
-    await insertAll(db, "property", newProps);
-    await insertAll(db, "unit", newUnits);
-    await insertAll(db, "contact", newContacts);
-    await insertAll(db, "lease", newLeases);
-    await insertAll(db, "lease_tenant", links);
+    try {
+      await insertAll(db, "entity", newEntities);
+      await insertAll(db, "property", newProps);
+      await insertAll(db, "unit", newUnits);
+      await insertAll(db, "contact", newContacts);
+      await insertAll(db, "lease", newLeases);
+      await insertAll(db, "lease_tenant", links);
+    } catch (e) {
+      // All or nothing: remove what this run added, so running it again starts clean.
+      const ids = (rows: { id?: string }[]) => rows.map((r) => r.id!);
+      for (let i = 0; i < newLeases.length; i += CHUNK) await db.from("lease_tenant").delete().in("lease_id", ids(newLeases.slice(i, i + CHUNK)));
+      for (const [table, list] of [["lease", newLeases], ["contact", newContacts], ["unit", newUnits], ["property", newProps], ["entity", newEntities]] as const) {
+        for (let i = 0; i < list.length; i += CHUNK) await db.from(table).delete().in("id", ids(list.slice(i, i + CHUNK)));
+      }
+      throw e;
+    }
   }
   const verb = commit ? "Added" : "Will add";
   out.done.push(`${verb} ${n(newProps.length, "property", "properties")}, ${n(newUnits.length, "unit")} and ${n(newLeases.length, "lease")} with their tenants.`);
@@ -237,8 +247,17 @@ async function saveVendors(db: Db, cid: string, rows: VendorRow[], commit: boole
     vendors.push({ company_id: cid, contact_id: id, trade: r.trade, is_1099: r.is_1099, coi_expires_on: r.coi_expires_on, workers_comp_expires_on: r.workers_comp_expires_on, license_expires_on: r.license_expires_on, notes: r.notes });
   }
   if (commit) {
-    await insertAll(db, "contact", contacts);
-    await insertAll(db, "vendor", vendors);
+    try {
+      await insertAll(db, "contact", contacts);
+      await insertAll(db, "vendor", vendors);
+    } catch (e) {
+      for (let i = 0; i < contacts.length; i += CHUNK) {
+        const ids = contacts.slice(i, i + CHUNK).map((c) => c.id!);
+        await db.from("vendor").delete().in("contact_id", ids);
+        await db.from("contact").delete().in("id", ids);
+      }
+      throw e;
+    }
   }
   out.done.push(`${commit ? "Added" : "Will add"} ${n(vendors.length, "vendor")}. Each needs a W-9 on file before it's paid or sent to a unit.`);
   if (existing) out.skipped.push(`${n(existing, "vendor")} already on file.`);

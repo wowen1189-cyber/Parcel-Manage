@@ -71,6 +71,6 @@ export async function runImport(input: z.input<typeof sheetSchema> & { mapping: 
     }
     return { result };
   } catch (e) {
-    return { error: `The import stopped: ${e instanceof Error ? e.message : "unknown error"}. Anything already saved stays; running it again skips it.` };
+    return { error: `The import stopped: ${e instanceof Error ? e.message : "unknown error"}. Nothing from this file was kept; fix the problem and run it again.` };
   }
 }

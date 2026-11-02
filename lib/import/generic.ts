@@ -392,8 +392,9 @@ export function normalize(kind: ImportKind, sheet: Sheet, map: Mapping): Normali
 
 /** Same building in two spellings: "12 Forest Ln" vs "12 forest lane". */
 export function sameName(a: string, b: string): boolean {
-  const n = (s: string) => norm(s.replace(/\b(street|st|avenue|ave|lane|ln|road|rd|drive|dr|boulevard|blvd|court|ct|circle|cir|place|pl)\b\.?/gi, (w) => w.slice(0, 2)));
-  return n(a) === n(b);
+  const short: Record<string, string> = { street: "st", avenue: "ave", lane: "ln", road: "rd", drive: "dr", boulevard: "blvd", court: "ct", circle: "cir", place: "pl", north: "n", south: "s", east: "e", west: "w" };
+  const n = (s: string) => norm(s.toLowerCase().replace(/\b[a-z]+\b/g, (w) => short[w] ?? w));
+  return Boolean(n(a)) && n(a) === n(b);
 }
 
 /** What a column holds, without its contents: for asking the AI to match columns without sending tenant data. */
