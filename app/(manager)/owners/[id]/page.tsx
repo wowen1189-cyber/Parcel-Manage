@@ -192,6 +192,7 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
                   : "Off: online payments go to your company's Stripe account. Turn it on for owners whose rent you don't hold yourself, like your own LLCs. Managing for someone else? Keep their rent in your trust account instead (Fla. Stat. 475.25(1)(k))."}
             </span>
           </span>
+          {typeof sp.stripe_error === "string" && <p className="w-full text-[13px] font-medium text-danger">Stripe couldn&apos;t start the sign-up: {sp.stripe_error}</p>}
           {isAdmin(membership) && stripeConfigured() && !pay?.stripe_charges_enabled && (
             <form action={connectOwnerStripe}>
               <input type="hidden" name="entity_id" value={owner.id} />

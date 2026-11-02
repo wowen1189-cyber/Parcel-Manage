@@ -21,6 +21,7 @@ export default async function PaymentsSettingsPage({ searchParams }: PageProps<"
           action={company.stripe_charges_enabled ? <Pill tone="success">On</Pill> : company.stripe_account_id ? <Pill tone="warn">Setup not finished</Pill> : <Pill>Off</Pill>}
         />
         <div className="space-y-3 px-5 py-4">
+          {typeof sp.error === "string" && <Notice tone="danger">Stripe couldn&apos;t start the setup: {sp.error}</Notice>}
           {!platform ? (
             <Notice tone="warn">Parcel Manage&apos;s Stripe platform account isn&apos;t connected yet, so online payments can&apos;t be turned on. Until then, tenants are told to contact the office (or, if you take checks, how to pay by check or money order).</Notice>
           ) : !isAdmin(membership) ? (
@@ -39,7 +40,7 @@ export default async function PaymentsSettingsPage({ searchParams }: PageProps<"
               )}
             </>
           )}
-          <p className="text-[13px] text-subtle">The card fee is a company setting (Settings → Business rules). Returned bank payments are reversed on the ledger and the lease&apos;s returned-payment fee is charged.</p>
+          <p className="text-[13px] text-subtle">The credit card fee is a company setting (Settings → Business rules). Returned bank payments are reversed on the ledger and the lease&apos;s returned-payment fee is charged.</p>
         </div>
       </Card>
     </div>
