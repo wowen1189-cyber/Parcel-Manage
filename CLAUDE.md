@@ -21,7 +21,7 @@ Read these before writing code, and re-read the relevant one before each phase:
 - **Zod** for validation, **supabase-js typed client** (chosen in Phase 0: it works directly with Row Level Security; types in `lib/supabase/database.types.ts`, regenerate with `npm run db:types`), **Vitest** for unit and database tests, **Playwright** for key end-to-end flows
 - **Next.js 16**: read `node_modules/next/dist/docs/` before using an API (see `AGENTS.md`). Middleware is `proxy.ts`. Cache Components is off on purpose: nearly every screen is private and per-request
 - Money: store as integer cents. Dates: store `date`/`timestamptz`; display in the company's time zone (SIM REI: America/New_York)
-- Email: Resend. SMS: Twilio. Payments: Stripe Connect. Bank feeds: Plaid. Screening: TransUnion ShareAble for Rentals (CRS Credit API as backup). Calendar: Google Calendar API. AI: provider abstraction over Anthropic / OpenAI / Gemini / OpenAI-compatible, using **the company's own key**
+- Email: Resend. SMS: Twilio. Payments: Stripe Connect. Bank feeds: Plaid. Screening: Checkr Tenant (Wesley Owen, Nov 2, 2026; replaced TransUnion ShareAble). Calendar: Google Calendar API. AI: provider abstraction over Anthropic / OpenAI / Gemini / OpenAI-compatible, using **the company's own key**
 
 ## Non-negotiable rules
 1. **Multi-company from day one.** Every business table has `company_id`. RLS policies restrict every row to members of that company. Never query without the company scope. Tenants, vendors and owners log into portals and see only their own records.

@@ -31,6 +31,8 @@ export const businessRulesSchema = z
       mobile: z.string().min(7).max(30),
     }),
     screening: z.object({
+      // Checkr Tenant package ordered by default (Wesley Owen, Nov 2, 2026: essential); staff can pick another per order.
+      checkrPackage: z.enum(["starter", "essential", "complete"]).default("essential"),
       incomeMultiple: z.coerce.number().min(1).max(5),
       creditTierScore: z.coerce.number().int().min(300).max(850),
       depositMonthsAtOrAboveTier: z.coerce.number().min(0).max(3),
@@ -155,6 +157,7 @@ export const DEFAULT_BUSINESS_RULES: BusinessRules = {
   office: { hours: "Mon–Fri 9–5" },
   escalation: { name: "Wesley Owen", mobile: "(352) 434-9441" },
   screening: {
+    checkrPackage: "essential",
     incomeMultiple: 2.5,
     creditTierScore: 620,
     depositMonthsAtOrAboveTier: 1,

@@ -1045,6 +1045,24 @@ export type Database = {
           },
         ]
       }
+      checkr_event: {
+        Row: {
+          id: string
+          received_at: string
+          type: string
+        }
+        Insert: {
+          id: string
+          received_at?: string
+          type: string
+        }
+        Update: {
+          id?: string
+          received_at?: string
+          type?: string
+        }
+        Relationships: []
+      }
       company: {
         Row: {
           address: string | null
@@ -3946,6 +3964,91 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      screening_order: {
+        Row: {
+          application_member_id: string
+          application_url: string | null
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          idempotency_key: string
+          live_mode: boolean | null
+          notes: string[]
+          order_id: string | null
+          package: string
+          product_statuses: Json
+          provider: string
+          report_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_member_id: string
+          application_url?: string | null
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          idempotency_key: string
+          live_mode?: boolean | null
+          notes?: string[]
+          order_id?: string | null
+          package: string
+          product_statuses?: Json
+          provider?: string
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_member_id?: string
+          application_url?: string | null
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          idempotency_key?: string
+          live_mode?: boolean | null
+          notes?: string[]
+          order_id?: string | null
+          package?: string
+          product_statuses?: Json
+          provider?: string
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screening_order_application_member_id_fkey"
+            columns: ["application_member_id"]
+            isOneToOne: false
+            referencedRelation: "application_member"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screening_order_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screening_order_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
         ]

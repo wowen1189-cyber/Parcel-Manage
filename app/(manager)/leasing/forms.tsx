@@ -18,6 +18,7 @@ import {
   updateGuestCard,
   writeDescription,
   type LeasingState,
+  orderCheckrScreening,
 } from "./actions";
 
 const empty: LeasingState = {};
@@ -276,6 +277,28 @@ export function ShowingForm({ guestId, unitId, units }: { guestId: string; unitI
 }
 
 type Report = { credit_score: number | null; eviction_years_ago: number | null; owes_landlord: boolean; utility_or_car_problems: boolean; criminal_records: boolean; agency_name: string | null; report_ref: string | null } | null;
+
+export function CheckrOrderForm({ memberId, defaultPackage }: { memberId: string; defaultPackage: string }) {
+  const [state, action, pending] = useActionState(orderCheckrScreening, {} as LeasingState);
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="member_id" value={memberId} />
+      <label className="block">
+        <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">Checkr package</span>
+        <Select name="package" defaultValue={defaultPackage} className="w-44">
+          <option value="starter">Starter</option>
+          <option value="essential">Essential</option>
+          <option value="complete">Complete</option>
+        </Select>
+      </label>
+      <Button type="submit" small disabled={pending}>
+        {pending ? "Ordering…" : "Order screening (Checkr)"}
+      </Button>
+      {state.error && <p className="w-full text-[13px] font-medium text-danger">{state.error}</p>}
+      {state.message && <p className="w-full text-[13px] font-medium text-accent-deep">{state.message}</p>}
+    </form>
+  );
+}
 
 export function ScreeningForm({ memberId, report }: { memberId: string; report: Report }) {
   const [state, action, pending] = useActionState(enterScreening, empty);

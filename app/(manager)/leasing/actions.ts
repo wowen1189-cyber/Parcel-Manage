@@ -10,8 +10,11 @@ import { bedBath, money } from "@/lib/format";
 import { stripe } from "@/lib/integrations/stripe/client";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
 import { adverseActionText, inviteMember, unitName } from "@/lib/leasing";
-import { DECISION_LABEL, depositFor, recommend, type ScreeningResult } from "@/lib/screening";
+import { DECISION_LABEL, depositFor } from "@/lib/screening";
 import { requireCompany } from "@/lib/session";
+import { refreshRecommendation } from "@/lib/screening-refresh";
+import { placeCheckrOrder, syncCheckrOrder } from "@/lib/checkr-screening";
+import { CHECKR_PACKAGES } from "@/lib/integrations/checkr/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type LeasingState = { error?: string; message?: string; link?: string; draft?: string };
@@ -296,33 +299,33 @@ export async function enterScreening(_: LeasingState, form: FormData): Promise<L
     { onConflict: "application_member_id" },
   );
   if (error) return { error: error.message };
-  await refreshRecommendation(m.application_id);
+  await refreshRecommendation(supabase, company.id, m.application_id);
   revalidatePath(`/leasing/applications/${m.application_id}`);
   return { message: "Results saved." };
 }
 
 /** Recompute the recommendation from every adult's income and report. */
-async function refreshRecommendation(applicationId: string) {
-  const { supabase, company } = await requireCompany();
-  const { data: a } = await supabase
-    .from("application")
-    .select("id, status, rent_cents, application_member(role, monthly_income_cents, screening_report(credit_score, eviction_years_ago, owes_landlord, utility_or_car_problems, criminal_records))")
-    .eq("id", applicationId)
-    .eq("company_id", company.id)
-    .single();
-  if (!a) return;
-  const adults = a.application_member.filter((m) => m.role !== "guarantor");
-  const reports: ScreeningResult[] = adults
-    .map((m) => m.screening_report)
-    .filter((r): r is NonNullable<typeof r> => Boolean(r))
-    .map((r) => ({ creditScore: r.credit_score, evictionYearsAgo: r.eviction_years_ago === null ? null : Number(r.eviction_years_ago), owesLandlord: r.owes_landlord, utilityOrCarProblems: r.utility_or_car_problems, criminalRecords: r.criminal_records }));
-  const income = adults.reduce((s, m) => s + m.monthly_income_cents, 0);
-  const rec = recommend(readBusinessRules(company.settings).screening, a.rent_cents, income, reports);
-  await supabase
-    .from("application")
-    .update({ recommendation: { ...rec, screened: reports.length, adults: adults.length }, status: a.status === "new" ? "screening" : a.status })
-    .eq("id", a.id)
-    .eq("company_id", company.id);
+/** Order a Checkr screening for one applicant (Checkr e-mails them to complete it). */
+export async function orderCheckrScreening(_: LeasingState, form: FormData): Promise<LeasingState> {
+  const { supabase, company, user, allowed } = await staff();
+  if (!allowed) return { error: NOT_ALLOWED };
+  const p = z.object({ member_id: z.string().uuid(), package: z.enum(CHECKR_PACKAGES) }).safeParse(Object.fromEntries(form));
+  if (!p.success) return { error: "Choose a screening package." };
+  const r = await placeCheckrOrder(supabase, company, p.data.member_id, p.data.package, user.id);
+  if (!r.ok) return { error: r.error };
+  const { data: m } = await supabase.from("application_member").select("application_id").eq("id", p.data.member_id).single();
+  if (m) revalidatePath(`/leasing/applications/${m.application_id}`);
+  return { message: "Screening ordered. Checkr has e-mailed the applicant to complete it." };
+}
+
+/** Ask Checkr for the latest on an order (results also arrive on their own when Checkr's webhook is set up). */
+export async function refreshCheckrScreening(orderRowId: string): Promise<void> {
+  const { supabase, company, allowed } = await staff();
+  if (!allowed) return;
+  const { data: row } = await supabase.from("screening_order").select("id, application_member(application_id)").eq("id", orderRowId).eq("company_id", company.id).maybeSingle();
+  if (!row) return;
+  await syncCheckrOrder(supabase, row.id).catch(() => null);
+  if (row.application_member?.application_id) revalidatePath(`/leasing/applications/${row.application_member.application_id}`);
 }
 
 /**

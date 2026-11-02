@@ -6,8 +6,9 @@ import { date, money } from "@/lib/format";
 import { APPLICATION_STATUS, unitName } from "@/lib/leasing";
 import { DECISION_LABEL, depositFor, type Recommendation } from "@/lib/screening";
 import { requireCompany } from "@/lib/session";
-import { setApplicationStatus } from "../../actions";
-import { AddMemberForm, DecisionForm, ResendInvite, ScreeningForm } from "../../forms";
+import { checkrConfigured, checkrLiveMode } from "@/lib/integrations/checkr/client";
+import { refreshCheckrScreening, setApplicationStatus } from "../../actions";
+import { AddMemberForm, CheckrOrderForm, DecisionForm, ResendInvite, ScreeningForm } from "../../forms";
 
 export const metadata = { title: "Application" };
 
@@ -29,6 +30,8 @@ function Answers({ answers }: { answers: unknown }) {
   );
 }
 
+const CHECKR_STATUS: Record<string, string> = { placing: "Ordering", waiting_for_applicant: "Waiting for the applicant", pending: "In progress", completed: "Results in", canceled: "Canceled", failed: "Didn't go through" };
+
 export default async function ApplicationPage({ params }: PageProps<"/leasing/applications/[id]">) {
   const { id } = await params;
   const { supabase, company, membership } = await requireCompany();
@@ -43,6 +46,13 @@ export default async function ApplicationPage({ params }: PageProps<"/leasing/ap
   if (!a) notFound();
   const rules = readBusinessRules(company.settings);
   const rec = a.recommendation as (Recommendation & { screened: number; adults: number }) | null;
+  const checkrOn = checkrConfigured();
+  const checkrLive = checkrLiveMode();
+  const { data: orders } = checkrOn
+    ? await supabase.from("screening_order").select("id, application_member_id, status, package, order_id, notes, error, created_at").eq("company_id", company.id).in("application_member_id", a.application_member.map((m) => m.id)).order("created_at", { ascending: false })
+    : { data: [] };
+  const ordersByMember = new Map<string, NonNullable<typeof orders>[number]>();
+  for (const o of orders ?? []) if (!ordersByMember.has(o.application_member_id)) ordersByMember.set(o.application_member_id, o);
   const members = [...a.application_member].sort((x, y) => (x.role === "applicant" ? -1 : y.role === "applicant" ? 1 : x.invited_at.localeCompare(y.invited_at)));
   const adults = members.filter((m) => m.role !== "guarantor");
   const income = adults.reduce((s, m) => s + m.monthly_income_cents, 0);
@@ -82,6 +92,49 @@ export default async function ApplicationPage({ params }: PageProps<"/leasing/ap
                 <p className="text-[14px] text-muted">{[m.email, m.phone].filter(Boolean).join(" · ")}</p>
                 <Answers answers={m.answers} />
                 {m.status === "invited" && canEdit && <ResendInvite memberId={m.id} />}
+                {m.status === "applied" && canEdit && checkrOn && (
+                  <div className="rounded-[var(--radius-control)] border border-line p-3">
+                    <p className="mb-2 text-[14px] font-semibold">Screening by Checkr{checkrLive ? "" : " (test mode)"}</p>
+                    {(() => {
+                      const o = ordersByMember.get(m.id);
+                      if (!o || o.status === "failed" || o.status === "canceled")
+                        return (
+                          <>
+                            {o?.status === "failed" && <p className="mb-2 text-[13px] text-danger">Last order didn&apos;t go through: {o.error}</p>}
+                            {o?.status === "canceled" && <p className="mb-2 text-[13px] text-muted">The last order was canceled.</p>}
+                            <CheckrOrderForm memberId={m.id} defaultPackage={rules.screening.checkrPackage} />
+                          </>
+                        );
+                      return (
+                        <div className="space-y-2 text-[14px]">
+                          <p>
+                            <Pill tone={o.status === "completed" ? "success" : "info"}>{CHECKR_STATUS[o.status] ?? o.status}</Pill>{" "}
+                            <span className="text-muted">
+                              {o.package} package · ordered {date(o.created_at.slice(0, 10))}
+                              {o.order_id ? ` · ${o.order_id}` : ""}
+                            </span>
+                          </p>
+                          {o.status === "waiting_for_applicant" && <p className="text-[13px] text-muted">Checkr e-mailed {m.email} to complete the screening. They enter their own date of birth and Social Security number with Checkr.</p>}
+                          {o.notes.length > 0 && (
+                            <ul className="list-disc pl-5 text-[13px] text-warn">
+                              {o.notes.map((n) => (
+                                <li key={n}>{n}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {o.status !== "completed" && (
+                            <form action={refreshCheckrScreening.bind(null, o.id)}>
+                              <button type="submit" className="min-h-9 text-[13px] font-semibold text-accent hover:underline">
+                                Check for results
+                              </button>
+                            </form>
+                          )}
+                          {o.status === "completed" && <p className="text-[13px] text-muted">Results are filled in below. Read the full report in your Checkr account before deciding.</p>}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
                 {m.status === "applied" && canEdit && (
                   <details className="rounded-[var(--radius-control)] border border-line p-3" open={!m.screening_report && a.status !== "declined"}>
                     <summary className="cursor-pointer text-[14px] font-semibold">{m.screening_report ? `Screening results (entered ${date(m.screening_report.received_at)})` : "Enter screening results"}</summary>
