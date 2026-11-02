@@ -4519,6 +4519,7 @@ export type Database = {
       work_order: {
         Row: {
           ai_summary: string | null
+          appfolio_ref: string | null
           company_id: string
           completed_at: string | null
           completion_ai: Json | null
@@ -4568,6 +4569,7 @@ export type Database = {
         }
         Insert: {
           ai_summary?: string | null
+          appfolio_ref?: string | null
           company_id: string
           completed_at?: string | null
           completion_ai?: Json | null
@@ -4617,6 +4619,7 @@ export type Database = {
         }
         Update: {
           ai_summary?: string | null
+          appfolio_ref?: string | null
           company_id?: string
           completed_at?: string | null
           completion_ai?: Json | null
