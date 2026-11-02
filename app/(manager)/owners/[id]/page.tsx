@@ -6,7 +6,9 @@ import { date, money } from "@/lib/format";
 import { AGREEMENT_STATUS } from "@/lib/management-agreement";
 import { describeFee, effectiveFee, FEE_SOURCE_LABEL, readCompanyFee } from "@/lib/management-fees";
 import { getOwner, UNASSIGNED_OWNER } from "@/lib/owners";
-import { requireCompany } from "@/lib/session";
+import { stripeConfigured } from "@/lib/integrations/stripe/client";
+import { isAdmin, requireCompany } from "@/lib/session";
+import { connectOwnerStripe, refreshOwnerStripe } from "../stripe-actions";
 import { createAgreement } from "../../management-agreements/actions";
 import { DeleteOwnerForm, FeeForm, MovePropertiesForm, OwnerForm } from "../forms";
 
@@ -22,10 +24,12 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
   const sp = await searchParams;
   const { supabase, company, membership } = await requireCompany();
   const companyFee = readCompanyFee(company.settings);
-  const [owner, { data: others }, { data: agreements }] = await Promise.all([
+  if (sp.stripe && isAdmin(membership)) await refreshOwnerStripe(id);
+  const [owner, { data: others }, { data: agreements }, { data: pay }] = await Promise.all([
     getOwner(supabase, company.id, id, companyFee),
     supabase.from("property").select("id, name, entity(id, name)").eq("company_id", company.id).neq("entity_id", id).order("name"),
     supabase.from("management_agreement").select("id, status, start_date, end_date").eq("company_id", company.id).eq("entity_id", id).order("created_at", { ascending: false }),
+    supabase.from("entity").select("stripe_account_id, stripe_charges_enabled").eq("id", id).eq("company_id", company.id).maybeSingle(),
   ]);
   if (!owner) notFound();
 
@@ -173,6 +177,29 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
               </>
             );
           })()}
+        </Card>
+      )}
+      {!unassigned && (
+        <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+          <span>
+            <span className="font-semibold">Rent paid to this owner&apos;s bank</span>{" "}
+            {pay?.stripe_charges_enabled ? <Pill tone="success">On</Pill> : pay?.stripe_account_id ? <Pill tone="warn">Stripe sign-up not finished</Pill> : <Pill>Off</Pill>}
+            <span className="block max-w-xl text-[13px] text-subtle">
+              {pay?.stripe_charges_enabled
+                ? "Tenants' online payments for this owner's properties go straight to this owner's bank through Stripe."
+                : pay?.stripe_account_id
+                  ? "Online payments for this owner's properties are paused until Stripe approves the sign-up."
+                  : "Off: online payments go to your company's Stripe account. Turn it on for owners whose rent you don't hold yourself, like your own LLCs. Managing for someone else? Keep their rent in your trust account instead (Fla. Stat. 475.25(1)(k))."}
+            </span>
+          </span>
+          {isAdmin(membership) && stripeConfigured() && !pay?.stripe_charges_enabled && (
+            <form action={connectOwnerStripe}>
+              <input type="hidden" name="entity_id" value={owner.id} />
+              <button type="submit" className="min-h-11 rounded-[var(--radius-control)] bg-accent px-4 py-2.5 text-sm font-semibold text-white">
+                {pay?.stripe_account_id ? "Finish Stripe sign-up" : "Set up with Stripe"}
+              </button>
+            </form>
+          )}
         </Card>
       )}
       {!unassigned && (

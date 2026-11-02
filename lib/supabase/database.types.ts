@@ -530,6 +530,7 @@ export type Database = {
           last_run_month: string | null
           lease_id: string
           max_cents: number | null
+          stripe_account_id: string | null
           stripe_customer_id: string
           stripe_payment_method_id: string
         }
@@ -545,6 +546,7 @@ export type Database = {
           last_run_month?: string | null
           lease_id: string
           max_cents?: number | null
+          stripe_account_id?: string | null
           stripe_customer_id: string
           stripe_payment_method_id: string
         }
@@ -560,6 +562,7 @@ export type Database = {
           last_run_month?: string | null
           lease_id?: string
           max_cents?: number | null
+          stripe_account_id?: string | null
           stripe_customer_id?: string
           stripe_payment_method_id?: string
         }
@@ -1298,6 +1301,8 @@ export type Database = {
           notes: string | null
           phone: string | null
           reserve_cents: number
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
           tax_id_last4: string | null
           updated_at: string
         }
@@ -1313,6 +1318,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           reserve_cents?: number
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
           tax_id_last4?: string | null
           updated_at?: string
         }
@@ -1328,6 +1335,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           reserve_cents?: number
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
           tax_id_last4?: string | null
           updated_at?: string
         }

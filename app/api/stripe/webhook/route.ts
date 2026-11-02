@@ -3,6 +3,7 @@ import { emailHtml, emailText } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/integrations/resend/send";
 import { stripe, verifyStripeWebhook } from "@/lib/integrations/stripe/client";
 import { sendReceipt } from "@/lib/receipts";
+import { companyForAccount } from "@/lib/payment-account";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Stripe Connect webhook: records tenant payments once they've cleared, and reverses a payment that comes
@@ -17,7 +18,8 @@ export async function POST(request: NextRequest) {
   if (!verifyStripeWebhook(raw, request.headers.get("stripe-signature"))) return NextResponse.json({ error: "Bad signature" }, { status: 400 });
   const event = JSON.parse(raw) as { id: string; type: string; account?: string; data: { object: unknown } };
   const db = createAdminClient();
-  const { data: company } = event.account ? await db.from("company").select("id, name, office_email, settings").eq("stripe_account_id", event.account).maybeSingle() : { data: null };
+  // Events come from the company's own account or one of its owners' accounts.
+  const company = event.account ? await companyForAccount(db, event.account) : null;
   const { error: dup } = await db.from("stripe_event").insert({ id: event.id, company_id: company?.id ?? null, type: event.type });
   if (dup) return NextResponse.json({ received: true, duplicate: true });
   if (!company) return NextResponse.json({ received: true });
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest) {
       company_id: company.id,
       lease_id: s.metadata.lease_id,
       contact_id: s.metadata.contact_id || null,
+      stripe_account_id: event.account ?? null,
       stripe_customer_id: s.customer,
       stripe_payment_method_id: si.payment_method.id,
       bank_label: bank ? `${bank.bank_name ?? "Bank"} ending ${bank.last4 ?? ""}`.trim() : "Bank account",

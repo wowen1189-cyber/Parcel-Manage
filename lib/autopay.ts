@@ -8,9 +8,8 @@ import type { Database } from "@/lib/supabase/database.types";
 // Drafts each due autopay from the tenant's saved bank account. Bank payments take a few days to clear;
 // the payment is recorded when Stripe confirms it (payment_intent.succeeded in the webhook), not here.
 export async function runAutopay(db: SupabaseClient<Database>, companyId: string, today: string) {
-  const { data: company } = await db.from("company").select("stripe_account_id, stripe_charges_enabled").eq("id", companyId).single();
-  if (!company?.stripe_account_id || !company.stripe_charges_enabled) return 0;
-  const { data: rows } = await db.from("autopay").select("id, lease_id, stripe_customer_id, stripe_payment_method_id, day_of_month, max_cents, last_run_month").eq("company_id", companyId).eq("active", true);
+  const { data: company } = await db.from("company").select("stripe_account_id").eq("id", companyId).single();
+  const { data: rows } = await db.from("autopay").select("id, lease_id, stripe_account_id, stripe_customer_id, stripe_payment_method_id, day_of_month, max_cents, last_run_month").eq("company_id", companyId).eq("active", true);
   let drafted = 0;
   for (const a of rows ?? []) {
     if (!autopayDue(today, a.day_of_month, a.last_run_month)) continue;
@@ -19,15 +18,19 @@ export async function runAutopay(db: SupabaseClient<Database>, companyId: string
       db.from("payment").select("id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at").eq("lease_id", a.lease_id),
       db.from("lease").select("status, certified_funds_only, opening_balance_cents, opening_balance_as_of").eq("id", a.lease_id).single(),
     ]);
+    // The saved bank lives on the account it was set up on (older setups: the company's).
+    const account = a.stripe_account_id ?? company?.stripe_account_id ?? null;
     let result: string;
-    if (!lease || !["active", "notice"].includes(lease.status) || lease.certified_funds_only) {
+    if (!account) {
+      result = "Skipped: online payments aren't connected";
+    } else if (!lease || !["active", "notice"].includes(lease.status) || lease.certified_funds_only) {
       result = "Skipped: lease isn't active or needs certified funds";
     } else {
       const { balanceCents } = buildLedger(charges ?? [], payments ?? [], { cents: lease.opening_balance_cents, asOf: lease.opening_balance_as_of });
       const amount = autopayAmount(balanceCents, a.max_cents);
       if (!amount) result = "Nothing due";
-      else if (a.max_cents && balanceCents > a.max_cents) result = await draft(a, amount, companyId, company.stripe_account_id, `Drafted the limit; ${(balanceCents - amount) / 100} still due`);
-      else result = await draft(a, amount, companyId, company.stripe_account_id, "Drafted");
+      else if (a.max_cents && balanceCents > a.max_cents) result = await draft(a, amount, companyId, account, `Drafted the limit; ${(balanceCents - amount) / 100} still due`);
+      else result = await draft(a, amount, companyId, account, "Drafted");
       if (result.startsWith("Drafted")) drafted++;
     }
     await db.from("autopay").update({ last_run_month: today.slice(0, 7), last_result: `${today}: ${result}` }).eq("id", a.id);
