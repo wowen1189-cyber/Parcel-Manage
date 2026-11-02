@@ -33,7 +33,9 @@ export async function sendSignInLink(_: FormState, form: FormData): Promise<Form
   const next = safeNext(form.get("next"));
   // A tenant on file at this company may sign in for the first time: their account is created on first use.
   // Anyone else needs an account (or invite) already. The answer below is the same either way.
-  const firstTime = await isTenantOnFile(parsed.data);
+  // Office staff always go to the office side, even when their e-mail is also on a tenant or owner record.
+  const staff = await isStaffHere(parsed.data);
+  const firstTime = !staff && (await isTenantOnFile(parsed.data));
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
     options: { shouldCreateUser: firstTime, emailRedirectTo: `${await getOrigin()}/auth/callback?next=${encodeURIComponent(firstTime && next === "/dashboard" ? "/portal" : next)}` },
@@ -43,6 +45,17 @@ export async function sendSignInLink(_: FormState, form: FormData): Promise<Form
   if (error?.status === 429) return { error: "A link was just sent to that address. Use the newest email, or wait a minute and ask again." };
   if (error && error.status !== 400 && error.status !== 422) return { error: "We couldn't send the link just now. Try again in a minute." };
   return { message: `If ${parsed.data} has an account, a sign-in link is on its way. It works for one hour.` };
+}
+
+/** Does this e-mail belong to an active team member of the company whose site this is? Server-only check. */
+async function isStaffHere(address: string): Promise<boolean> {
+  const subdomain = await getRequestSubdomain();
+  if (!subdomain) return false;
+  const db = createAdminClient();
+  const { data: company } = await db.from("company").select("id").eq("subdomain", subdomain).maybeSingle();
+  if (!company) return false;
+  const { data } = await db.from("membership").select("id, profile!inner(email)").eq("company_id", company.id).eq("status", "active").ilike("profile.email", address.replace(/[%_]/g, "")).limit(1);
+  return Boolean(data?.length);
 }
 
 /** Is this e-mail on a tenant record (current or upcoming lease) at the company whose site this is? Server-only check. */
@@ -77,7 +90,9 @@ export async function confirmEmailLink(form: FormData): Promise<void> {
   if (!tokenHash || !type.success) redirect("/sign-in?link=expired");
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type.data });
+  const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type.data });
+  // Keep the profile's e-mail the same as the login's, so team lookups by e-mail find the person.
+  if (!error && data.user?.email) await createAdminClient().from("profile").update({ email: data.user.email.toLowerCase() }).eq("id", data.user.id);
   redirect(error ? "/sign-in?link=expired" : next);
 }
 
