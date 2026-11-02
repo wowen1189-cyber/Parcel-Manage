@@ -19,6 +19,8 @@ export const managementFeeSchema = z.object({
   flatCents: cents,
   // Percent fees: never less than this in a month when the fee applies.
   minimumCents: cents,
+  // Percent fees: never more than this in a month (0 = no maximum).
+  maximumCents: cents,
   // When nothing was collected (vacant or unpaid), still charge the minimum or flat fee.
   chargeWhenVacant: z.boolean(),
   // New lease signed: a share of one month's rent, or a set amount.
@@ -38,6 +40,7 @@ export const DEFAULT_MANAGEMENT_FEE: ManagementFee = {
   percent: 8,
   flatCents: 0,
   minimumCents: 0,
+  maximumCents: 0,
   chargeWhenVacant: false,
   leasingFee: "percent",
   leasingPercent: 50,
@@ -84,7 +87,8 @@ export function monthlyFee(fee: ManagementFee, collectedCents: number, occupiedU
   if (collectedCents <= 0 && !fee.chargeWhenVacant) return 0;
   if (fee.basis === "flat") return fee.flatCents;
   if (fee.basis === "per_unit") return fee.flatCents * occupiedUnits;
-  return Math.max(Math.round((Math.max(collectedCents, 0) * fee.percent) / 100), fee.minimumCents);
+  const pct = Math.max(Math.round((Math.max(collectedCents, 0) * fee.percent) / 100), fee.minimumCents);
+  return fee.maximumCents ? Math.min(pct, fee.maximumCents) : pct;
 }
 
 /** One-time fee when a new lease is signed. */
@@ -108,6 +112,12 @@ export function describeFee(fee: ManagementFee): string {
   return describeFeeParts(fee).map((x) => `${x.label} ${x.text}`).join(" · ");
 }
 
+/** " (at least $100, at most $500)" for a percent fee's monthly floor and cap. */
+function percentLimits(fee: ManagementFee): string {
+  const parts = [fee.minimumCents ? `at least ${dollars(fee.minimumCents)}` : "", fee.maximumCents ? `at most ${dollars(fee.maximumCents)}` : ""].filter(Boolean);
+  return parts.length ? ` (${parts.join(", ")} a month)` : "";
+}
+
 /** The management, leasing and renewal fee, each in plain words. */
 export function describeFeeParts(fee: ManagementFee): { label: string; text: string }[] {
   const monthly =
@@ -117,7 +127,7 @@ export function describeFeeParts(fee: ManagementFee): { label: string; text: str
         ? `${dollars(fee.flatCents)} a month`
         : fee.basis === "per_unit"
           ? `${dollars(fee.flatCents)} per occupied unit a month`
-          : `${fee.percent}% of rent collected${fee.minimumCents ? ` (at least ${dollars(fee.minimumCents)})` : ""}`;
+          : `${fee.percent}% of rent collected${percentLimits(fee)}`;
   const oneTime = (kind: "percent" | "flat" | "none", pct: number, flat: number) =>
     kind === "percent" && pct ? `${pct}% of a month's rent` : kind === "flat" && flat ? dollars(flat) : "none";
   return [
@@ -144,6 +154,7 @@ export function feeFromForm(raw: Record<string, FormDataEntryValue>): { fee?: Ma
     percent: pct("percent"),
     flatCents: money("flat"),
     minimumCents: money("minimum"),
+    maximumCents: money("maximum"),
     chargeWhenVacant: raw.chargeWhenVacant === "on",
     leasingFee: raw.leasingFee,
     leasingPercent: pct("leasingPercent"),
@@ -161,6 +172,7 @@ export function feeFromForm(raw: Record<string, FormDataEntryValue>): { fee?: Ma
   }
   const fee = parsed.data;
   if (fee.basis === "percent" && !fee.percent) return { error: "Enter the percent of rent, or choose no monthly fee." };
+  if (fee.basis === "percent" && fee.maximumCents && fee.maximumCents < fee.minimumCents) return { error: "The monthly maximum can't be less than the minimum." };
   if ((fee.basis === "flat" || fee.basis === "per_unit") && !fee.flatCents) return { error: "Enter the monthly amount, or choose no monthly fee." };
   if (fee.leasingFee === "percent" && !fee.leasingPercent) return { error: "Enter the leasing fee percent, or choose no leasing fee." };
   if (fee.leasingFee === "flat" && !fee.leasingFlatCents) return { error: "Enter the leasing fee amount, or choose no leasing fee." };

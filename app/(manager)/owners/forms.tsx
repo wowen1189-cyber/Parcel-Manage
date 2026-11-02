@@ -134,7 +134,7 @@ export function FeeForm({
               <Radio name="basis" value="none" checked={basis === "none"} onChange={setBasis}>
                 No monthly fee
               </Radio>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className={`mt-3 grid gap-3 ${basis === "percent" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                 {basis === "percent" && (
                   <>
                     <Field label="Percent of rent">
@@ -142,6 +142,9 @@ export function FeeForm({
                     </Field>
                     <Field label="Monthly minimum ($)" hint="Optional">
                       <Input name="minimum" inputMode="decimal" defaultValue={val("minimum", dollars(fee.minimumCents))} placeholder="0" />
+                    </Field>
+                    <Field label="Monthly maximum ($)" hint="Optional; blank is no cap">
+                      <Input name="maximum" inputMode="decimal" defaultValue={val("maximum", fee.maximumCents ? dollars(fee.maximumCents) : "")} placeholder="No cap" />
                     </Field>
                   </>
                 )}

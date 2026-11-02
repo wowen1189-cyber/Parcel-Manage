@@ -14,6 +14,10 @@ describe("monthly management fee", () => {
   it("charges nothing on an empty month unless the agreement says to", () => {
     expect(monthlyFee(fee({ percent: 8, minimumCents: 10_000 }), 0, 0)).toBe(0);
     expect(monthlyFee(fee({ percent: 8, minimumCents: 10_000, chargeWhenVacant: true }), 0, 0)).toBe(10_000);
+    // A monthly cap: 8% of $10,000 is $800, capped at $500; below the cap the percent applies.
+    expect(monthlyFee(fee({ percent: 8, maximumCents: 50_000 }), 1_000_000, 4)).toBe(50_000);
+    expect(monthlyFee(fee({ percent: 8, maximumCents: 50_000 }), 200_000, 1)).toBe(16_000);
+    expect(monthlyFee(fee({ percent: 8, minimumCents: 10_000, maximumCents: 50_000 }), 50_000, 1)).toBe(10_000);
     expect(monthlyFee(fee({ basis: "flat", flatCents: 9_900 }), 0, 0)).toBe(0);
     expect(monthlyFee(fee({ basis: "flat", flatCents: 9_900, chargeWhenVacant: true }), 0, 0)).toBe(9_900);
   });
@@ -73,7 +77,12 @@ describe("fee form", () => {
     expect(feeFromForm({ basis: "percent", percent: "8", leasingFee: "none", renewalFee: "percent" }).error).toMatch(/renewal fee percent/);
   });
   it("describes the terms in plain words", () => {
-    expect(describeFee(fee({ percent: 8, minimumCents: 10_000, leasingPercent: 50, renewalFee: "flat", renewalFeeCents: 15_000 }))).toBe("Management 8% of rent collected (at least $100) · Leasing 50% of a month's rent · Renewal $150");
+    expect(describeFee(fee({ percent: 8, minimumCents: 10_000, leasingPercent: 50, renewalFee: "flat", renewalFeeCents: 15_000 }))).toBe("Management 8% of rent collected (at least $100 a month) · Leasing 50% of a month's rent · Renewal $150");
     expect(describeFee(fee({ percent: 5, leasingFee: "none" }))).toBe("Management 5% of rent collected · Leasing none · Renewal none");
+  });
+  it("caps the percent fee and describes the cap", () => {
+    expect(describeFee(fee({ percent: 8, minimumCents: 10_000, maximumCents: 50_000, leasingFee: "none" }))).toBe("Management 8% of rent collected (at least $100, at most $500 a month) · Leasing none · Renewal none");
+    expect(feeFromForm({ basis: "percent", percent: "8", minimum: "100", maximum: "50", leasingFee: "none" }).error).toMatch(/maximum can't be less/);
+    expect(feeFromForm({ basis: "percent", percent: "8", maximum: "500", leasingFee: "none" }).fee?.maximumCents).toBe(50_000);
   });
 });
