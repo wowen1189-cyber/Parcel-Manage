@@ -1448,6 +1448,67 @@ export type Database = {
           },
         ]
       }
+      inspection: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          inspected_on: string
+          kind: string
+          lease_id: string
+          notes: string | null
+          rooms: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inspected_on: string
+          kind: string
+          lease_id: string
+          notes?: string | null
+          rooms?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inspected_on?: string
+          kind?: string
+          lease_id?: string
+          notes?: string | null
+          rooms?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitation: {
         Row: {
           accepted_at: string | null
@@ -2257,6 +2318,7 @@ export type Database = {
           refund_cents: number | null
           refund_paid_on: string | null
           refund_reference: string | null
+          suggested_deductions: Json
           updated_at: string
           vacated_on: string
         }
@@ -2278,6 +2340,7 @@ export type Database = {
           refund_cents?: number | null
           refund_paid_on?: string | null
           refund_reference?: string | null
+          suggested_deductions?: Json
           updated_at?: string
           vacated_on: string
         }
@@ -2299,6 +2362,7 @@ export type Database = {
           refund_cents?: number | null
           refund_paid_on?: string | null
           refund_reference?: string | null
+          suggested_deductions?: Json
           updated_at?: string
           vacated_on?: string
         }

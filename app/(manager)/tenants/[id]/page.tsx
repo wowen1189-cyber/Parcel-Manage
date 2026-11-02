@@ -398,6 +398,9 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                   <Link href={`/communications/new?lease=${l.id}&template=rent-reminder`} className="text-[13px] font-semibold text-accent hover:underline">
                     Send a letter
                   </Link>
+                  <Link href={`/tenants/${l.id}/inspection/move_in`} className="text-[13px] font-semibold text-accent hover:underline">
+                    Move-in inspection
+                  </Link>
                   <Link href={`/tenants/${l.id}/move-out`} className="text-[13px] font-semibold text-accent hover:underline">
                     Move-out
                   </Link>

@@ -5,6 +5,8 @@ import { claimDeadlines, daysUntil, depositDeadlines, depositHeldCents, settleme
 import { contactName, date, money, todayIn } from "@/lib/format";
 import { buildLedger } from "@/lib/ledger";
 import { requireCompany } from "@/lib/session";
+import { suggestionsSchema } from "@/lib/inspections";
+import { applySuggestion, suggestDeductions } from "../../inspection-actions";
 import { recordObjection } from "./actions";
 import { ClaimButton, DeductionsForm, NoticeSentForm, SettleForm, StartForm } from "./forms";
 
@@ -41,6 +43,9 @@ export default async function MoveOutPage({ params }: PageProps<"/tenants/[id]/m
   const commercial = l.unit.kind === "commercial";
   const { data: notices } = mo ? await supabase.from("message").select("id, subject, created_at, delivery").eq("lease_id", l.id).eq("template_id", "deposit-claim").order("created_at", { ascending: false }) : { data: [] };
   const deductions = (mo?.deductions ?? []) as { description: string; amount_cents: number }[];
+  const suggestions = suggestionsSchema.catch([]).parse(mo?.suggested_deductions ?? []);
+  const { data: inspections } = await supabase.from("inspection").select("kind, inspected_on").eq("lease_id", l.id);
+  const done = (k: string) => inspections?.find((i) => i.kind === k);
   const deductionTotal = deductions.reduce((s, d) => s + d.amount_cents, 0);
   const dl = mo ? depositDeadlines(mo.vacated_on) : null;
   const cl = mo?.claim_notice_sent_on && mo.claim_notice_method ? claimDeadlines(mo.claim_notice_sent_on, mo.claim_notice_method as "certified_mail" | "email_addendum") : null;
@@ -73,9 +78,63 @@ export default async function MoveOutPage({ params }: PageProps<"/tenants/[id]/m
         <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
           <div className="space-y-6">
             <Card>
+              <CardHeader title="Inspections" description="Room by room, with photos. Rooms that got worse since move-in are where deductions come from." />
+              <ul className="divide-y divide-line">
+                {(["move_in", "move_out"] as const).map((k) => (
+                  <li key={k} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
+                    <span>
+                      <span className="font-semibold">{k === "move_in" ? "Move-in inspection" : "Move-out inspection"}</span>{" "}
+                      {done(k) ? <Pill tone="success">{date(done(k)!.inspected_on)}</Pill> : <Pill tone={k === "move_in" ? "neutral" : "warn"}>Not done</Pill>}
+                    </span>
+                    <Link href={`/tenants/${l.id}/inspection/${k}`} className="font-semibold text-accent hover:underline">
+                      {done(k) ? "Open" : "Start"}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {canEdit && !mo.decision && (
+                <div className="space-y-3 border-t border-line px-5 py-4">
+                  <form action={suggestDeductions} className="flex flex-wrap items-center gap-3">
+                    <input type="hidden" name="move_out_id" value={mo.id} />
+                    <Button type="submit" variant="secondary" small disabled={!done("move_out")}>
+                      Suggest deductions
+                    </Button>
+                    <span className="text-[13px] text-subtle">{done("move_out") ? "Compares the two inspections. Your AI (if connected) estimates amounts; you decide." : "Save the move-out inspection first."}</span>
+                  </form>
+                  {suggestions.map((s, i) => (
+                    <div key={i} className="rounded-[var(--radius-control)] border border-line p-3 text-sm">
+                      <p className="flex flex-wrap justify-between gap-2">
+                        <span className="font-semibold">{s.description}</span>
+                        <span>{s.amount_cents ? money(s.amount_cents) : "Amount to enter"}</span>
+                      </p>
+                      <p className="mt-1 text-[13px] text-subtle">{s.reason}</p>
+                      <div className="mt-2 flex gap-2">
+                        <form action={applySuggestion}>
+                          <input type="hidden" name="move_out_id" value={mo.id} />
+                          <input type="hidden" name="index" value={i} />
+                          <input type="hidden" name="add" value="1" />
+                          <Button type="submit" small>
+                            Add to deductions
+                          </Button>
+                        </form>
+                        <form action={applySuggestion}>
+                          <input type="hidden" name="move_out_id" value={mo.id} />
+                          <input type="hidden" name="index" value={i} />
+                          <Button type="submit" small variant="ghost">
+                            Dismiss
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card>
               <CardHeader title="Inspection and deductions" description="Damage beyond normal wear and tear, cleaning, and other charges the lease allows." />
               <div className="px-5 py-4">
-                <DeductionsForm moveOutId={mo.id} deductions={deductions} notes={mo.inspection_notes ?? ""} locked={!canEdit || Boolean(mo.decision)} />
+                <DeductionsForm key={JSON.stringify(deductions)} moveOutId={mo.id} deductions={deductions} notes={mo.inspection_notes ?? ""} locked={!canEdit || Boolean(mo.decision)} />
               </div>
             </Card>
 

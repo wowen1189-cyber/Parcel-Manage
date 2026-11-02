@@ -72,6 +72,9 @@ export async function claimDeposit(_: MoveOutState, form: FormData): Promise<Mov
   const { data: mo } = await supabase.from("move_out").select("id, lease_id, vacated_on, decision, deductions").eq("id", id.data).eq("company_id", company.id).maybeSingle();
   if (!mo || mo.decision) return { error: "The deposit decision is already made." };
   const deductions = mo.deductions as { description: string; amount_cents: number }[];
+  // A suggestion added without an amount must be priced first.
+  const unpriced = deductions.find((d) => !d.amount_cents);
+  if (unpriced) return { error: `Enter the amount for "${unpriced.description}" (or remove it) and save first.` };
   for (const d of deductions) {
     const { error } = await supabase.rpc("post_charge", { p_lease: mo.lease_id, p_type: "move_out", p_description: `Move-out: ${d.description}`, p_amount: d.amount_cents, p_due: mo.vacated_on });
     if (error) return { error: error.message };
