@@ -14,9 +14,14 @@ export default async function OwnerLayout({ children }: LayoutProps<"/owner">) {
           <Link href="/owner">
             <Logo companyName={company.name} />
           </Link>
-          <form action={signOut}>
-            <button className="min-h-11 rounded-[var(--radius-control)] px-3 text-[13px] font-semibold text-muted hover:bg-surface-muted">Sign out</button>
-          </form>
+          <div className="flex items-center">
+            <Link href="/set-password?next=/owner" className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-[13px] font-semibold text-muted hover:bg-surface-muted">
+              Password
+            </Link>
+            <form action={signOut}>
+              <button className="min-h-11 rounded-[var(--radius-control)] px-3 text-[13px] font-semibold text-muted hover:bg-surface-muted">Sign out</button>
+            </form>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-[960px] px-4 py-6">{children}</main>

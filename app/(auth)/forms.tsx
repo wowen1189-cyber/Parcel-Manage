@@ -6,6 +6,7 @@ import {
   acceptInvitation,
   createCompany,
   sendSignInLink,
+  setPassword,
   signInWithPassword,
   signUp,
   type FormState,
@@ -15,6 +16,7 @@ const empty: FormState = {};
 
 export function SignInForm({ next }: { next: string }) {
   const [mode, setMode] = useState<"password" | "link">("password");
+  const [reset, setReset] = useState(false);
   const [pwState, pwAction, pwPending] = useActionState(signInWithPassword, empty);
   const [linkState, linkAction, linkPending] = useActionState(sendSignInLink, empty);
   const state = mode === "password" ? pwState : linkState;
@@ -28,7 +30,10 @@ export function SignInForm({ next }: { next: string }) {
             type="button"
             role="tab"
             aria-selected={mode === m}
-            onClick={() => setMode(m)}
+            onClick={() => {
+              setMode(m);
+              setReset(false);
+            }}
             className={`min-h-10 rounded-[9px] text-[13px] font-semibold ${mode === m ? "bg-surface text-ink shadow-sm" : "text-muted"}`}
           >
             {m === "password" ? "Password" : "Email me a link"}
@@ -49,11 +54,47 @@ export function SignInForm({ next }: { next: string }) {
             <Input name="password" type="password" autoComplete="current-password" required />
           </Field>
         )}
+        {mode === "link" && reset && <input type="hidden" name="reset" value="1" />}
         <Button type="submit" className="w-full" disabled={pwPending || linkPending}>
-          {mode === "password" ? (pwPending ? "Signing in…" : "Sign in") : linkPending ? "Sending…" : "Email me a sign-in link"}
+          {mode === "password" ? (pwPending ? "Signing in…" : "Sign in") : linkPending ? "Sending…" : reset ? "Email me a reset link" : "Email me a sign-in link"}
         </Button>
       </form>
+      {mode === "password" && (
+        <p className="text-center text-[14px]">
+          <button
+            type="button"
+            className="font-semibold text-accent hover:underline"
+            onClick={() => {
+              setMode("link");
+              setReset(true);
+            }}
+          >
+            Forgot your password?
+          </button>
+        </p>
+      )}
     </div>
+  );
+}
+
+export function SetPasswordForm({ next, email }: { next: string; email: string | null }) {
+  const [state, action, pending] = useActionState(setPassword, empty);
+  return (
+    <form action={action} className="space-y-4">
+      <input type="hidden" name="next" value={next} />
+      {/* Lets the phone's password manager save the password under the right e-mail. */}
+      {email && <input type="email" name="username" value={email} autoComplete="username" readOnly hidden />}
+      {state.error && <Notice tone="danger">{state.error}</Notice>}
+      <Field label="New password" hint="At least 10 characters.">
+        <Input name="password" type="password" autoComplete="new-password" minLength={10} required autoFocus />
+      </Field>
+      <Field label="Type it again">
+        <Input name="confirm" type="password" autoComplete="new-password" minLength={10} required />
+      </Field>
+      <Button type="submit" className="w-full" disabled={pending}>
+        {pending ? "Saving…" : "Save password"}
+      </Button>
+    </form>
   );
 }
 

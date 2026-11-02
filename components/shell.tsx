@@ -54,11 +54,16 @@ export function AppShell({
         <div className="border-t border-line px-4 py-3">
           <p className="truncate text-[13px] font-semibold">{userName}</p>
           {userTitle && <p className="truncate text-[12px] text-subtle">{userTitle}</p>}
-          <form action={signOutAction}>
-            <button type="submit" className="mt-1 min-h-9 text-[13px] font-semibold text-accent hover:underline">
-              Sign out
-            </button>
-          </form>
+          <div className="mt-1 flex gap-4">
+            <form action={signOutAction}>
+              <button type="submit" className="min-h-9 text-[13px] font-semibold text-accent hover:underline">
+                Sign out
+              </button>
+            </form>
+            <Link href="/set-password?next=/dashboard" className="inline-flex min-h-9 items-center text-[13px] font-semibold text-muted hover:underline">
+              Password
+            </Link>
+          </div>
         </div>
       </aside>
 

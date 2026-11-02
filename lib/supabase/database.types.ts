@@ -4798,6 +4798,7 @@ export type Database = {
         Returns: undefined
       }
       gl_id: { Args: { p_company: string; p_number: string }; Returns: string }
+      has_password: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           cid: string

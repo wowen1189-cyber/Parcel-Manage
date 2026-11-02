@@ -34,17 +34,19 @@ export async function sendSignInLink(_: FormState, form: FormData): Promise<Form
   // A tenant on file at this company may sign in for the first time: their account is created on first use.
   // Anyone else needs an account (or invite) already. The answer below is the same either way.
   // Office staff always go to the office side, even when their e-mail is also on a tenant or owner record.
+  // "Forgot your password?": the same sign-in link, ending at the page to choose a new one.
+  const reset = form.get("reset") === "1";
   const staff = await isStaffHere(parsed.data);
   const firstTime = !staff && (await isTenantOnFile(parsed.data));
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
-    options: { shouldCreateUser: firstTime, emailRedirectTo: `${await getOrigin()}/auth/callback?next=${encodeURIComponent(firstTime && next === "/dashboard" ? "/portal" : next)}` },
+    options: { shouldCreateUser: firstTime, emailRedirectTo: `${await getOrigin()}/auth/callback?next=${encodeURIComponent(reset ? `/set-password?mode=reset&next=${encodeURIComponent(next)}` : firstTime && next === "/dashboard" ? "/portal" : next)}` },
   });
   // Same answer whether or not the account exists, so the form can't be used to check who has one.
   // 429: a link went to this address less than a minute ago.
   if (error?.status === 429) return { error: "A link was just sent to that address. Use the newest email, or wait a minute and ask again." };
   if (error && error.status !== 400 && error.status !== 422) return { error: "We couldn't send the link just now. Try again in a minute." };
-  return { message: `If ${parsed.data} has an account, a sign-in link is on its way. It works for one hour.` };
+  return { message: reset ? `If ${parsed.data} has an account, a link to choose a new password is on its way. It works for one hour.` : `If ${parsed.data} has an account, a sign-in link is on its way. It works for one hour.` };
 }
 
 /** Does this e-mail belong to an active team member of the company whose site this is? Server-only check. */
@@ -93,7 +95,32 @@ export async function confirmEmailLink(form: FormData): Promise<void> {
   const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type.data });
   // Keep the profile's e-mail the same as the login's, so team lookups by e-mail find the person.
   if (!error && data.user?.email) await createAdminClient().from("profile").update({ email: data.user.email.toLowerCase() }).eq("id", data.user.id);
-  redirect(error ? "/sign-in?link=expired" : next);
+  if (error) redirect("/sign-in?link=expired");
+  // First sign-in by link (an invite, a tenant or owner, a new team member): ask them to choose a password.
+  // A reset link always goes there too.
+  const { data: hasPassword } = await supabase.rpc("has_password");
+  if (type.data === "recovery" || !hasPassword) redirect(`/set-password?${new URLSearchParams({ next, ...(hasPassword ? { mode: "reset" } : {}) })}`);
+  redirect(next);
+}
+
+/** Set or change the signed-in person's password (the set-password page). */
+export async function setPassword(_: FormState, form: FormData): Promise<FormState> {
+  const parsed = z
+    .object({ password: z.string().min(10, "Use at least 10 characters."), confirm: z.string() })
+    .refine((v) => v.password === v.confirm, { message: "The two passwords don't match.", path: ["confirm"] })
+    .safeParse({ password: form.get("password"), confirm: form.get("confirm") });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims) redirect("/sign-in");
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    if (error.code === "same_password") return { error: "That's your current password. Choose a different one." };
+    if (error.code === "weak_password") return { error: "Choose a stronger password: longer, and not a common word or phrase." };
+    if (error.code === "reauthentication_needed") return { error: "For your security, sign out, sign back in with an e-mailed link, and change it right away." };
+    return { error: "The password couldn't be saved. Try again." };
+  }
+  redirect(safeNext(form.get("next")));
 }
 
 export async function signUp(_: FormState, form: FormData): Promise<FormState> {

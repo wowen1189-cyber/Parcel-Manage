@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { requireTenant } from "@/lib/portal";
 import { signOut } from "../../(auth)/actions";
@@ -14,9 +15,14 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
         <div className="mx-auto max-w-[760px] px-4 pt-4">
           <div className="flex items-center justify-between gap-3">
             <Logo companyName={company.name} />
-            <form action={signOut}>
-              <button className="min-h-11 rounded-[var(--radius-control)] px-3 text-[13px] font-semibold text-muted hover:bg-surface-muted">Sign out</button>
-            </form>
+            <div className="flex items-center">
+              <Link href="/set-password?next=/portal" className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-[13px] font-semibold text-muted hover:bg-surface-muted">
+                Password
+              </Link>
+              <form action={signOut}>
+                <button className="min-h-11 rounded-[var(--radius-control)] px-3 text-[13px] font-semibold text-muted hover:bg-surface-muted">Sign out</button>
+              </form>
+            </div>
           </div>
           <p className="mt-3 text-[13px] text-subtle">Signed in as {[me.first_name, me.last_name].filter(Boolean).join(" ") || me.business_name}</p>
           <div className="mt-2 pb-2">
