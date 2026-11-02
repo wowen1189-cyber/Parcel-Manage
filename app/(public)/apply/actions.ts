@@ -9,6 +9,7 @@ import { ROOT_DOMAIN } from "@/lib/env";
 import { stripe } from "@/lib/integrations/stripe/client";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
 import { inviteMember, unitName } from "@/lib/leasing";
+import { rateLimited } from "@/lib/rate-limit";
 import { getPublicCompany } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { companyUrl } from "@/lib/tenant";
@@ -29,6 +30,7 @@ async function companyFor() {
 /** "Ask about this rental" on a listing: becomes a guest card and tells the office. */
 export async function inquire(_: ApplyState, form: FormData): Promise<ApplyState> {
   if (form.get("website")) return { message: "Thanks! We'll be in touch." }; // bots fill the hidden field
+  if (await rateLimited("inquire")) return { error: "Too many messages from here. Please call the office instead." };
   const company = await companyFor();
   if (!company) return { error: "This page isn't available." };
   const p = z
@@ -70,6 +72,7 @@ const coApplicants = (form: FormData) =>
 /** Someone applies straight from a listing: a new application with them as the main applicant. */
 export async function applyToListing(_: ApplyState, form: FormData): Promise<ApplyState> {
   if (form.get("website")) return { error: "Something went wrong." };
+  if (await rateLimited("apply", 6)) return { error: "Too many applications from here. Please try again later or call the office." };
   const company = await companyFor();
   if (!company) return { error: "This page isn't available." };
   if (form.get("authorize") !== "on") return { error: "Check the box to authorize screening." };

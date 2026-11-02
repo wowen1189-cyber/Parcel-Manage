@@ -2606,6 +2606,21 @@ export type Database = {
           },
         ]
       }
+      rate_hit: {
+        Row: {
+          at: string
+          key: string
+        }
+        Insert: {
+          at?: string
+          key: string
+        }
+        Update: {
+          at?: string
+          key?: string
+        }
+        Relationships: []
+      }
       reconciliation: {
         Row: {
           bank_account_id: string

@@ -53,7 +53,7 @@ Build in order. Each phase ends with a demo Wesley can click through, tests pass
 - [ ] AI assistant panel (read-only Q&A, build report/tile) and approval queue; remaining agents (collections, renewal, accounting close, resident messenger, document AI)
 - [ ] Public REST API, scoped keys, signed webhooks; MCP server
 - [ ] Recurring maintenance, purchase orders/projects, inventory and keys
-- [ ] Security review: RLS tests per table, secrets audit, rate limits, backups/restore drill, error monitoring
+- [ ] Security review: RLS tests per table, secrets audit, rate limits, backups/restore drill, error monitoring *(Done Nov 1, 2026: every table has row security (the 3 server-only tables have no policies, so only the server reads them); the one function visitors can call returns only a company's public name and phone; no public storage; no secrets in code or git history; no real export files tracked; service key never in browser code; isolation tests for the leasing, autopay and To do tables; browser security headers (no framing, no sniffing, HTTPS only); rate limits on public inquiry and application forms. Left: backups/restore drill and error monitoring (need Wesley's Supabase plan and a monitoring account).)*
 - [ ] **Switch-over checklist:** import final AppFolio data (balances as of cutover date), parallel-run one month, reconcile every bank and trust account, confirm tenant autopay re-enrollment, owner/partner sign-off, then cancel AppFolio
 **Done when:** AppFolio is off and SIM REI runs fully on Parcel Manage.
 
