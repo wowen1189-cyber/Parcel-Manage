@@ -70,6 +70,10 @@ describe("business rules form", () => {
 });
 
 describe("readBusinessRules", () => {
+  it("defaults to online-only rent and keeps a company's choice to take checks", () => {
+    expect(readBusinessRules({}).rent.onlineOnly).toBe(true);
+    expect(readBusinessRules({ businessRules: { rent: { onlineOnly: false } } }).rent.onlineOnly).toBe(false);
+  });
   it("fills missing settings with the defaults", () => {
     expect(readBusinessRules({})).toEqual(DEFAULT_BUSINESS_RULES);
     const rules = readBusinessRules({ businessRules: { rent: { lateFeeCents: 7500 } } });

@@ -19,18 +19,23 @@ export default async function PayPage({ searchParams }: PageProps<"/portal/pay">
     supabase.from("lease").select("opening_balance_cents, opening_balance_as_of, certified_funds_only").eq("id", lease.id).single(),
   ]);
   const { data: autopay } = await supabase.from("autopay").select("bank_label, day_of_month, max_cents, last_result").eq("lease_id", lease.id).eq("active", true).maybeSingle();
+  const rules = readBusinessRules(c?.settings);
   const { balanceCents } = buildLedger(charges ?? [], payments ?? [], { cents: full?.opening_balance_cents ?? null, asOf: full?.opening_balance_as_of ?? null });
   return (
     <div className="space-y-4">
       <h1 className="text-[26px] font-extrabold">Pay rent</h1>
       <p className="text-muted">You owe {money(Math.max(0, balanceCents))}.</p>
       {!c?.stripe_charges_enabled ? (
-        <Notice>Online payments aren&apos;t turned on yet. Pay by check or money order to {company.name}{company.office_phone ? `, or call ${company.office_phone}` : ""}.</Notice>
+        rules.rent.onlineOnly ? (
+          <Notice>Online payments are being set up. Contact {company.name}{company.office_phone ? ` at ${company.office_phone}` : ""} before your rent is due.</Notice>
+        ) : (
+          <Notice>Online payments aren&apos;t turned on yet. Pay by check or money order to {company.name}{company.office_phone ? `, or call ${company.office_phone}` : ""}.</Notice>
+        )
       ) : full?.certified_funds_only ? (
         <Notice tone="warn">Your account requires payment by money order or cashier&apos;s check. Contact the office.</Notice>
       ) : (
         <Card className="p-5">
-          <PayForm balanceCents={balanceCents} feePercent={readBusinessRules(c.settings).rent.cardFeePercent} />
+          <PayForm balanceCents={balanceCents} feePercent={rules.rent.cardFeePercent} />
         </Card>
       )}
       {c?.stripe_charges_enabled && !full?.certified_funds_only && (

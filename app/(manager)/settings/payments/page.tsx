@@ -22,7 +22,7 @@ export default async function PaymentsSettingsPage({ searchParams }: PageProps<"
         />
         <div className="space-y-3 px-5 py-4">
           {!platform ? (
-            <Notice tone="warn">Parcel Manage&apos;s Stripe platform account isn&apos;t connected yet, so online payments can&apos;t be turned on. Until then, tenants see how to pay by check or money order.</Notice>
+            <Notice tone="warn">Parcel Manage&apos;s Stripe platform account isn&apos;t connected yet, so online payments can&apos;t be turned on. Until then, tenants are told to contact the office (or, if you take checks, how to pay by check or money order).</Notice>
           ) : !isAdmin(membership) ? (
             <Notice>Only an admin can set up payments.</Notice>
           ) : (

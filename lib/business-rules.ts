@@ -77,6 +77,10 @@ export const businessRulesSchema = z
       lateFeeCents: cents,
       lateFeeDay: z.coerce.number().int().min(2).max(28),
       cardFeePercent: z.coerce.number().min(0).max(10),
+      // Tenants pay only through Parcel Manage (Stripe ACH or card); the only exception is certified funds
+      // (move-in funds, or after a returned payment) taken by the office. Off: the portal also shows check
+      // and money order instructions.
+      onlineOnly: z.boolean(),
     }),
     maintenance: z.object({
       falseEmergencyFeeCents: cents,
@@ -173,7 +177,7 @@ export const DEFAULT_BUSINESS_RULES: BusinessRules = {
       "Wolf Hybrid",
     ],
   },
-  rent: { dueDay: 1, lateFeeCents: 5000, lateFeeDay: 6, cardFeePercent: 3 },
+  rent: { dueDay: 1, lateFeeCents: 5000, lateFeeDay: 6, cardFeePercent: 3, onlineOnly: true },
   maintenance: {
     falseEmergencyFeeCents: 10000,
     acEmergencyAboveF: 80,

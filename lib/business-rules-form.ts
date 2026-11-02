@@ -72,6 +72,7 @@ export const RULE_SECTIONS: RuleSection[] = [
       { path: "rent.lateFeeDay", label: "Late fee posts on day", type: "number" },
       { path: "rent.lateFeeCents", label: "Late fee", type: "money", hint: "Must also be written in the lease." },
       { path: "rent.cardFeePercent", label: "Card convenience fee", type: "percent", hint: "Shown to tenants before they pay. ACH is always free." },
+      { path: "rent.onlineOnly", label: "Tenants pay online only", type: "boolean", hint: "Rent is paid only through the resident portal (bank or card). Certified funds are still taken for move-in funds and after a returned payment, as the lease says." },
     ],
   },
   {
