@@ -87,6 +87,8 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 ## E-signature
 - Leases are signed online under Florida's Electronic Signature Act (ch. 668, including the UETA at 668.50) and the federal E-SIGN Act. Sending freezes the filled documents and records their fingerprint, so what's signed can't change; every blank must be filled first. Tenants sign in order, then guarantors, then the landlord's agent. Each signer agrees to sign electronically, types their name exactly as on the lease, and adds initials; the time, IP address and device are logged. The signed PDF with a signature certificate is filed on the lease and e-mailed to everyone, and a draft lease becomes active.
 
+- Any PDF can be sent for e-signature (E-sign screen): its SHA-256 fingerprint is recorded when sent and checked again before the signed copy is made; the signed copy is the original PDF unchanged plus a signature certificate page. Signers consent and type their name (no initials). Signing a PDF never activates a draft lease.
+
 ## Florida notices (law — have the company's attorney review templates before first use)
 - 3-day notice to pay or deliver possession (83.56(3)): rent only; deadline excludes Saturdays, Sundays and legal holidays (the company counts the 11 federal holidays plus the day after Thanksgiving, a Florida legal holiday; Wesley, Nov 2026); +5 days if mailed; hand delivery or posting if absent.
 - 7-day notices of noncompliance with/without opportunity to cure (83.56(2)).

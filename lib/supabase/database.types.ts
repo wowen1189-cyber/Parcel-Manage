@@ -3438,6 +3438,7 @@ export type Database = {
           signed_document_id: string | null
           snapshot: Json
           snapshot_sha256: string
+          source_path: string | null
           status: string
           title: string
         }
@@ -3452,6 +3453,7 @@ export type Database = {
           signed_document_id?: string | null
           snapshot: Json
           snapshot_sha256: string
+          source_path?: string | null
           status?: string
           title: string
         }
@@ -3466,6 +3468,7 @@ export type Database = {
           signed_document_id?: string | null
           snapshot?: Json
           snapshot_sha256?: string
+          source_path?: string | null
           status?: string
           title?: string
         }

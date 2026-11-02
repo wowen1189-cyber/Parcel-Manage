@@ -16,7 +16,7 @@ export default async function SignPage({ params }: PageProps<"/sign/[token]">) {
   const subdomain = await getRequestSubdomain();
   const { data: s } = await db
     .from("signature_signer")
-    .select("id, company_id, request_id, name, role, status, signature_request!inner(id, title, status, snapshot, management_agreement_id, company(name, subdomain))")
+    .select("id, company_id, request_id, name, role, status, signature_request!inner(id, title, status, snapshot, source_path, management_agreement_id, company(name, subdomain))")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
   const ok = s && s.signature_request.status === "sent" && s.signature_request.company.subdomain === subdomain && s.status !== "signed" && s.status !== "declined";
@@ -34,8 +34,9 @@ export default async function SignPage({ params }: PageProps<"/sign/[token]">) {
     await db.from("signature_event").insert({ company_id: s.company_id, request_id: s.request_id, signer_id: s.id, kind: "viewed" });
   }
   const docs = s.signature_request.snapshot as DocText[];
-  // Leases have initials on every page; a management agreement only has signatures.
-  const initials = !s.signature_request.management_agreement_id;
+  // Leases have initials on every page; a management agreement or an uploaded PDF only has signatures.
+  const initials = !s.signature_request.management_agreement_id && !s.signature_request.source_path;
+  const pdfUrl = s.signature_request.source_path ? (await db.storage.from("documents").createSignedUrl(s.signature_request.source_path, 3600)).data?.signedUrl : null;
 
   return (
     <main className="min-h-screen bg-bg">
@@ -45,7 +46,15 @@ export default async function SignPage({ params }: PageProps<"/sign/[token]">) {
         <p className="mt-1 text-muted">
           For {s.name}. Read everything below, then sign at the bottom.{initials ? " Your initials apply to every initials line." : ""}
         </p>
-        <article className="mt-6 space-y-8 rounded-[var(--radius-card)] border border-line bg-surface p-6 font-serif text-[15px] leading-relaxed sm:p-10">
+        {pdfUrl && (
+          <div className="mt-6 space-y-3">
+            <iframe src={pdfUrl} title={s.signature_request.title} className="h-[75vh] w-full rounded-[var(--radius-card)] border border-line bg-surface" />
+            <a href={pdfUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center font-semibold text-accent hover:underline">
+              Open the document in a new tab
+            </a>
+          </div>
+        )}
+        <article className={`mt-6 space-y-8 rounded-[var(--radius-card)] border border-line bg-surface p-6 font-serif text-[15px] leading-relaxed sm:p-10 ${pdfUrl ? "hidden" : ""}`}>
           {docs.map((d, i) => (
             <section key={i}>
               <h2 className="text-center font-sans text-[20px] font-extrabold">{d.title}</h2>

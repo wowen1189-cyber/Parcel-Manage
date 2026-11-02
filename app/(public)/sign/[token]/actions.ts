@@ -14,7 +14,7 @@ async function findSigner(token: string) {
   const subdomain = await getRequestSubdomain();
   const { data: s } = await db
     .from("signature_signer")
-    .select("id, company_id, request_id, name, status, signature_request!inner(id, status, management_agreement_id, company(id, name, legal_name, subdomain, office_email, office_phone, time_zone))")
+    .select("id, company_id, request_id, name, status, signature_request!inner(id, status, management_agreement_id, source_path, company(id, name, legal_name, subdomain, office_email, office_phone, time_zone))")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
   if (!s || s.signature_request.status !== "sent" || s.signature_request.company.subdomain !== subdomain || s.status === "signed" || s.status === "declined") return null;
@@ -30,7 +30,7 @@ export async function sign(_: SignState, form: FormData): Promise<SignState> {
   const found = await findSigner(p.data.token);
   if (!found) return { error: "This link no longer works. Contact the office." };
   const { db, s } = found;
-  if (!s.signature_request.management_agreement_id && !p.data.initials) return { error: "Type your initials." };
+  if (!s.signature_request.management_agreement_id && !s.signature_request.source_path && !p.data.initials) return { error: "Type your initials." };
   const norm = (x: string) => x.toLowerCase().replace(/[^a-z]/g, "");
   if (norm(p.data.typed) !== norm(s.name)) return { error: `Type your name exactly as it appears on the document: ${s.name}.` };
   const h = await headers();

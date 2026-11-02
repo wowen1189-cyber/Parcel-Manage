@@ -45,8 +45,17 @@ export async function documentPdf(docs: DocText[], certificate: { title: string;
       for (const p of s.paragraphs) draw(p);
     }
   }
-  newPage();
+  // The certificate starts on its own page (unless nothing came before it).
+  if (y < 792 - margin) newPage();
   draw(certificate.title, bold, 14, 10);
   for (const l of certificate.lines) draw(l, font, 10, 2);
   return pdf.save();
+}
+
+/** An uploaded PDF, signed: the original pages unchanged, then the signature certificate. */
+export async function appendCertificate(original: Uint8Array, certificate: { title: string; lines: string[] }): Promise<Uint8Array> {
+  const out = await PDFDocument.load(original, { ignoreEncryption: true });
+  const cert = await PDFDocument.load(await documentPdf([], certificate));
+  for (const page of await out.copyPages(cert, cert.getPageIndices())) out.addPage(page);
+  return out.save();
 }
