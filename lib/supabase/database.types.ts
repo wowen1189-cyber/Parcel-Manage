@@ -3033,6 +3033,90 @@ export type Database = {
           },
         ]
       }
+      recurring_work_order: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          details: string | null
+          frequency: string
+          id: string
+          last_work_order_id: string | null
+          next_on: string
+          property_id: string
+          title: string
+          unit_id: string | null
+          updated_at: string
+          vendor_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          details?: string | null
+          frequency?: string
+          id?: string
+          last_work_order_id?: string | null
+          next_on: string
+          property_id: string
+          title: string
+          unit_id?: string | null
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          details?: string | null
+          frequency?: string
+          id?: string
+          last_work_order_id?: string | null
+          next_on?: string
+          property_id?: string
+          title?: string
+          unit_id?: string | null
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_work_order_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_work_order_last_work_order_id_fkey"
+            columns: ["last_work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_order"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_work_order_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_work_order_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "unit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_work_order_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       renters_insurance: {
         Row: {
           carrier: string | null
