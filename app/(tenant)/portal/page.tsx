@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonClass, Card, CardHeader, EmptyState, Notice, Pill } from "@/components/ui";
-import { date, money, oneLineAddress } from "@/lib/format";
+import { date, money, oneLineAddress, todayIn } from "@/lib/format";
 import { buildLedger } from "@/lib/ledger";
 import { requireTenant } from "@/lib/portal";
 import { WO_STATUS } from "@/lib/work-orders";
@@ -17,6 +17,7 @@ export default async function PortalHome() {
   ]);
   const { balanceCents } = buildLedger(charges ?? [], payments ?? [], { cents: full?.opening_balance_cents ?? null, asOf: full?.opening_balance_as_of ?? null });
   const phone = company.office_phone;
+  const { data: renewalOpen } = await supabase.from("renewal_offer").select("respond_by").eq("lease_id", lease.id).eq("status", "sent").gte("respond_by", todayIn(company.time_zone)).order("sent_at", { ascending: false }).limit(1).maybeSingle();
 
   return (
     <div className="space-y-5">
@@ -25,6 +26,12 @@ export default async function PortalHome() {
         <p className="text-muted">{oneLineAddress({ ...lease.unit.property, address_line2: [lease.unit.property.address_line2, lease.unit.label !== "Home" ? `Unit ${lease.unit.label}` : null].filter(Boolean).join(", ") })}</p>
       </div>
 
+      {renewalOpen && (
+        <Link href="/portal/renewal" className="block rounded-[var(--radius-card)] border border-accent bg-accent-softer px-5 py-4 hover:bg-accent-soft">
+          <p className="font-bold text-accent-deep">Your renewal options are ready</p>
+          <p className="text-[14px] text-muted">Choose one by {date(renewalOpen.respond_by)}.</p>
+        </Link>
+      )}
       <Card className="p-5">
         <p className="text-[13px] font-semibold text-subtle">{balanceCents < 0 ? "Credit on your account" : "You owe"}</p>
         <p className={`mt-1 text-[34px] font-extrabold ${balanceCents > 0 ? "text-danger" : ""}`}>{money(Math.abs(balanceCents))}</p>

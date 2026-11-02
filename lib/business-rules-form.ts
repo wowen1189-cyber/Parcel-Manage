@@ -53,6 +53,9 @@ export const RULE_SECTIONS: RuleSection[] = [
       { path: "expirations.maxSharePercent", label: "Most leases ending in one month (% of units)", type: "percent", hint: "Applied to the whole portfolio and to each property (at least 1 unit)." },
       { path: "expirations.avoidMonths", label: "Months to avoid for lease endings (one per line)", type: "list", hint: "e.g. November, December, January: slow months to re-lease." },
       { path: "expirations.renewalOfferDays", label: "Start renewal offers (days before the lease ends)", type: "number" },
+      { path: "renewal.defaultIncreasePercent", label: "Renewal offers: default rent increase", type: "percent", hint: "Filled in on each offer; you can type a different increase per tenant." },
+      { path: "renewal.mtmFeeCents", label: "Renewal offers: month-to-month fee", type: "money", hint: "Added to the new rent every month the tenant is month-to-month." },
+      { path: "renewal.mtmMaxMonths", label: "Renewal offers: most months month-to-month", type: "number", hint: "After this, the tenant renews or moves out. Ending a month-to-month tenancy takes written notice at least 30 days before the end of a monthly period (Fla. Stat. 83.57(3)); Parcel Manage reminds you when it's due." },
     ],
   },
   {

@@ -41,6 +41,8 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+const RENEWAL_STATUS: Record<string, string> = { sent: "offer sent, waiting for the tenant", accepted: "the tenant chose an option: apply it", declined: "the tenant declined", withdrawn: "offer withdrawn", applied: "applied to the lease" };
+
 export default async function LeasePage({ params, searchParams }: PageProps<"/tenants/[id]">) {
   const { id } = await params;
   const sp = await searchParams;
@@ -54,6 +56,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
     .eq("company_id", company.id)
     .maybeSingle();
   if (!l) notFound();
+  const { data: renewal } = await supabase.from("renewal_offer").select("status, respond_by").eq("company_id", company.id).eq("lease_id", l.id).order("sent_at", { ascending: false }).limit(1).maybeSingle();
 
   const today = todayIn(company.time_zone);
   const rules = readBusinessRules(company.settings);
@@ -139,6 +142,19 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
         <StatTile label="Deposit held" value={money(l.deposit_cents)} note={l.deposit_pending_cents ? `${money(l.deposit_pending_cents)} pending` : commercial ? "Commercial lease" : "Fla. Stat. 83.49 applies"} />
         <StatTile label={l.status === "notice" ? "Moving out" : "Lease ends"} value={<span className="text-xl">{l.status === "notice" ? date(l.move_out_on) : l.end_date ? date(l.end_date) : "Month-to-month"}</span>} note={`Started ${date(l.start_date)}`} />
       </div>
+
+      {l.status === "active" && !commercial && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-line bg-surface px-5 py-3 text-sm">
+          <span>
+            <span className="font-semibold">Renewal: </span>
+            {renewal ? RENEWAL_STATUS[renewal.status] ?? renewal.status : "no offer sent yet"}
+            {renewal?.status === "sent" && <span className="text-muted"> · answer by {date(renewal.respond_by)}</span>}
+          </span>
+          <Link href={`/tenants/${l.id}/renewal`} className="font-semibold text-accent hover:underline">
+            {renewal && renewal.status !== "withdrawn" ? "Open renewal offer" : "Make a renewal offer"}
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr]">
         <div className="space-y-6">

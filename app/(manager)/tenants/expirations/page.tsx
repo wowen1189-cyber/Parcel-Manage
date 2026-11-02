@@ -268,8 +268,8 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
                 </p>
               </div>
               {renewing ? (
-                <Link href={`/tenants/${renewing.id}`} className={buttonClass("primary", true)}>
-                  Open {name(renewing)}&apos;s lease
+                <Link href={`/tenants/${renewing.id}/renewal?months=${picked.months}`} className={buttonClass("primary", true)}>
+                  Make a renewal offer
                 </Link>
               ) : (
                 <Link href={`/tenants/new?${new URLSearchParams({ start: planStart, months: String(picked.months), ...(planRent ? { rent: planRent.toFixed(2) } : {}) })}`} className={buttonClass("primary", true)}>

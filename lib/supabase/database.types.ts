@@ -3735,6 +3735,92 @@ export type Database = {
           },
         ]
       }
+      renewal_offer: {
+        Row: {
+          applied_at: string | null
+          chosen_option: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          increase_percent: number
+          lease_id: string
+          message: string | null
+          options: Json
+          respond_by: string
+          responded_at: string | null
+          responded_by: string | null
+          sent_at: string
+          sent_to: string[]
+          status: string
+        }
+        Insert: {
+          applied_at?: string | null
+          chosen_option?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          increase_percent: number
+          lease_id: string
+          message?: string | null
+          options: Json
+          respond_by: string
+          responded_at?: string | null
+          responded_by?: string | null
+          sent_at?: string
+          sent_to?: string[]
+          status?: string
+        }
+        Update: {
+          applied_at?: string | null
+          chosen_option?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          increase_percent?: number
+          lease_id?: string
+          message?: string | null
+          options?: Json
+          respond_by?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          sent_at?: string
+          sent_to?: string[]
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renewal_offer_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewal_offer_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewal_offer_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewal_offer_responded_by_fkey"
+            columns: ["responded_by"]
+            isOneToOne: false
+            referencedRelation: "contact"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       renters_insurance: {
         Row: {
           carrier: string | null

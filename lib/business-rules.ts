@@ -66,6 +66,13 @@ export const businessRulesSchema = z
         .max(11, "Leave at least one month open."),
       renewalOfferDays: z.coerce.number().int().min(30).max(180),
     }),
+    // Renewal offers (Wesley Owen, Nov 2, 2026): a default increase the office can change per offer; up to three
+    // options, one of them month-to-month at the new rent plus a monthly fee, for a limited number of months.
+    renewal: z.object({
+      defaultIncreasePercent: z.coerce.number().min(0).max(25),
+      mtmFeeCents: cents,
+      mtmMaxMonths: z.coerce.number().int().min(1).max(12),
+    }),
     pets: z.object({
       maxPets: z.coerce.number().int().min(0).max(10),
       petFeeCents: cents,
@@ -161,6 +168,7 @@ export const DEFAULT_BUSINESS_RULES: BusinessRules = {
   lease: { minTermMonths: 7, maxTermMonths: 24, shortTermUnderMonths: 12, shortTermSurchargeCents: 5000, longTermYearlyIncreasePercent: 3 },
   // Central Florida demand peaks in late spring and summer; holiday months are slow to re-lease.
   expirations: { maxSharePercent: 12, avoidMonths: ["November", "December", "January"], renewalOfferDays: 90 },
+  renewal: { defaultIncreasePercent: 3, mtmFeeCents: 15000, mtmMaxMonths: 3 },
   pets: {
     maxPets: 2,
     petFeeCents: 35000,
