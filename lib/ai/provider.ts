@@ -7,6 +7,8 @@ import { estimateCostCents, type Provider } from "./models";
 // error or a timeout, it returns { ok: false } and the app uses its non-AI fallback.
 
 export type AiResult = { ok: true; text: string } | { ok: false; reason: string };
+/** A picture sent with the prompt (JPEG, PNG or WebP, base64 without the data: prefix). */
+export type AiImage = { mediaType: string; data: string };
 
 export async function monthSpendCents(companyId: string): Promise<number> {
   const start = new Date();
@@ -16,13 +18,14 @@ export async function monthSpendCents(companyId: string): Promise<number> {
   return (data ?? []).reduce((s, r) => s + (r.cost_estimate_cents ?? 0), 0);
 }
 
-async function call(provider: Provider, model: string, key: string, baseUrl: string | null, system: string, prompt: string, maxTokens: number, signal: AbortSignal) {
+async function call(provider: Provider, model: string, key: string, baseUrl: string | null, system: string, prompt: string, maxTokens: number, signal: AbortSignal, images: AiImage[] = []) {
   if (provider === "anthropic") {
+    const content = images.length ? [...images.map((i) => ({ type: "image", source: { type: "base64", media_type: i.mediaType, data: i.data } })), { type: "text", text: prompt }] : prompt;
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       signal,
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: "user", content }] }),
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j?.error?.message ?? `Anthropic error ${r.status}`);
@@ -33,7 +36,7 @@ async function call(provider: Provider, model: string, key: string, baseUrl: str
       method: "POST",
       signal,
       headers: { "x-goog-api-key": key, "content-type": "application/json" },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } }),
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [...images.map((i) => ({ inline_data: { mime_type: i.mediaType, data: i.data } })), { text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } }),
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j?.error?.message ?? `Gemini error ${r.status}`);
@@ -45,14 +48,14 @@ async function call(provider: Provider, model: string, key: string, baseUrl: str
     method: "POST",
     signal,
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-    body: JSON.stringify({ model, max_completion_tokens: maxTokens, messages: [{ role: "system", content: system }, { role: "user", content: prompt }] }),
+    body: JSON.stringify({ model, max_completion_tokens: maxTokens, messages: [{ role: "system", content: system }, { role: "user", content: images.length ? [...images.map((i) => ({ type: "image_url", image_url: { url: `data:${i.mediaType};base64,${i.data}` } })), { type: "text", text: prompt }] : prompt }] }),
   });
   const j = await r.json();
   if (!r.ok) throw new Error(j?.error?.message ?? `AI provider error ${r.status}`);
   return { text: j.choices?.[0]?.message?.content ?? "", input: j.usage?.prompt_tokens ?? 0, output: j.usage?.completion_tokens ?? 0 };
 }
 
-export async function aiComplete(input: { companyId: string; feature: string; system: string; prompt: string; maxTokens?: number; timeoutMs?: number; test?: boolean }): Promise<AiResult> {
+export async function aiComplete(input: { companyId: string; feature: string; system: string; prompt: string; images?: AiImage[]; maxTokens?: number; timeoutMs?: number; test?: boolean }): Promise<AiResult> {
   const db = createAdminClient();
   const { data: conn } = await db.from("ai_connection").select("provider, model, base_url, monthly_limit_cents, status").eq("company_id", input.companyId).maybeSingle();
   if (!conn) return { ok: false, reason: "No AI connection." };
@@ -67,7 +70,7 @@ export async function aiComplete(input: { companyId: string; feature: string; sy
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? 20_000);
   try {
-    const r = await call(conn.provider as Provider, conn.model, key, conn.base_url, input.system, input.prompt, input.maxTokens ?? 600, controller.signal);
+    const r = await call(conn.provider as Provider, conn.model, key, conn.base_url, input.system, input.prompt, input.maxTokens ?? 600, controller.signal, input.images);
     await db.from("ai_usage").insert({ company_id: input.companyId, feature: input.feature, input_tokens: r.input, output_tokens: r.output, cost_estimate_cents: estimateCostCents(conn.model, r.input, r.output) });
     return r.text.trim() ? { ok: true, text: r.text.trim() } : { ok: false, reason: "The AI returned nothing." };
   } catch (e) {

@@ -11,7 +11,7 @@ export async function loadJob(token: string) {
   const { data: wo } = await db
     .from("work_order")
     .select(
-      "id, company_id, number, title, priority, status, ai_summary, room, entry_ok, pets_in_home, tenant_note, scheduled_start, scheduled_end, vendor_accepted_at, vendor_declined_at, vendor_completed_at, completed_at, resolution, vendor_id, property_id, unit_id, company(id, name, legal_name, subdomain, office_phone, office_email, time_zone, settings), property(id, name, entity_id, address_line1, address_line2, city, state, postal_code), unit(id, label, status, lease(id, status, email_notices_agreed, lease_tenant(role, contact(first_name, last_name, business_name, kind, email, mobile, phone)))), vendor(id, contact(first_name, last_name, business_name, kind))",
+      "id, company_id, number, title, priority, status, ai_summary, room, entry_ok, pets_in_home, tenant_note, scheduled_start, scheduled_end, tech_arrived_at, vendor_accepted_at, vendor_declined_at, vendor_completed_at, completed_at, resolution, vendor_id, property_id, unit_id, company(id, name, legal_name, subdomain, office_phone, office_email, time_zone, settings), property(id, name, entity_id, address_line1, address_line2, city, state, postal_code), unit(id, label, status, lease(id, status, email_notices_agreed, lease_tenant(role, contact(first_name, last_name, business_name, kind, email, mobile, phone)))), vendor(id, contact(first_name, last_name, business_name, kind))",
     )
     .eq("vendor_token_hash", hashToken(token))
     .maybeSingle();

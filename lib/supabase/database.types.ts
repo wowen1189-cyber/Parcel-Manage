@@ -1202,6 +1202,7 @@ export type Database = {
           id: string
           lease_id: string | null
           management_agreement_id: string | null
+          photo_stage: string | null
           property_id: string | null
           source: string | null
           storage_path: string
@@ -1221,6 +1222,7 @@ export type Database = {
           id?: string
           lease_id?: string | null
           management_agreement_id?: string | null
+          photo_stage?: string | null
           property_id?: string | null
           source?: string | null
           storage_path: string
@@ -1240,6 +1242,7 @@ export type Database = {
           id?: string
           lease_id?: string | null
           management_agreement_id?: string | null
+          photo_stage?: string | null
           property_id?: string | null
           source?: string | null
           storage_path?: string
@@ -4518,6 +4521,7 @@ export type Database = {
           ai_summary: string | null
           company_id: string
           completed_at: string | null
+          completion_ai: Json | null
           cost_cents: number | null
           created_at: string
           emergency_ack: Json | null
@@ -4525,8 +4529,12 @@ export type Database = {
           entry_notice_at: string | null
           entry_notice_method: string | null
           entry_ok: boolean | null
+          follow_up_needed: boolean
+          follow_up_note: string | null
+          hours_on_site: number | null
           id: string
           number: number
+          parts_used: string | null
           pets_in_home: boolean | null
           priority: string
           priority_reason: string | null
@@ -4540,6 +4548,8 @@ export type Database = {
           source: string
           status: string
           tech_arrived_at: string | null
+          tenant_damage_note: string | null
+          tenant_damage_suspected: boolean
           tenant_note: string | null
           title: string
           triage_answers: Json
@@ -4560,6 +4570,7 @@ export type Database = {
           ai_summary?: string | null
           company_id: string
           completed_at?: string | null
+          completion_ai?: Json | null
           cost_cents?: number | null
           created_at?: string
           emergency_ack?: Json | null
@@ -4567,8 +4578,12 @@ export type Database = {
           entry_notice_at?: string | null
           entry_notice_method?: string | null
           entry_ok?: boolean | null
+          follow_up_needed?: boolean
+          follow_up_note?: string | null
+          hours_on_site?: number | null
           id?: string
           number?: number
+          parts_used?: string | null
           pets_in_home?: boolean | null
           priority?: string
           priority_reason?: string | null
@@ -4582,6 +4597,8 @@ export type Database = {
           source?: string
           status?: string
           tech_arrived_at?: string | null
+          tenant_damage_note?: string | null
+          tenant_damage_suspected?: boolean
           tenant_note?: string | null
           title: string
           triage_answers?: Json
@@ -4602,6 +4619,7 @@ export type Database = {
           ai_summary?: string | null
           company_id?: string
           completed_at?: string | null
+          completion_ai?: Json | null
           cost_cents?: number | null
           created_at?: string
           emergency_ack?: Json | null
@@ -4609,8 +4627,12 @@ export type Database = {
           entry_notice_at?: string | null
           entry_notice_method?: string | null
           entry_ok?: boolean | null
+          follow_up_needed?: boolean
+          follow_up_note?: string | null
+          hours_on_site?: number | null
           id?: string
           number?: number
+          parts_used?: string | null
           pets_in_home?: boolean | null
           priority?: string
           priority_reason?: string | null
@@ -4624,6 +4646,8 @@ export type Database = {
           source?: string
           status?: string
           tech_arrived_at?: string | null
+          tenant_damage_note?: string | null
+          tenant_damage_suspected?: boolean
           tenant_note?: string | null
           title?: string
           triage_answers?: Json

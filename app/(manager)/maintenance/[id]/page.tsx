@@ -8,8 +8,14 @@ import { contactName, date, money, oneLineAddress, todayIn } from "@/lib/format"
 import { requireCompany } from "@/lib/session";
 import { vendorCompliance } from "@/lib/vendors";
 import { dateToZoned, earliestNoticeEntry, ENTRY_BASIS_LABEL, formatWhen, NOTICE_METHOD_LABEL, WO_PRIORITY, WO_STATUS } from "@/lib/work-orders";
-import { cancelWorkOrder } from "../actions";
-import { FalseEmergencyForm, AssignVendorForm, CompleteForm, NoteForm, PriorityForm, ScheduleForm, type VendorOption } from "../forms";
+import { JobFinish } from "@/components/job-finish";
+import { aiReady } from "@/lib/job-finish";
+import { hoursLabel, hoursSince } from "@/lib/job-finish-rules";
+import { cancelWorkOrder, completeWorkOrder, staffWriteUp, startStaffJobUpload } from "../actions";
+import { FalseEmergencyForm, AssignVendorForm, NoteForm, PriorityForm, ScheduleForm, type VendorOption } from "../forms";
+
+// The AI write-up can take most of a minute.
+export const maxDuration = 60;
 
 export async function generateMetadata({ params }: PageProps<"/maintenance/[id]">) {
   const { id } = await params;
@@ -40,6 +46,7 @@ const EVENT_LABEL: Record<string, string> = {
   false_emergency_charged: "False-emergency charge posted",
   scheduled: "Visit scheduled",
   tenant_notified: "Tenants emailed",
+  arrived: "Checked in on site",
   completed: "Completed",
   canceled: "Canceled",
   note: "Note",
@@ -89,8 +96,12 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
   const events = [...w.work_order_event].sort((a, b) => b.created_at.localeCompare(a.created_at));
   const where = [w.property.name, w.unit && w.unit.label !== "Home" ? `Unit ${w.unit.label}` : null].filter(Boolean).join(" · ");
   const rules = readBusinessRules(company.settings);
-  const { data: photos } = await supabase.from("document").select("storage_path, source").eq("company_id", company.id).eq("work_order_id", w.id).eq("category", "photo");
-  const photoLinks = photos?.length ? ((await createAdminClient().storage.from("documents").createSignedUrls(photos.map((p) => p.storage_path), 600)).data ?? []) : [];
+  const { data: photos } = await supabase.from("document").select("storage_path, source, photo_stage").eq("company_id", company.id).eq("work_order_id", w.id).eq("category", "photo").order("created_at");
+  const signed = photos?.length ? ((await createAdminClient().storage.from("documents").createSignedUrls(photos.map((p) => p.storage_path), 600)).data ?? []) : [];
+  const photoLinks = signed.filter((_, i) => !photos![i].photo_stage || photos![i].photo_stage === "problem");
+  const stageLinks = (stage: string) => signed.filter((_, i) => photos![i].photo_stage === stage);
+  const ai = open && canEdit ? await aiReady(company.id) : false;
+  const aiWriteUp = w.completion_ai as { used_as_written?: boolean; suggestion?: { writeUp: string } } | null;
   const ack = w.emergency_ack as { fee_cents?: number; accepted_at?: string; text?: string } | null;
   const charged = w.work_order_event.some((e) => e.kind === "false_emergency_charged");
 
@@ -171,6 +182,7 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
             </div>
           </Card>
 
+          {(w.scheduled_start || (open && canEdit)) && (
           <Card>
             <CardHeader title="Visit" />
             <div className="space-y-4 px-5 py-4 text-sm">
@@ -208,23 +220,58 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
               )}
             </div>
           </Card>
+          )}
 
           {open && canEdit ? (
             <Card>
-              <CardHeader title="Complete" />
+              <CardHeader title="Finish the job" description="For your own maintenance staff, or to record a vendor's work. Vendors finish from their job link." />
               <div className="px-5 py-4">
-                <CompleteForm workOrderId={w.id} />
+                <JobFinish
+                  who="staff"
+                  aiReady={ai}
+                  suggestedHours={hoursSince(w.tech_arrived_at, new Date())}
+                  startUpload={startStaffJobUpload.bind(null, w.id)}
+                  writeUp={staffWriteUp.bind(null, w.id)}
+                  finish={completeWorkOrder.bind(null, w.id)}
+                />
               </div>
             </Card>
           ) : (
             w.status === "completed" && (
               <Card>
                 <CardHeader title="Completed" />
-                <dl className="divide-y divide-line px-5 py-2 text-sm">
-                  <Row label="Done">{formatWhen(w.completed_at, tz)}</Row>
-                  <Row label="What was done">{w.resolution}</Row>
-                  {w.cost_cents != null && <Row label="Cost">{money(w.cost_cents)}</Row>}
-                </dl>
+                <div className="space-y-3 px-5 py-4 text-sm">
+                  {w.follow_up_needed && <Notice tone="warn">Needs another visit: {w.follow_up_note}</Notice>}
+                  {w.tenant_damage_suspected && <Notice tone="warn">Possible tenant damage: {w.tenant_damage_note} Nothing has been charged; it&apos;s on your to-do list to decide.</Notice>}
+                  <dl className="divide-y divide-line">
+                    <Row label="Done">{formatWhen(w.completed_at, tz)}</Row>
+                    <Row label="What was done">
+                      <span className="whitespace-pre-wrap">{w.resolution}</span>
+                      {aiWriteUp?.suggestion && <span className="block text-[12px] text-subtle">{aiWriteUp.used_as_written ? "Written up by AI from the tech's notes and photos; the tech checked it." : "The tech started from an AI write-up and edited it."}</span>}
+                    </Row>
+                    {w.parts_used && <Row label="Parts">{w.parts_used}</Row>}
+                    {w.hours_on_site != null && <Row label="Time on site">{hoursLabel(w.hours_on_site)}</Row>}
+                    {w.tech_arrived_at && <Row label="Checked in">{formatWhen(w.tech_arrived_at, tz)}</Row>}
+                    {w.cost_cents != null && <Row label="Cost">{money(w.cost_cents)}</Row>}
+                  </dl>
+                  {(["before", "after"] as const).map((stage) =>
+                    stageLinks(stage).length ? (
+                      <div key={stage}>
+                        <p className="mb-1.5 text-[13px] font-semibold text-muted">{stage === "before" ? "Before" : "After"}</p>
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {stageLinks(stage).map((x) =>
+                            x.signedUrl ? (
+                              <a key={x.path} href={x.signedUrl} target="_blank" rel="noreferrer">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={x.signedUrl} alt={`${stage === "before" ? "Before" : "After"} photo`} className="aspect-square w-full rounded-[10px] object-cover" />
+                              </a>
+                            ) : null,
+                          )}
+                        </div>
+                      </div>
+                    ) : null,
+                  )}
+                </div>
               </Card>
             )
           )}
@@ -272,7 +319,7 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
                     e.kind === "notified" ? `${d.sent ? "Sent to" : "Failed to send to"} ${String(d.to ?? "")}` :
                     e.kind === "tenant_notified" ? `${d.sent ? "Sent to" : "Failed to send to"} ${(d.to as string[] | undefined)?.join(", ") ?? ""}` :
                     e.kind === "scheduled" ? `${formatWhen(String(d.start), tz)}${d.by === "vendor" ? " · by the vendor" : ""} · ${d.entry_basis === "notice" && d.by === "vendor" && !w.entry_notice_method ? "24-hour notice still to post or hand-deliver" : (ENTRY_BASIS_LABEL[String(d.entry_basis)] ?? "")}` :
-                    e.kind === "completed" ? String(d.resolution ?? "") :
+                    e.kind === "completed" ? [String(d.resolution ?? ""), Number(d.before_photos ?? 0) + Number(d.after_photos ?? 0) ? `${Number(d.before_photos ?? 0) + Number(d.after_photos ?? 0)} photos` : "", d.follow_up ? "needs another visit" : "", d.tenant_damage ? "possible tenant damage" : ""].filter(Boolean).join(" · ") :
                     e.kind === "priority" ? `${String(d.priority)}: ${String(d.reason ?? "")}` :
                     e.kind === "canceled" ? String(d.reason ?? "") :
                     e.kind === "created" ? `From ${String(d.source ?? "")}` : "";

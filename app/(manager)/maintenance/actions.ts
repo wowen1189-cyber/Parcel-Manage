@@ -7,7 +7,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { readBusinessRules } from "@/lib/business-rules";
 import { emailHtml, emailText } from "@/lib/email/layout";
-import { contactName, oneLineAddress } from "@/lib/format";
+import { contactName, oneLineAddress, todayIn } from "@/lib/format";
+import { saveFinish, writeUpJob } from "@/lib/job-finish";
+import { finishSchema, jobPhotoPaths } from "@/lib/job-finish-rules";
+import { signedJobUpload, type UploadKind, type UploadStart, type WriteUpResult } from "@/lib/job-upload";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
 import { ROOT_DOMAIN } from "@/lib/env";
 import { companyUrl } from "@/lib/tenant";
@@ -288,32 +292,52 @@ export async function scheduleVisit(_: FormState, form: FormData): Promise<FormS
 
 // ---------- complete, cancel, notes, priority ----------
 
-export async function completeWorkOrder(_: FormState, form: FormData): Promise<FormState> {
+async function staffJob(workOrderId: string) {
   const ctx = await requireCompany();
-  if (!EDIT_ROLES.includes(ctx.membership.role)) return { error: NOT_ALLOWED };
-  const p = z
-    .object({
-      work_order_id: z.string().uuid(),
-      resolution: z.string().trim().min(3, "Say what was done.").max(2000),
-      cost: z
-        .string()
-        .trim()
-        .transform((v) => v.replace(/[$,\s]/g, ""))
-        .refine((v) => !v || /^\d+(\.\d{1,2})?$/.test(v), "Enter the cost as a dollar amount.")
-        .transform((v) => (v ? Math.round(Number(v) * 100) : null)),
-    })
-    .safeParse(Object.fromEntries(form));
-  if (!p.success) return { error: p.error.issues[0].message, values: typed(form) };
-  const { error } = await ctx.supabase
+  if (!EDIT_ROLES.includes(ctx.membership.role)) return null;
+  const { data: wo } = await ctx.supabase
     .from("work_order")
-    .update({ status: "completed", completed_at: new Date().toISOString(), resolution: p.data.resolution, cost_cents: p.data.cost })
-    .eq("id", p.data.work_order_id)
-    .eq("company_id", ctx.company.id);
-  if (error) return { error: error.message, values: typed(form) };
-  await logEvent(ctx, p.data.work_order_id, "completed", { resolution: p.data.resolution, cost_cents: p.data.cost });
-  revalidatePath(`/maintenance/${p.data.work_order_id}`);
+    .select("id, company_id, number, title, ai_summary, property_id, unit_id, vendor_id, completed_at, property(entity_id)")
+    .eq("id", workOrderId)
+    .eq("company_id", ctx.company.id)
+    .maybeSingle();
+  return wo ? { ctx, wo } : null;
+}
+
+export async function startStaffJobUpload(workOrderId: string, input: { kind: UploadKind; type: string; size: number }): Promise<UploadStart> {
+  const found = await staffJob(workOrderId);
+  if (!found) return { error: NOT_ALLOWED };
+  if (input.kind === "invoice") return { error: "Add the vendor's invoice under Bills." };
+  return signedJobUpload(createAdminClient(), found.wo, "staff", input);
+}
+
+export async function staffWriteUp(workOrderId: string, input: { notes: string; parts: string; before: string[]; after: string[] }): Promise<WriteUpResult> {
+  const found = await staffJob(workOrderId);
+  if (!found) return { ok: false, reason: NOT_ALLOWED };
+  const { wo } = found;
+  const photos = [...jobPhotoPaths(input.before, wo.company_id, wo.id, "staff", "before").map((path) => ({ path, stage: "before" as const })), ...jobPhotoPaths(input.after, wo.company_id, wo.id, "staff", "after").map((path) => ({ path, stage: "after" as const }))];
+  return writeUpJob(wo, { notes: String(input.notes).slice(0, 3000), parts: String(input.parts).slice(0, 400), photos });
+}
+
+/** Staff finishing a job (an in-house tech, or recording a vendor's work): same steps as the vendor's job link. */
+export async function completeWorkOrder(workOrderId: string, _: FormState, form: FormData): Promise<FormState> {
+  const found = await staffJob(workOrderId);
+  if (!found) return { error: NOT_ALLOWED };
+  const { ctx, wo } = found;
+  if (wo.completed_at) return { message: "This job is already marked done." };
+  const p = finishSchema.safeParse(Object.fromEntries([...form.entries()].filter(([, v]) => typeof v === "string")));
+  if (!p.success) return { error: p.error.issues[0].message, values: typed(form) };
+  const before = jobPhotoPaths(form.getAll("before_path").map(String), wo.company_id, wo.id, "staff", "before");
+  const after = jobPhotoPaths(form.getAll("after_path").map(String), wo.company_id, wo.id, "staff", "after");
+  try {
+    await saveFinish(ctx.supabase, wo, p.data, { before, after, invoicePath: null }, { kind: "staff", profileId: ctx.user.id }, todayIn(ctx.company.time_zone));
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "The job couldn't be saved.", values: typed(form) };
+  }
+  revalidatePath(`/maintenance/${wo.id}`);
   revalidatePath("/maintenance");
-  return { message: "Marked complete." };
+  revalidatePath("/tasks");
+  return { message: "Marked done." };
 }
 
 export async function cancelWorkOrder(form: FormData): Promise<void> {

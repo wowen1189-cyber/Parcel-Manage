@@ -1,9 +1,8 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
 import { useActionState, useState } from "react";
-import { Button, Field, Input, Notice, Select, Textarea } from "@/components/ui";
-import { acceptJob, declineJob, finishJob, scheduleJob, startJobUpload, type JobState } from "./actions";
+import { Button, Field, Input, Notice, Select } from "@/components/ui";
+import { acceptJob, checkIn, declineJob, scheduleJob, type JobState } from "./actions";
 
 const empty: JobState = {};
 
@@ -77,61 +76,13 @@ export function ScheduleForm({ token, earliest, emergency }: { token: string; ea
   );
 }
 
-async function upload(token: string, kind: "photo" | "invoice", file: File) {
-  const start = await startJobUpload({ token, kind, type: file.type, size: file.size });
-  if (!start.path || !start.uploadToken) throw new Error(start.error ?? "The upload couldn't start.");
-  const storage = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } }).storage;
-  const up = await storage.from("documents").uploadToSignedUrl(start.path, start.uploadToken, file, { contentType: file.type });
-  if (up.error) throw new Error("A file didn't upload. Please try again.");
-  return start.path;
-}
-
-export function FinishForm({ token }: { token: string }) {
-  const [state, action, pending] = useActionState(finishJob, empty);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function submit(form: FormData) {
-    setError(null);
-    setBusy(true);
-    try {
-      const photos = form.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
-      const invoice = form.get("invoice");
-      form.delete("photos");
-      form.delete("invoice");
-      for (const f of photos.slice(0, 8)) form.append("photo_path", await upload(token, "photo", f));
-      if (invoice instanceof File && invoice.size) form.set("invoice_path", await upload(token, "invoice", invoice));
-      action(form);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
-    } finally {
-      setBusy(false);
-    }
-  }
-  if (state.message) return <Notice tone="success">{state.message}</Notice>;
+export function CheckInButton({ token }: { token: string }) {
+  const [state, action, pending] = useActionState(checkIn.bind(null, token), empty);
   return (
-    <form action={submit} className="space-y-3">
-      <input type="hidden" name="token" value={token} />
-      {error && <Notice tone="danger">{error}</Notice>}
+    <form action={action} className="space-y-2">
       <Status state={state} />
-      <Field label="What did you do?">
-        <Textarea name="resolution" defaultValue={state.values?.resolution} placeholder="Replaced the capacitor; AC cooling at 72°F." />
-      </Field>
-      <Field label="Photos (optional)">
-        <Input type="file" name="photos" accept="image/*" multiple className="py-2.5" />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Invoice (PDF or photo)">
-          <Input type="file" name="invoice" accept="application/pdf,image/*" className="py-2.5" />
-        </Field>
-        <Field label="Invoice total ($)">
-          <Input name="amount" inputMode="decimal" defaultValue={state.values?.amount} />
-        </Field>
-        <Field label="Invoice number">
-          <Input name="invoice_number" defaultValue={state.values?.invoice_number} />
-        </Field>
-      </div>
-      <Button type="submit" disabled={pending || busy}>
-        {pending || busy ? "Sending…" : "Mark done"}
+      <Button type="submit" className="w-full" disabled={pending}>
+        {pending ? "Checking in…" : "I'm here: check in"}
       </Button>
     </form>
   );

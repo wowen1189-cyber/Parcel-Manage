@@ -5,8 +5,11 @@ import { z } from "zod";
 import { readBusinessRules } from "@/lib/business-rules";
 import { emailHtml, emailText } from "@/lib/email/layout";
 import { ROOT_DOMAIN } from "@/lib/env";
-import { contactName } from "@/lib/format";
+import { contactName, todayIn } from "@/lib/format";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
+import { readJobInvoice, saveFinish, writeUpJob } from "@/lib/job-finish";
+import { finishSchema, jobPhotoPaths } from "@/lib/job-finish-rules";
+import { signedJobUpload, type InvoiceReadResult, type UploadKind, type UploadStart, type WriteUpResult } from "@/lib/job-upload";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadJob } from "@/lib/vendor-jobs";
 import { companyUrl } from "@/lib/tenant";
@@ -118,72 +121,62 @@ export async function scheduleJob(_: JobState, form: FormData): Promise<JobState
   return { message: `Scheduled for ${formatWhen(start.toISOString(), tz)}. The tenant has been notified.` };
 }
 
-/** Upload step 1 for photos and the invoice: a one-time URL into this job's folder. */
-export async function startJobUpload(input: { token: string; kind: "photo" | "invoice"; type: string; size: number }): Promise<{ path?: string; uploadToken?: string; error?: string }> {
-  const found = await loadJob(input.token);
-  if (!found) return { error: DEAD };
-  const allowed = input.kind === "invoice" ? ["application/pdf", "image/jpeg", "image/png", "image/heic", "image/webp"] : ["image/jpeg", "image/png", "image/heic", "image/webp"];
-  if (!allowed.includes(input.type)) return { error: input.kind === "invoice" ? "Upload the invoice as a PDF or photo." : "Add photos (JPG, PNG or HEIC)." };
-  if (input.size > 15 * 1024 * 1024) return { error: "That file is too big (15 MB max)." };
-  const ext = input.type === "application/pdf" ? "pdf" : input.type.split("/")[1].replace("jpeg", "jpg");
-  const path = `${found.wo.company_id}/work-orders/${found.wo.id}/vendor-${input.kind}-${Date.now()}.${ext}`;
-  const { data, error } = await found.db.storage.from("documents").createSignedUploadUrl(path);
-  if (error || !data) return { error: "The upload couldn't start." };
-  return { path, uploadToken: data.token };
-}
-
-/** Done: what was done, photos, and the invoice (becomes a bill the office approves before paying). */
-export async function finishJob(_: JobState, form: FormData): Promise<JobState> {
-  const token = String(form.get("token"));
+/** "I'm here": the tech checks in on site (the emergency response-time metric uses it). */
+export async function checkIn(token: string): Promise<JobState> {
   const found = await loadJob(token);
   if (!found) return { error: DEAD };
   const { db, wo } = found;
-  const p = z
-    .object({
-      resolution: z.string().trim().min(3, "Say what you did.").max(2000),
-      amount: z.string().trim().transform((v) => v.replace(/[$,\s]/g, "")).refine((v) => !v || /^\d+(\.\d{1,2})?$/.test(v), "Enter the invoice total as a dollar amount."),
-      invoice_number: z.string().trim().max(60).optional(),
-      invoice_path: z.string().optional(),
-    })
-    .safeParse(Object.fromEntries(form));
-  if (!p.success) return { error: p.error.issues[0].message, values: typed(form) };
-  const folder = `${wo.company_id}/work-orders/${wo.id}/vendor-`;
-  const photos = form.getAll("photo_path").map(String).filter((x) => x.startsWith(`${folder}photo-`));
-  const invoicePath = p.data.invoice_path && p.data.invoice_path.startsWith(`${folder}invoice-`) ? p.data.invoice_path : null;
-  const amount = p.data.amount ? Math.round(Number(p.data.amount) * 100) : null;
-  if (invoicePath && !amount) return { error: "Enter the invoice total.", values: typed(form) };
-
-  for (const path of photos) await db.from("document").insert({ company_id: wo.company_id, work_order_id: wo.id, property_id: wo.property_id, storage_path: path, file_name: "Photo from vendor", category: "photo", source: "vendor portal" });
-  let billNote = "";
-  if (amount) {
-    const { data: doc } = invoicePath
-      ? await db.from("document").insert({ company_id: wo.company_id, work_order_id: wo.id, property_id: wo.property_id, vendor_id: wo.vendor_id, storage_path: invoicePath, file_name: `Invoice${p.data.invoice_number ? ` ${p.data.invoice_number}` : ""}`, category: "invoice", source: "vendor portal" }).select("id").single()
-      : { data: null };
-    const { data: bill } = await db
-      .from("bill")
-      .insert({
-        company_id: wo.company_id,
-        entity_id: wo.property.entity_id,
-        vendor_id: wo.vendor_id,
-        property_id: wo.property_id,
-        unit_id: wo.unit_id,
-        work_order_id: wo.id,
-        invoice_number: p.data.invoice_number || null,
-        invoice_date: new Date().toISOString().slice(0, 10),
-        amount_cents: amount,
-        memo: `Work order #${wo.number}: ${wo.title}`,
-        status: "received",
-        source: "vendor portal",
-        document_id: doc?.id ?? null,
-      })
-      .select("id")
-      .single();
-    if (doc && bill) await db.from("document").update({ bill_id: bill.id }).eq("id", doc.id);
-    billNote = ` Invoice for $${(amount / 100).toFixed(2)} is waiting for approval.`;
+  if (!wo.tech_arrived_at) {
+    await db.from("work_order").update({ tech_arrived_at: new Date().toISOString() }).eq("id", wo.id);
+    await event(db, wo, "arrived", { by: vendorName(wo) });
   }
-  await db.from("work_order").update({ status: "completed", completed_at: new Date().toISOString(), vendor_completed_at: new Date().toISOString(), resolution: p.data.resolution, cost_cents: amount }).eq("id", wo.id);
-  await event(db, wo, "completed", { by: "vendor", resolution: p.data.resolution, cost_cents: amount });
-  await tellOffice(wo, `#${wo.number} done: ${wo.title}`, `${escapeHtml(vendorName(wo))} marked <strong>${escapeHtml(wo.title)}</strong> done: ${escapeHtml(p.data.resolution)}.${billNote}`);
   revalidatePath(`/vendor/jobs/${token}`);
-  return { message: `Thanks! Marked done.${amount ? " Your invoice was sent to the office for approval." : ""}` };
+  return { message: "Checked in." };
+}
+
+/** Upload step 1 for photos and the invoice: a one-time URL into this job's folder. */
+export async function startJobUpload(token: string, input: { kind: UploadKind; type: string; size: number }): Promise<UploadStart> {
+  const found = await loadJob(token);
+  if (!found) return { error: DEAD };
+  return signedJobUpload(found.db, found.wo, "vendor", input);
+}
+
+/** The AI's write-up of the tech's notes and photos, for them to check and edit. */
+export async function jobWriteUp(token: string, input: { notes: string; parts: string; before: string[]; after: string[] }): Promise<WriteUpResult> {
+  const found = await loadJob(token);
+  if (!found) return { ok: false, reason: DEAD };
+  const { wo } = found;
+  const photos = [...jobPhotoPaths(input.before, wo.company_id, wo.id, "vendor", "before").map((path) => ({ path, stage: "before" as const })), ...jobPhotoPaths(input.after, wo.company_id, wo.id, "vendor", "after").map((path) => ({ path, stage: "after" as const }))];
+  return writeUpJob(wo, { notes: String(input.notes).slice(0, 3000), parts: String(input.parts).slice(0, 400), photos });
+}
+
+export async function jobReadInvoice(token: string, path: string): Promise<InvoiceReadResult> {
+  const found = await loadJob(token);
+  if (!found) return { amount: null, number: null, note: DEAD };
+  if (!path.startsWith(`${found.wo.company_id}/work-orders/${found.wo.id}/vendor-invoice-`)) return { amount: null, number: null };
+  return readJobInvoice(found.wo, path);
+}
+
+/** Done: photos, what was done, and the invoice (becomes a bill the office approves before paying). */
+export async function finishJob(token: string, _: JobState, form: FormData): Promise<JobState> {
+  const found = await loadJob(token);
+  if (!found) return { error: DEAD };
+  const { db, wo } = found;
+  if (wo.completed_at) return { message: "This job is already marked done." };
+  const p = finishSchema.safeParse(Object.fromEntries([...form.entries()].filter(([, v]) => typeof v === "string")));
+  if (!p.success) return { error: p.error.issues[0].message, values: typed(form) };
+  const invoice = String(form.get("invoice_path") ?? "");
+  const invoicePath = invoice.startsWith(`${wo.company_id}/work-orders/${wo.id}/vendor-invoice-`) ? invoice : null;
+  if (invoicePath && !p.data.amount) return { error: "Enter the invoice total.", values: typed(form) };
+  const before = jobPhotoPaths(form.getAll("before_path").map(String), wo.company_id, wo.id, "vendor", "before");
+  const after = jobPhotoPaths(form.getAll("after_path").map(String), wo.company_id, wo.id, "vendor", "after");
+  const r = await saveFinish(db, wo, p.data, { before, after, invoicePath }, { kind: "vendor" }, todayIn(wo.company.time_zone));
+  const flags = [r.followUp && `<strong>Needs another visit:</strong> ${escapeHtml(r.followUp)}`, r.damage && `<strong>May be tenant damage:</strong> ${escapeHtml(r.damage)} (added to your to-do list; nothing is charged)`].filter(Boolean).join("<br>");
+  await tellOffice(
+    wo,
+    `#${wo.number} done: ${wo.title}`,
+    `${escapeHtml(vendorName(wo))} marked <strong>${escapeHtml(wo.title)}</strong> done with ${before.length + after.length} photo${before.length + after.length === 1 ? "" : "s"}: ${escapeHtml(p.data.resolution)}${p.data.amount ? `<br>Invoice for $${(p.data.amount / 100).toFixed(2)} is waiting for approval.` : ""}${flags ? `<br><br>${flags}` : ""}`,
+  );
+  revalidatePath(`/vendor/jobs/${token}`);
+  return { message: `Thanks! Marked done.${p.data.amount ? " Your invoice was sent to the office for approval." : ""}` };
 }

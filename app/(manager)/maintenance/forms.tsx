@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button, Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import { ENTRY_BASIS_LABEL, NOTICE_METHOD_LABEL } from "@/lib/work-orders";
-import { addNote, assignVendor, changePriority, chargeFalseEmergency, completeWorkOrder, scheduleVisit, type FormState } from "./actions";
+import { addNote, assignVendor, changePriority, chargeFalseEmergency, scheduleVisit, type FormState } from "./actions";
 
 const empty: FormState = {};
 
@@ -119,25 +119,6 @@ export function ScheduleForm({
       </label>
       <Button type="submit" small disabled={pending}>
         {pending ? "Saving…" : "Save visit"}
-      </Button>
-    </form>
-  );
-}
-
-export function CompleteForm({ workOrderId }: { workOrderId: string }) {
-  const [state, action, pending] = useActionState(completeWorkOrder, empty);
-  return (
-    <form action={action} className="space-y-3">
-      <input type="hidden" name="work_order_id" value={workOrderId} />
-      <Status state={state} />
-      <Field label="What was done">
-        <Textarea name="resolution" defaultValue={state.values?.resolution} placeholder="Replaced the capacitor; AC cooling normally." />
-      </Field>
-      <Field label="Cost ($)" hint="From the vendor's invoice, if you have it">
-        <Input name="cost" inputMode="decimal" defaultValue={state.values?.cost} />
-      </Field>
-      <Button type="submit" small disabled={pending}>
-        {pending ? "Saving…" : "Mark complete"}
       </Button>
     </form>
   );
