@@ -974,6 +974,48 @@ export type Database = {
           },
         ]
       }
+      calendar_feed: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          last_read_at: string | null
+          profile_id: string
+          token_hash: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          last_read_at?: string | null
+          profile_id: string
+          token_hash: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_read_at?: string | null
+          profile_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_feed_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_feed_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       charge: {
         Row: {
           amount_cents: number
@@ -1450,6 +1492,54 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      external_calendar: {
+        Row: {
+          company_id: string
+          created_at: string
+          ics_url: string
+          id: string
+          last_error: string | null
+          last_fetched_at: string | null
+          name: string
+          profile_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          ics_url: string
+          id?: string
+          last_error?: string | null
+          last_fetched_at?: string | null
+          name: string
+          profile_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          ics_url?: string
+          id?: string
+          last_error?: string | null
+          last_fetched_at?: string | null
+          name?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_calendar_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_calendar_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
         ]
