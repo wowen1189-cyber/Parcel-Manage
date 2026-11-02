@@ -813,7 +813,9 @@ export type Database = {
           paid_on: string | null
           payment_method: string | null
           payment_reference: string | null
+          project_id: string | null
           property_id: string | null
+          purchase_order_id: string | null
           source: string
           status: string
           unit_id: string | null
@@ -840,7 +842,9 @@ export type Database = {
           paid_on?: string | null
           payment_method?: string | null
           payment_reference?: string | null
+          project_id?: string | null
           property_id?: string | null
+          purchase_order_id?: string | null
           source?: string
           status?: string
           unit_id?: string | null
@@ -867,7 +871,9 @@ export type Database = {
           paid_on?: string | null
           payment_method?: string | null
           payment_reference?: string | null
+          project_id?: string | null
           property_id?: string | null
+          purchase_order_id?: string | null
           source?: string
           status?: string
           unit_id?: string | null
@@ -919,10 +925,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bill_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bill_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_order"
             referencedColumns: ["id"]
           },
           {
@@ -1624,6 +1644,112 @@ export type Database = {
           },
         ]
       }
+      inventory_item: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          quantity: number
+          reorder_at: number
+          unit_cost_cents: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          quantity?: number
+          reorder_at?: number
+          unit_cost_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          quantity?: number
+          reorder_at?: number
+          unit_cost_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_item_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_move: {
+        Row: {
+          change: number
+          company_id: string
+          created_at: string
+          id: string
+          item_id: string
+          moved_by: string | null
+          note: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          change: number
+          company_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          moved_by?: string | null
+          note?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          change?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          moved_by?: string | null
+          note?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_move_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_move_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_move_moved_by_fkey"
+            columns: ["moved_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_move_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_order"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitation: {
         Row: {
           accepted_at: string | null
@@ -1833,6 +1959,139 @@ export type Database = {
           },
           {
             foreignKeyName: "journal_line_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "unit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      key_checkout: {
+        Row: {
+          checked_out_by: string | null
+          company_id: string
+          due_back_on: string | null
+          holder: string
+          id: string
+          key_set_id: string
+          out_at: string
+          returned_at: string | null
+          vendor_id: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          checked_out_by?: string | null
+          company_id: string
+          due_back_on?: string | null
+          holder: string
+          id?: string
+          key_set_id: string
+          out_at?: string
+          returned_at?: string | null
+          vendor_id?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          checked_out_by?: string | null
+          company_id?: string
+          due_back_on?: string | null
+          holder?: string
+          id?: string
+          key_set_id?: string
+          out_at?: string
+          returned_at?: string | null
+          vendor_id?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_checkout_checked_out_by_fkey"
+            columns: ["checked_out_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_checkout_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_checkout_key_set_id_fkey"
+            columns: ["key_set_id"]
+            isOneToOne: false
+            referencedRelation: "key_set"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_checkout_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_checkout_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_order"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      key_set: {
+        Row: {
+          company_id: string
+          copies: number
+          created_at: string
+          id: string
+          label: string
+          location: string | null
+          property_id: string
+          tag: string | null
+          unit_id: string | null
+        }
+        Insert: {
+          company_id: string
+          copies?: number
+          created_at?: string
+          id?: string
+          label: string
+          location?: string | null
+          property_id: string
+          tag?: string | null
+          unit_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          copies?: number
+          created_at?: string
+          id?: string
+          label?: string
+          location?: string | null
+          property_id?: string
+          tag?: string | null
+          unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_set_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_set_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_set_unit_id_fkey"
             columns: ["unit_id"]
             isOneToOne: false
             referencedRelation: "unit"
@@ -2833,6 +3092,83 @@ export type Database = {
         }
         Relationships: []
       }
+      project: {
+        Row: {
+          budget_cents: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          property_id: string
+          start_on: string | null
+          status: string
+          target_on: string | null
+          unit_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget_cents?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          property_id: string
+          start_on?: string | null
+          status?: string
+          target_on?: string | null
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget_cents?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          property_id?: string
+          start_on?: string | null
+          status?: string
+          target_on?: string | null
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "unit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property: {
         Row: {
           address_line1: string | null
@@ -2956,6 +3292,110 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order: {
+        Row: {
+          amount_cents: number
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          number: number
+          project_id: string | null
+          property_id: string
+          status: string
+          updated_at: string
+          vendor_id: string
+          work_order_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          number: number
+          project_id?: string | null
+          property_id: string
+          status?: string
+          updated_at?: string
+          vendor_id: string
+          work_order_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          number?: number
+          project_id?: string | null
+          property_id?: string
+          status?: string
+          updated_at?: string
+          vendor_id?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_order"
             referencedColumns: ["id"]
           },
         ]

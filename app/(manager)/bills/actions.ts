@@ -40,14 +40,23 @@ export async function createBill(_: BillState, form: FormData): Promise<BillStat
       due_date: day,
       expense_account: z.string().regex(/^\d{4}$/, "Choose the expense account."),
       memo: z.string().trim().max(300).optional(),
+      purchase_order_id: z.union([z.literal(""), z.string().uuid()]).optional(),
     })
     .safeParse(Object.fromEntries(form));
   if (!p.success) return { error: p.error.issues[0].message, values: typed(form) };
+  // A bill tied to a purchase order must be from that PO's vendor for that property; it then counts toward the PO's project.
+  let po: { id: string; project_id: string | null } | null = null;
+  if (p.data.purchase_order_id) {
+    const { data } = await supabase.from("purchase_order").select("id, vendor_id, property_id, project_id, status").eq("id", p.data.purchase_order_id).eq("company_id", company.id).maybeSingle();
+    if (!data || data.status !== "approved") return { error: "That purchase order isn't approved.", values: typed(form) };
+    if (data.vendor_id !== p.data.vendor_id || data.property_id !== p.data.property_id) return { error: "That purchase order is for a different vendor or property.", values: typed(form) };
+    po = data;
+  }
   const { data: property } = await supabase.from("property").select("id, entity_id").eq("id", p.data.property_id).eq("company_id", company.id).maybeSingle();
   if (!property) return { error: "Property not found.", values: typed(form) };
   const { data: bill, error } = await supabase
     .from("bill")
-    .insert({ company_id: company.id, entity_id: property.entity_id, vendor_id: p.data.vendor_id, property_id: property.id, amount_cents: p.data.amount, invoice_number: p.data.invoice_number || null, invoice_date: p.data.invoice_date, due_date: p.data.due_date, expense_account: p.data.expense_account, memo: p.data.memo || null, source: "manual" })
+    .insert({ company_id: company.id, entity_id: property.entity_id, vendor_id: p.data.vendor_id, property_id: property.id, amount_cents: p.data.amount, invoice_number: p.data.invoice_number || null, invoice_date: p.data.invoice_date, due_date: p.data.due_date, expense_account: p.data.expense_account, memo: p.data.memo || null, source: "manual", purchase_order_id: po?.id ?? null, project_id: po?.project_id ?? null })
     .select("id")
     .single();
   if (error) return { error: error.message, values: typed(form) };

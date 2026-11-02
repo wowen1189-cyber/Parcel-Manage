@@ -89,6 +89,9 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 
 - Any PDF can be sent for e-signature (E-sign screen): its SHA-256 fingerprint is recorded when sent and checked again before the signed copy is made; the signed copy is the original PDF unchanged plus a signature certificate page. Signers consent and type their name (no initials). Signing a PDF never activates a draft lease.
 
+- Projects and purchase orders: a purchase order commits spending only after an admin, property manager or accountant approves it; a bill can be tied to an approved PO for the same vendor and property, and then counts toward that PO's project. Spent = bills approved or paid; committed = approved POs not yet billed.
+- Keys: key sets are tracked by tag number; door and lockbox codes never go in key records (they stay in the unit's access notes).
+
 ## Florida notices (law — have the company's attorney review templates before first use)
 - 3-day notice to pay or deliver possession (83.56(3)): rent only; deadline excludes Saturdays, Sundays and legal holidays (the company counts the 11 federal holidays plus the day after Thanksgiving, a Florida legal holiday; Wesley, Nov 2026); +5 days if mailed; hand delivery or posting if absent.
 - 7-day notices of noncompliance with/without opportunity to cure (83.56(2)).

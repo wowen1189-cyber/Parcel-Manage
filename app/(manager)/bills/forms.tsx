@@ -11,7 +11,7 @@ function Status({ state }: { state: BillState }) {
   return null;
 }
 
-export function NewBillForm({ vendors, properties, accounts, today }: { vendors: { id: string; name: string }[]; properties: { id: string; name: string }[]; accounts: [string, string][]; today: string }) {
+export function NewBillForm({ vendors, properties, accounts, today, purchaseOrders = [] }: { vendors: { id: string; name: string }[]; properties: { id: string; name: string }[]; accounts: [string, string][]; today: string; purchaseOrders?: { id: string; label: string }[] }) {
   const [state, action, pending] = useActionState(createBill, empty);
   const v = (k: string, d = "") => state.values?.[k] ?? d;
   return (
@@ -62,6 +62,18 @@ export function NewBillForm({ vendors, properties, accounts, today }: { vendors:
         <Field label="Memo">
           <Input name="memo" defaultValue={v("memo")} />
         </Field>
+        {purchaseOrders.length > 0 && (
+          <Field label="Purchase order (optional)" hint="Counts this bill toward that project">
+            <Select name="purchase_order_id" defaultValue={v("purchase_order_id")}>
+              <option value="">None</option>
+              {purchaseOrders.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save bill"}

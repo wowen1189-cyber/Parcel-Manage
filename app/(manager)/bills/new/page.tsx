@@ -9,9 +9,10 @@ export const metadata = { title: "New bill" };
 
 export default async function NewBillPage() {
   const { supabase, company } = await requireCompany();
-  const [{ data: vendors }, { data: properties }] = await Promise.all([
+  const [{ data: vendors }, { data: properties }, { data: pos }] = await Promise.all([
     supabase.from("vendor").select("id, contact(kind, first_name, last_name, business_name)").eq("company_id", company.id).eq("is_active", true),
     supabase.from("property").select("id, name").eq("company_id", company.id).order("name"),
+    supabase.from("purchase_order").select("id, number, description, vendor(contact(kind, first_name, last_name, business_name)), project(name)").eq("company_id", company.id).eq("status", "approved").order("number", { ascending: false }),
   ]);
   return (
     <>
@@ -27,6 +28,7 @@ export default async function NewBillPage() {
           properties={properties ?? []}
           accounts={EXPENSE_ACCOUNTS}
           today={todayIn(company.time_zone)}
+          purchaseOrders={(pos ?? []).map((po) => ({ id: po.id, label: `PO-${po.number} · ${contactName(po.vendor.contact)} · ${po.project?.name ?? po.description}` }))}
         />
       </Card>
     </>
