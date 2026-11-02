@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { defaultTemplateId } from "@/lib/agreement-templates";
 import { documentToText } from "@/lib/documents/text";
 import { inviteNextSigner, sha256 } from "@/lib/esign";
-import { agreementEndDate, agreementTermsFromForm, DEFAULT_AGREEMENT_TERMS } from "@/lib/management-agreement";
+import { agreementEndDate, agreementTermsFromForm, readAgreementDefaults } from "@/lib/management-agreement";
 import { loadAgreement } from "@/lib/management-agreement-data";
 import { requireCompany } from "@/lib/session";
 
@@ -30,7 +31,7 @@ function details(form: FormData) {
     .safeParse(Object.fromEntries(form));
 }
 
-/** New agreement for an owner: all their properties, the template terms and their reserve. */
+/** New agreement for an owner: all their properties, the company's default terms and the owner's reserve. */
 export async function createAgreement(form: FormData): Promise<void> {
   const { supabase, company, membership, user } = await requireCompany();
   if (!ROLES.includes(membership.role)) return;
@@ -42,17 +43,19 @@ export async function createAgreement(form: FormData): Promise<void> {
   const [y, m] = today.split("-").map(Number);
   // Starts on the 1st of next month, the usual hand-off date.
   const start = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
-  const terms = { ...DEFAULT_AGREEMENT_TERMS, reserveCents: owner.reserve_cents ?? 0 };
+  const terms = { ...readAgreementDefaults(company.settings), reserveCents: owner.reserve_cents ?? 0 };
+  const preferred = defaultTemplateId(company.settings);
+  const { data: tmpl } = preferred ? await supabase.from("agreement_template").select("id").eq("id", preferred).eq("company_id", company.id).maybeSingle() : { data: null };
   const { data, error } = await supabase
     .from("management_agreement")
-    .insert({ company_id: company.id, entity_id: owner.id, property_ids: owner.property.map((p) => p.id), start_date: start, end_date: agreementEndDate(start, terms.termYears), terms, created_by: user.id })
+    .insert({ company_id: company.id, entity_id: owner.id, property_ids: owner.property.map((p) => p.id), start_date: start, end_date: agreementEndDate(start, terms.termYears), terms, template_id: tmpl?.id ?? null, created_by: user.id })
     .select("id")
     .single();
   if (error) return;
   redirect(`/management-agreements/${data.id}`);
 }
 
-/** Save the draft: properties covered, start date, signer, and the terms. */
+/** Save the draft: properties covered, start date, signer, and the terms. An admin can also make the terms the company's defaults. */
 export async function saveAgreement(_: AgreementState, form: FormData): Promise<AgreementState> {
   const { supabase, company, membership } = await requireCompany();
   if (!ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
@@ -69,6 +72,12 @@ export async function saveAgreement(_: AgreementState, form: FormData): Promise<
   const ownedIds = new Set((owned ?? []).map((p) => p.id));
   const propertyIds = form.getAll("property_id").map(String).filter((p) => ownedIds.has(p));
   if (!propertyIds.length) return { error: "Pick at least one property.", values: typed(form) };
+  // "" is Parcel Manage's Florida agreement; otherwise one of the company's own templates.
+  let templateId: string | null = String(form.get("template_id") ?? "") || null;
+  if (templateId) {
+    const { data: t } = await supabase.from("agreement_template").select("id").eq("id", templateId).eq("company_id", company.id).maybeSingle();
+    if (!t) templateId = null;
+  }
   const { error } = await supabase
     .from("management_agreement")
     .update({
@@ -79,11 +88,21 @@ export async function saveAgreement(_: AgreementState, form: FormData): Promise<
       owner_signer_title: d.data.signer_title || null,
       owner_signer_email: d.data.signer_email || null,
       terms: t.terms,
+      template_id: templateId,
     })
     .eq("id", a.id);
   if (error) return { error: error.message, values: typed(form) };
   revalidatePath(`/management-agreements/${a.id}`);
-  return { message: "Saved." };
+  if (form.get("intent") !== "defaults") return { message: "Saved." };
+  if (membership.role !== "admin") return { error: "Saved, but only an admin can change the company's default terms." };
+  // The owner's reserve is per owner, so it isn't part of the defaults.
+  const defaults: Partial<typeof t.terms> = { ...t.terms };
+  delete defaults.reserveCents;
+  const settings = { ...((company.settings as Record<string, unknown>) ?? {}), agreementDefaults: defaults };
+  const saved = await supabase.from("company").update({ settings }).eq("id", company.id);
+  if (saved.error) return { error: saved.error.message };
+  revalidatePath("/management-agreements/template");
+  return { message: "Saved. New agreements will start with these terms." };
 }
 
 /**
@@ -116,7 +135,12 @@ export async function sendAgreement(_: AgreementState, form: FormData): Promise<
     { company_id: company.id, request_id: req.id, role: "agent", name: me?.full_name ?? company.name, email: agentEmail, sign_order: 2 },
   ]);
   await supabase.from("signature_event").insert({ company_id: company.id, request_id: req.id, kind: "created" });
-  await supabase.from("management_agreement").update({ status: "sent" }).eq("id", a.id);
+  // Freeze the company template's text with the agreement, so later edits to the template don't change it.
+  const { data: own } = a.template_id ? await supabase.from("agreement_template").select("name, parts").eq("id", a.template_id).maybeSingle() : { data: null };
+  await supabase
+    .from("management_agreement")
+    .update({ status: "sent", ...(own ? { template_parts: own.parts, template_name: own.name } : {}) })
+    .eq("id", a.id);
   const sent = await inviteNextSigner(company, req.id);
   revalidatePath(`/management-agreements/${a.id}`);
   revalidatePath("/management-agreements");
@@ -134,7 +158,8 @@ export async function voidAgreementRequest(form: FormData): Promise<void> {
   await supabase.from("signature_request").update({ status: "voided" }).eq("id", req.id);
   await supabase.from("signature_signer").update({ token_hash: null }).eq("request_id", req.id);
   await supabase.from("signature_event").insert({ company_id: company.id, request_id: req.id, kind: "voided" });
-  await supabase.from("management_agreement").update({ status: "draft" }).eq("id", req.management_agreement_id).eq("status", "sent");
+  // Back to a draft that follows its template again.
+  await supabase.from("management_agreement").update({ status: "draft", template_parts: null, template_name: null }).eq("id", req.management_agreement_id).eq("status", "sent");
   revalidatePath(`/management-agreements/${req.management_agreement_id}`);
 }
 

@@ -5,7 +5,7 @@ import { Button, Card, CardHeader, Notice, PageHeader, Pill } from "@/components
 import { PrintButton } from "@/components/print-button";
 import { date } from "@/lib/format";
 import { AGREEMENT_STATUS } from "@/lib/management-agreement";
-import { loadAgreement } from "@/lib/management-agreement-data";
+import { agreementTemplates, loadAgreement } from "@/lib/management-agreement-data";
 import { requireCompany } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteDraftAgreement, voidAgreementRequest } from "../actions";
@@ -16,7 +16,7 @@ export const metadata = { title: "Management agreement" };
 export default async function ManagementAgreementPage({ params }: PageProps<"/management-agreements/[id]">) {
   const { id } = await params;
   const { supabase, company, membership } = await requireCompany();
-  const found = await loadAgreement(supabase, company, id);
+  const [found, templates] = await Promise.all([loadAgreement(supabase, company, id), agreementTemplates(supabase, company.id)]);
   if (!found) notFound();
   const { agreement: a, terms, template, values, conditions, missing, requests } = found;
   const canEdit = ["admin", "property_manager"].includes(membership.role);
@@ -81,7 +81,7 @@ export default async function ManagementAgreementPage({ params }: PageProps<"/ma
 
         {a.status === "draft" && (
           <Card>
-            <CardHeader title="Terms" description="Fees come from this owner's fees in Parcel Manage (change them on the owner's page). Save, check the agreement below, then send it." />
+            <CardHeader title="Terms" description="Each property's fees come from its own fee in Parcel Manage, else the owner's, else your company default (change them on the property or owner page). The other terms start from your company's defaults. Save, check the agreement below, then send it." />
             <AgreementForm
               id={a.id}
               terms={terms}
@@ -91,6 +91,9 @@ export default async function ManagementAgreementPage({ params }: PageProps<"/ma
               properties={found.allProperties}
               included={a.property_ids}
               canEdit={canEdit}
+              isAdmin={membership.role === "admin"}
+              templates={templates}
+              templateId={a.template_id}
             />
             {canEdit && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
@@ -120,7 +123,7 @@ export default async function ManagementAgreementPage({ params }: PageProps<"/ma
       </div>
 
       <div className="mb-3 mt-8 flex items-center justify-between print:hidden">
-        <h2 className="text-lg font-semibold">The agreement</h2>
+        <h2 className="text-lg font-semibold">The agreement{found.templateName ? `: ${found.templateName}` : ""}</h2>
         <PrintButton />
       </div>
       <Card className="px-6 py-8 sm:px-10 print:border-0 print:p-0">

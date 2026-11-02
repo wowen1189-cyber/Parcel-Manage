@@ -33,8 +33,8 @@ export default async function ManagementAgreementsPage() {
         title="Management agreements"
         subtitle={`${signed} of ${rows.length} owners have a signed agreement. Each one fills in from the owner, their properties and their fees, and goes to the owner for e-signature.`}
         action={
-          <Link href="/management-agreements/template" className={buttonClass("secondary")}>
-            View the template
+          <Link href="/management-agreements/templates" className={buttonClass("secondary")}>
+            Templates
           </Link>
         }
       />

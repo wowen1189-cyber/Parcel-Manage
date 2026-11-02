@@ -41,7 +41,7 @@ export async function documentPdf(docs: DocText[], certificate: { title: string;
     if (y < 792 - margin) newPage();
     draw(d.title, bold, 15, 10);
     for (const s of d.sections) {
-      draw(s.heading, bold, 12, 4);
+      if (s.heading) draw(s.heading, bold, 12, 4);
       for (const p of s.paragraphs) draw(p);
     }
   }

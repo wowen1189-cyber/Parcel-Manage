@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MANAGEMENT_AGREEMENT } from "@/lib/documents/management-agreement";
 import { documentToText, usedFields } from "@/lib/documents/text";
-import { agreementEndDate, agreementTermsFromForm, DEFAULT_AGREEMENT_TERMS, fillAgreement, type AgreementInput } from "@/lib/management-agreement";
-import { DEFAULT_MANAGEMENT_FEE } from "@/lib/management-fees";
+import { agreementEndDate, agreementTermsFromForm, DEFAULT_AGREEMENT_TERMS, fillAgreement, readAgreementDefaults, type AgreementInput } from "@/lib/management-agreement";
+import { DEFAULT_MANAGEMENT_FEE, effectiveFee } from "@/lib/management-fees";
 
 const fee = { ...DEFAULT_MANAGEMENT_FEE, percent: 5, leasingFee: "none" as const };
 const input: AgreementInput = {
@@ -33,7 +33,7 @@ describe("management agreement", () => {
     expect(values.leasing_fee).toBe("none");
     expect(values.agent_license).toContain("CQ0000000");
     expect(values.term_years).toBe("three years");
-    expect(values.distribution_day).toBe("10th");
+    expect(values.distribution_day).toBe("1st");
   });
   it("lists each property's fee when they differ", () => {
     const mixed = { ...input, properties: [input.properties[0], { ...input.properties[1], fee: { ...fee, leasingFee: "flat" as const, leasingFlatCents: 50_000 } }] };
@@ -54,5 +54,25 @@ describe("management agreement", () => {
     const { terms } = agreementTermsFromForm({ term_years: "3", notice_days: "60", approval_limit: "$750", distribution_day: "10", reserve: "1,000", disbursement_fee: "130", w9_fee: "50", release_months: "6", inspection_frequency: "quarterly", residential_liability: "100,000", commercial_liability: "1,000,000", owner_liability: "1,000,000", eviction_estimate: "$1,000 to $2,500", power_leasing: "on", auto_renew: "on" });
     expect(terms).toMatchObject({ approvalLimitCents: 75_000, reserveCents: 100_000, leasing: true, evictions: false, autoRenew: true });
     expect(agreementTermsFromForm({ term_years: "9" }).error).toMatch(/1 to 5 years/);
+  });
+  it("uses each property's own fee over the owner's and the company's", () => {
+    const company = { ...DEFAULT_MANAGEMENT_FEE, percent: 10 };
+    const owner = { ...company, percent: 8, leasingFee: "flat", leasingFlatCents: 75_000 };
+    const own = { ...company, percent: 6, leasingFee: "none", renewalFee: "flat", renewalFeeCents: 10_000 };
+    const props = [
+      { name: "Oak House", address: "5 Oak Ln", fee: effectiveFee(own, owner, company).fee },
+      { name: "Pine Flats", address: "7 Pine St", fee: effectiveFee(null, owner, company).fee },
+      { name: "Elm Court", address: "9 Elm Ct", fee: effectiveFee(null, null, company).fee },
+    ];
+    const { values } = fillAgreement({ ...input, properties: props });
+    expect(values.management_fee).toBe("Oak House: 6% of rent collected; Pine Flats: 8% of rent collected; Elm Court: 10% of rent collected");
+    expect(values.leasing_fee).toContain("Pine Flats: $750");
+    expect(values.renewal_fee).toContain("Oak House: $100");
+  });
+  it("starts new agreements from the company's own default terms", () => {
+    expect(readAgreementDefaults({})).toEqual(DEFAULT_AGREEMENT_TERMS);
+    const mine = readAgreementDefaults({ agreementDefaults: { termYears: 1, approvalLimitCents: 25_000, disbursementFeeCents: 0 } });
+    expect(mine).toMatchObject({ termYears: 1, approvalLimitCents: 25_000, disbursementFeeCents: 0, noticeDays: 60 });
+    expect(readAgreementDefaults({ agreementDefaults: { termYears: 99 } })).toEqual(DEFAULT_AGREEMENT_TERMS);
   });
 });

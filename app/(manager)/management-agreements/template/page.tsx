@@ -3,29 +3,30 @@ import { DocumentView } from "@/components/document-view";
 import { Card, PageHeader } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
 import { MANAGEMENT_AGREEMENT } from "@/lib/documents/management-agreement";
+import { sampleAgreementValues } from "@/lib/management-agreement";
 import { requireCompany } from "@/lib/session";
 
 export const metadata = { title: "Management agreement template" };
 
-// The template with sample values and every optional clause shown; each agreement includes only what applies.
+// Parcel Manage's Florida agreement filled with this company's details, default terms and default fee, a
+// sample owner, and every optional clause shown; each agreement includes only what applies.
 export default async function ManagementAgreementTemplatePage() {
-  await requireCompany();
-  const t = MANAGEMENT_AGREEMENT;
+  const { company } = await requireCompany();
+  const values = sampleAgreementValues(company, new Date().toLocaleDateString("en-CA", { timeZone: company.time_zone }));
   return (
     <>
       <p className="mb-2 text-[13px] print:hidden">
-        <Link href="/management-agreements" className="font-semibold text-accent hover:underline">
-          ← Management agreements
+        <Link href="/management-agreements/templates" className="font-semibold text-accent hover:underline">
+          ← Agreement templates
         </Link>
       </p>
-      <PageHeader title="Management agreement template" subtitle="Your agreement rebuilt for Florida law. Sample values are shown; each agreement fills in from the owner, their properties and their fees." action={<PrintButton />} />
+      <PageHeader
+        title="Parcel Manage's Florida agreement"
+        subtitle="Built for Florida law, with your company's details, default terms and default fee, and a sample owner. Each agreement fills in from the owner, their properties and each property's fees. To change the wording, make your own copy under Templates."
+        action={<PrintButton />}
+      />
       <Card className="px-6 py-8 sm:px-10 print:border-0 print:p-0">
-        <DocumentView
-          template={t}
-          values={Object.fromEntries(Object.entries(t.fields).map(([k, fd]) => [k, fd.example]))}
-          conditions={new Set(["pma_leasing", "pma_evictions", "pma_contractors", "pma_disbursements", "pma_auto_renew"])}
-          parties={{}}
-        />
+        <DocumentView template={MANAGEMENT_AGREEMENT} values={values} conditions={new Set(["pma_leasing", "pma_evictions", "pma_contractors", "pma_disbursements", "pma_auto_renew"])} parties={{}} />
       </Card>
     </>
   );

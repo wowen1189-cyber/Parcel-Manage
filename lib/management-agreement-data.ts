@@ -1,6 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { partsToTemplate, readParts } from "@/lib/agreement-templates";
 import { MANAGEMENT_AGREEMENT } from "@/lib/documents/management-agreement";
+import type { DocumentTemplate } from "@/lib/documents/types";
 import { oneLineAddress } from "@/lib/format";
 import { brokerLicense, fillAgreement, readAgreementTerms } from "@/lib/management-agreement";
 import { effectiveFee, readCompanyFee } from "@/lib/management-fees";
@@ -8,6 +10,25 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type Db = SupabaseClient<Database>;
 type Company = { id: string; name: string; legal_name: string | null; address: string | null; office_email: string | null; settings: unknown; time_zone: string };
+
+/** The company's agreement templates (built-in first), for pickers. */
+export async function agreementTemplates(db: Db, companyId: string) {
+  const { data } = await db.from("agreement_template").select("id, name, updated_at").eq("company_id", companyId).order("name");
+  return data ?? [];
+}
+
+/**
+ * The agreement's document: its frozen copy once sent, else the company template it uses, else Parcel
+ * Manage's Florida agreement.
+ */
+async function agreementDocument(db: Db, a: { company_id: string; template_id: string | null; template_name: string | null; template_parts: unknown }): Promise<{ template: DocumentTemplate; name: string | null }> {
+  if (a.template_parts) return { template: partsToTemplate(a.template_name ?? MANAGEMENT_AGREEMENT.title, readParts(a.template_parts)), name: a.template_name };
+  if (a.template_id) {
+    const { data: t } = await db.from("agreement_template").select("name, parts").eq("id", a.template_id).eq("company_id", a.company_id).maybeSingle();
+    if (t) return { template: partsToTemplate(t.name, readParts(t.parts)), name: t.name };
+  }
+  return { template: MANAGEMENT_AGREEMENT, name: null };
+}
 
 /** An agreement with its owner, properties (and the fee each pays) and the filled-in document. */
 export async function loadAgreement(db: Db, company: Company, id: string) {
@@ -39,10 +60,11 @@ export async function loadAgreement(db: Db, company: Company, id: string) {
     properties: included,
   });
   if (!a.owner_signer_email && !a.entity.email) filled.missing.push("the signer's e-mail");
+  const { template, name: templateName } = await agreementDocument(db, a);
   const { data: requests } = await db
     .from("signature_request")
     .select("id, status, created_at, completed_at, signed_document_id, signature_signer(name, email, role, status, signed_at, sign_order)")
     .eq("management_agreement_id", a.id)
     .order("created_at", { ascending: false });
-  return { agreement: a, terms, allProperties: all, properties: included, template: MANAGEMENT_AGREEMENT, ...filled, requests: requests ?? [] };
+  return { agreement: a, terms, allProperties: all, properties: included, template, templateName, ...filled, requests: requests ?? [] };
 }

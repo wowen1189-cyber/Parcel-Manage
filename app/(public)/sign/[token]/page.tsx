@@ -51,7 +51,7 @@ export default async function SignPage({ params }: PageProps<"/sign/[token]">) {
               <h2 className="text-center font-sans text-[20px] font-extrabold">{d.title}</h2>
               {d.sections.map((sec, j) => (
                 <div key={j} className="mt-5">
-                  <h3 className="font-sans text-[15px] font-bold">{sec.heading}</h3>
+                  {sec.heading && <h3 className="font-sans text-[15px] font-bold">{sec.heading}</h3>}
                   {sec.paragraphs.map((p, k) => (
                     <p key={k} className="mt-2 whitespace-pre-wrap">
                       {p}

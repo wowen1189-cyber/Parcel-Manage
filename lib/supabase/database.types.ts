@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      agreement_template: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          parts: Json
+          source_name: string | null
+          source_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          parts?: Json
+          source_name?: string | null
+          source_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          parts?: Json
+          source_name?: string | null
+          source_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreement_template_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreement_template_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_connection: {
         Row: {
           base_url: string | null
@@ -1858,6 +1909,9 @@ export type Database = {
           signed_at: string | null
           start_date: string
           status: string
+          template_id: string | null
+          template_name: string | null
+          template_parts: Json | null
           terms: Json
           updated_at: string
         }
@@ -1876,6 +1930,9 @@ export type Database = {
           signed_at?: string | null
           start_date: string
           status?: string
+          template_id?: string | null
+          template_name?: string | null
+          template_parts?: Json | null
           terms?: Json
           updated_at?: string
         }
@@ -1894,6 +1951,9 @@ export type Database = {
           signed_at?: string | null
           start_date?: string
           status?: string
+          template_id?: string | null
+          template_name?: string | null
+          template_parts?: Json | null
           terms?: Json
           updated_at?: string
         }
@@ -1917,6 +1977,13 @@ export type Database = {
             columns: ["entity_id"]
             isOneToOne: false
             referencedRelation: "entity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_agreement_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "agreement_template"
             referencedColumns: ["id"]
           },
         ]

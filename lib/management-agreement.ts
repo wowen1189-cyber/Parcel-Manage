@@ -4,7 +4,7 @@
 
 import { z } from "zod";
 import type { Condition } from "@/lib/documents/types";
-import { describeFeeParts, type ManagementFee } from "@/lib/management-fees";
+import { describeFeeParts, readCompanyFee, type ManagementFee } from "@/lib/management-fees";
 
 const cents = z.coerce.number().int().min(0).max(100_000_000_00);
 
@@ -31,13 +31,13 @@ export const agreementTermsSchema = z.object({
 });
 export type AgreementTerms = z.infer<typeof agreementTermsSchema>;
 
-/** SIM REI's template terms (its Google Docs agreement), as the starting point for a new agreement. */
+/** Built-in starting terms (SIM REI's Google Docs agreement). Each company saves its own in settings.agreementDefaults. */
 export const DEFAULT_AGREEMENT_TERMS: AgreementTerms = {
   termYears: 3,
   autoRenew: true,
   noticeDays: 60,
   approvalLimitCents: 50_000,
-  distributionDay: 10,
+  distributionDay: 1, // by the 1st, for the prior month (Wesley, Nov 1, 2026)
   reserveCents: 0,
   disbursementFeeCents: 13_000,
   w9FeeCents: 5_000,
@@ -70,6 +70,11 @@ export const INSPECTION_LABEL: Record<AgreementTerms["inspectionFrequency"], str
 export function readAgreementTerms(stored: unknown): AgreementTerms {
   const parsed = agreementTermsSchema.safeParse({ ...DEFAULT_AGREEMENT_TERMS, ...(stored && typeof stored === "object" ? stored : {}) });
   return parsed.success ? parsed.data : DEFAULT_AGREEMENT_TERMS;
+}
+
+/** The company's own starting terms for new agreements (company.settings.agreementDefaults), else the built-in ones. */
+export function readAgreementDefaults(settings: unknown): AgreementTerms {
+  return readAgreementTerms(settings && typeof settings === "object" ? (settings as { agreementDefaults?: unknown }).agreementDefaults : undefined);
 }
 
 /** Reads the terms form (dollar fields, checkboxes). */
@@ -201,4 +206,19 @@ export function fillAgreement(a: AgreementInput): { values: Record<string, strin
   if (!a.company.address) missing.push("your office address (Settings)");
   if (!a.company.office_email) missing.push("your office e-mail (Settings)");
   return { values, conditions, missing };
+}
+
+/** Every blank filled with the company's own details, default terms and fee, and a sample owner (template previews). */
+export function sampleAgreementValues(company: AgreementInput["company"] & { settings: unknown }, today: string): Record<string, string> {
+  const terms = { ...readAgreementDefaults(company.settings), disbursements: true };
+  return fillAgreement({
+    createdOn: today,
+    startDate: today,
+    endDate: agreementEndDate(today, terms.termYears),
+    terms,
+    owner: { name: "Sample Holdings LLC", mailing_address: "1 Sample Way, Anytown, FL 32726", email: "owner@example.com" },
+    signer: { name: "Jordan Sample", title: "Manager" },
+    company: { ...company, broker_license: brokerLicense(company.settings) },
+    properties: [{ name: "Sample Building", address: "5 Oak Ln, Anytown, FL 32726", fee: readCompanyFee(company.settings) }],
+  }).values;
 }

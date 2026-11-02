@@ -184,10 +184,12 @@ export function DocumentView({
     <article className="document text-[14px] text-ink">
       {sections.map((s) => (
         <section key={s.id} className={`mt-8 first:mt-0 ${s.standalone ? "break-before-page" : ""}`}>
-          <h2 className="text-center text-[20px] font-bold">
-            {s.number && <span className="mr-2">{s.number}</span>}
-            {s.title}
-          </h2>
+          {(s.number || s.title) && (
+            <h2 className="text-center text-[20px] font-bold">
+              {s.number && <span className="mr-2">{s.number}</span>}
+              {s.title}
+            </h2>
+          )}
           {s.standalone && <p className="mt-1 text-center text-[12px] text-subtle">Separate addendum, signed on its own</p>}
           {s.clauses
             .filter((c) => applies(c.when, conditions))

@@ -29,6 +29,9 @@ export function AgreementForm({
   properties,
   included,
   canEdit,
+  isAdmin,
+  templates,
+  templateId,
 }: {
   id: string;
   terms: AgreementTerms;
@@ -38,6 +41,9 @@ export function AgreementForm({
   properties: { id: string; name: string; address: string }[];
   included: string[];
   canEdit: boolean;
+  isAdmin: boolean;
+  templates: { id: string; name: string }[];
+  templateId: string | null;
 }) {
   const [state, action, pending] = useActionState(saveAgreement, empty);
   const v = (k: string, d: string) => state.values?.[k] ?? d;
@@ -63,6 +69,17 @@ export function AgreementForm({
             ))}
           </div>
         </div>
+
+        <Field label="Agreement used" hint="Your own templates are under Management agreements › Templates.">
+          <Select name="template_id" defaultValue={v("template_id", templateId ?? "")}>
+            <option value="">Parcel Manage&apos;s Florida agreement</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Start date">
@@ -108,7 +125,7 @@ export function AgreementForm({
           <Field label="Spending limit without approval ($)">
             <Input name="approval_limit" inputMode="decimal" defaultValue={v("approval_limit", dollars(terms.approvalLimitCents))} />
           </Field>
-          <Field label="Statement and payment day">
+          <Field label="Owner paid by this day (for the prior month)" hint="1 to 28">
             <Input name="distribution_day" inputMode="numeric" defaultValue={v("distribution_day", String(terms.distributionDay))} />
           </Field>
           <Field label="Reserve kept ($)">
@@ -146,7 +163,12 @@ export function AgreementForm({
           </Field>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-3">
+          {isAdmin && (
+            <Button type="submit" name="intent" value="defaults" variant="secondary" disabled={pending}>
+              Save and use as my default terms
+            </Button>
+          )}
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save draft"}
           </Button>

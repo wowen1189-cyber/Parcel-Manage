@@ -193,7 +193,7 @@ const sections: DocumentTemplate["sections"] = [
         number: "5.2",
         title: "Monthly Statements and Distributions",
         blocks: [p("By the {{distribution_day}} day of each month, Agent provides Owner a statement for the prior month itemizing all money received and paid out, and pays Owner the balance after expenses, Agent's fees and the reserve in Section 5.3. If expenses for a month exceed the money received, Owner pays Agent the difference within ten (10) days after Agent's request.")],
-        changes: [ch("M12", "n/a", "cleanup", "Set one date for the statement and the payment (the old agreement said funds would be deposited \"by the 1st of each month\" and had no deadline for the owner to cover a shortfall).", "To deposit all collected funds for the owner by the 1st of each month, for the previous month")],
+        changes: [ch("M12", "n/a", "cleanup", "Kept payment by the 1st for the prior month, now with the statement on the same date, and the date can be changed per agreement. Added a deadline for the owner to cover a month when expenses exceed rent (the old agreement had none).", "To deposit all collected funds for the owner by the 1st of each month, for the previous month")],
       },
       {
         id: "reserve",
@@ -424,7 +424,7 @@ const fields: Record<string, TemplateField> = {
   residential_liability: f("Residential tenant liability minimum", "setting", "$100,000"),
   commercial_liability: f("Commercial tenant liability minimum", "setting", "$1,000,000"),
   approval_limit: f("Spending limit without approval", "setting", "$500.00"),
-  distribution_day: f("Statement and payment day", "setting", "10th"),
+  distribution_day: f("Statement and payment day", "setting", "1st"),
   reserve_amount: f("Reserve", "property", "$0.00"),
   management_fee: f("Management fee", "setting", "5% of rent collected each month"),
   leasing_fee: f("Leasing fee", "setting", "none"),
