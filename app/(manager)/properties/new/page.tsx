@@ -7,7 +7,7 @@ export const metadata = { title: "New property" };
 
 export default async function NewPropertyPage() {
   const { supabase, company } = await requireCompany();
-  const { data: entities } = await supabase.from("entity").select("id, name").eq("company_id", company.id).order("name");
+  const { data: entities } = await supabase.from("entity").select("id, name").eq("company_id", company.id).eq("is_manager", false).order("name");
   return (
     <>
       <p className="mb-2 text-[13px]">

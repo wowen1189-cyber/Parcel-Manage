@@ -19,7 +19,7 @@ export function CloseMonthForm({ entityId, month, disabled }: { entityId: string
       <input type="hidden" name="month" value={month} />
       <Status state={state} />
       <Button type="submit" disabled={pending || disabled}>
-        {pending ? "Closing…" : "Post fees and close the month"}
+        {pending ? "Closing…" : "Close the month"}
       </Button>
     </form>
   );

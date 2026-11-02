@@ -14,7 +14,11 @@ import { requireCompany } from "@/lib/session";
 export type CloseState = { error?: string; message?: string };
 const ROLES = ["admin", "accountant"];
 
-/** Close a month for one owner: post the fees, save the statement, and list each payee's share. */
+/**
+ * Close a month for one owner: save the statement and, for owners whose money the company holds, list each
+ * payee's share. Fees aren't posted here: they come from the month's approved fee bill (Accounting › Fee billing).
+ * Managed owners must tie to the bank first: every operating account reconciled through the month's last day.
+ */
 export async function closeMonth(_: CloseState, form: FormData): Promise<CloseState> {
   const { supabase, company, membership, user } = await requireCompany();
   if (!ROLES.includes(membership.role)) return { error: "Only an admin or accountant can close a month." };
@@ -24,33 +28,22 @@ export async function closeMonth(_: CloseState, form: FormData): Promise<CloseSt
   if (existing) return { error: "That month is already closed for this owner." };
   const s = await previewStatement(supabase, company, p.data.entity_id, p.data.month);
   if (!s) return { error: "Owner not found." };
+  if (s.totals.feesCents > 0 && (!s.invoice || s.invoice.status === "draft"))
+    return { error: `Approve this month's fee bill first (Accounting › Fee billing): ${money(s.totals.feesCents)} in fees.` };
+  if (s.managed && !s.tieOut.ok)
+    return {
+      error: s.tieOut.accounts.length
+        ? `Reconcile the operating account through ${s.to} first, so the statement ties to the bank: ${s.tieOut.accounts.filter((a) => !a.ok).map((a) => a.name).join(", ")}.`
+        : "Add this owner's operating bank account (Bank accounts) and reconcile it through the month's end first.",
+    };
 
-  const feeEntries: string[] = [];
-  for (const prop of s.properties) {
-    const lines = [
-      prop.managementFeeCents && { account: "5100", debit: prop.managementFeeCents, property_id: prop.id, memo: `Management fee ${p.data.month}` },
-      prop.leasingFeeCents && { account: "5110", debit: prop.leasingFeeCents, property_id: prop.id, memo: `Leasing fee (${prop.newLeases} new lease${prop.newLeases === 1 ? "" : "s"})` },
-    ].filter(Boolean) as { account: string; debit: number; property_id: string; memo: string }[];
-    if (!lines.length) continue;
-    const total = lines.reduce((x, l) => x + l.debit, 0);
-    const { data: entry, error } = await supabase.rpc("post_journal_entry", {
-      p_company: company.id,
-      p_entity: p.data.entity_id,
-      p_date: s.to,
-      p_memo: `${company.name} fees for ${prop.name}, ${p.data.month}`,
-      p_source: "fee",
-      p_lines: [...lines, { account: "1000", credit: total, property_id: prop.id }],
-    });
-    if (error) return { error: error.message };
-    feeEntries.push(entry as string);
-  }
   const { data: statement, error } = await supabase
     .from("owner_statement")
-    .insert({ company_id: company.id, entity_id: p.data.entity_id, period_start: s.from, period_end: s.to, totals: s.totals as never, lines: s.properties as never, fee_entry_ids: feeEntries, created_by: user.id })
+    .insert({ company_id: company.id, entity_id: p.data.entity_id, period_start: s.from, period_end: s.to, totals: s.totals as never, lines: s.properties as never, fee_entry_ids: [], created_by: user.id })
     .select("id")
     .single();
   if (error) return { error: error.message };
-  const shares = splitByOwnership(s.totals.distributableCents, s.payees).filter((x) => x.amountCents > 0);
+  const shares = s.managed ? splitByOwnership(s.totals.distributableCents, s.payees).filter((x) => x.amountCents > 0) : [];
   if (shares.length) {
     await supabase.from("owner_distribution").insert(shares.map((x) => ({ company_id: company.id, statement_id: statement.id, entity_id: p.data.entity_id, payee_contact_id: x.contactId, payee_name: x.name, ownership_pct: x.pct, amount_cents: x.amountCents })));
   }
@@ -105,14 +98,16 @@ export async function emailStatement(_: CloseState, form: FormData): Promise<Clo
     `Beginning cash: ${money(t.beginningCashCents)}`,
     `Income: ${money(t.incomeCents)}`,
     `Expenses (including fees): ${money(t.expensesCents)}`,
-    `Management, leasing and renewal fees: ${money(t.feesCents)}`,
+    `Management, leasing and renewal fees (billed): ${money(t.feesCents)}`,
     `Ending cash: ${money(t.endingCashCents)}`,
-    `Unpaid bills: ${money(t.payablesCents)}`,
+    `Unpaid bills and fees: ${money(t.payablesCents)}`,
     `Cash reserve: ${money(t.reserveCents)}`,
     `Distribution: ${money(t.distributableCents)}`,
     `Security deposits held in trust: ${money(t.depositsHeldCents)}`,
     "",
-    ...props.map((p) => `${p.name}: rent collected ${money(p.collectedCents)}, fees ${money(p.managementFeeCents + p.leasingFeeCents)}`),
+    ...(t.drawsCents || t.contributionsCents ? [`Owner draws: ${money(t.drawsCents ?? 0)}`, `Owner contributions: ${money(t.contributionsCents ?? 0)}`] : []),
+    "",
+    ...props.map((p) => `${p.name}: gross income collected ${money(p.collectedCents)}, fees ${money(p.managementFeeCents + p.leasingFeeCents)}`),
     "",
     ...st.owner_distribution.map((d) => `${d.payee_name}: ${money(d.amount_cents)} (${d.status})`),
   ];

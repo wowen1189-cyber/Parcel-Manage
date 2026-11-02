@@ -426,7 +426,7 @@ const fields: Record<string, TemplateField> = {
   approval_limit: f("Spending limit without approval", "setting", "$500.00"),
   distribution_day: f("Statement and payment day", "setting", "1st"),
   reserve_amount: f("Reserve", "property", "$0.00"),
-  management_fee: f("Management fee", "setting", "5% of rent collected each month"),
+  management_fee: f("Management fee", "setting", "5% of gross income collected each month"),
   leasing_fee: f("Leasing fee", "setting", "none"),
   renewal_fee: f("Renewal fee", "setting", "none"),
   disbursement_fee: f("Fee for paying owner's obligations", "setting", "$130.00 per property per month"),

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Card, CardHeader, EmptyState, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money } from "@/lib/format";
@@ -11,6 +11,8 @@ import { isAdmin, requireCompany } from "@/lib/session";
 import { connectOwnerStripe, refreshOwnerStripe } from "../stripe-actions";
 import { createAgreement } from "../../management-agreements/actions";
 import { DeleteOwnerForm, FeeForm, MovePropertiesForm, OwnerForm } from "../forms";
+import { BooksModeForm, OwnerMoneyForm } from "../money-forms";
+import { todayIn } from "@/lib/format";
 
 export async function generateMetadata({ params }: PageProps<"/owners/[id]">) {
   const { id } = await params;
@@ -32,6 +34,7 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
     supabase.from("entity").select("stripe_account_id, stripe_charges_enabled").eq("id", id).eq("company_id", company.id).maybeSingle(),
   ]);
   if (!owner) notFound();
+  if (owner.is_manager) redirect("/fee-billing");
 
   const canEdit = ["admin", "property_manager"].includes(membership.role);
   const unassigned = owner.name === UNASSIGNED_OWNER;
@@ -144,12 +147,29 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
         <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
           <span>
             <span className="font-semibold">Statements and distributions</span>
-            <span className="block text-[13px] text-subtle">Close a month: post fees from rent collected, send the statement, record payouts.</span>
+            <span className="block text-[13px] text-subtle">Close a month: fees from the fee bill, the statement tied to the bank, and payouts.</span>
           </span>
           <Link href={`/owners/${owner.id}/statements`} className="min-h-11 rounded-[var(--radius-control)] bg-accent px-4 py-2.5 text-sm font-semibold text-white">
             Open statements
           </Link>
         </Card>
+      )}
+      {!unassigned && (
+        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+          <Card>
+            <CardHeader title="How this owner's money works" description="Decides whether month-end pays out distributions or the money stays in the owner's own bank." />
+            <BooksModeForm entityId={owner.id} mode={owner.books_mode} canEdit={["admin", "accountant"].includes(membership.role)} />
+          </Card>
+          {["admin", "accountant"].includes(membership.role) && (
+            <Card>
+              <CardHeader
+                title="Record owner money"
+                description={owner.books_mode === "own_books" ? "Money you took out or put in, bills paid from outside this LLC's account, and loan payments split into interest and principal." : "Money a partner put in, bills paid from outside this LLC's account, and loan payments. Payouts go through distributions."}
+              />
+              <OwnerMoneyForm entityId={owner.id} properties={props.map((p) => ({ id: p.id, name: p.name }))} today={todayIn(company.time_zone)} mode={owner.books_mode} />
+            </Card>
+          )}
+        </div>
       )}
       {!unassigned && (
         <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">

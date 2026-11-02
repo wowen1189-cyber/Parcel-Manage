@@ -14,7 +14,7 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
   const filters = { q: param(params, "q"), type: param(params, "type"), entity: param(params, "entity") };
   const [properties, { data: entities }] = await Promise.all([
     listProperties(supabase, company.id, filters),
-    supabase.from("entity").select("id, name").eq("company_id", company.id).order("name"),
+    supabase.from("entity").select("id, name").eq("company_id", company.id).eq("is_manager", false).order("name"),
   ]);
   const totals = properties.reduce((t, p) => ({ units: t.units + p.units, occupied: t.occupied + p.occupied, rent: t.rent + p.rentCents }), { units: 0, occupied: 0, rent: 0 });
 

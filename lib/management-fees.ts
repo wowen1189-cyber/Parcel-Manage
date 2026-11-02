@@ -12,7 +12,7 @@ const cents = z.coerce.number().int().min(0).max(100_000_00);
 const percent = z.coerce.number().min(0).max(100);
 
 export const managementFeeSchema = z.object({
-  // percent: a share of the rent collected that month. flat: a set amount per property per month.
+  // percent: a share of the gross income collected that month (rent, fees, reimbursements, other income; not deposits). flat: a set amount per property per month.
   // per_unit: a set amount per occupied unit per month. none: no monthly fee.
   basis: z.enum(["percent", "flat", "per_unit", "none"]),
   percent,
@@ -81,7 +81,7 @@ export function effectiveFee(propertyFee: unknown, ownerFee: unknown, companyFee
   return { fee: companyFee, source: "company" };
 }
 
-/** The monthly management fee for one property, from the rent collected that month. */
+/** The monthly management fee for one property, from the gross income collected that month (lib/fee-billing.ts). */
 export function monthlyFee(fee: ManagementFee, collectedCents: number, occupiedUnits: number): number {
   if (fee.basis === "none") return 0;
   if (collectedCents <= 0 && !fee.chargeWhenVacant) return 0;
@@ -107,7 +107,7 @@ export function renewalFee(fee: ManagementFee, monthlyRentCents: number): number
 
 const dollars = (c: number) => `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
-/** Plain-language summary of the three fees, e.g. "Management 8% of rent collected · Leasing 50% of a month's rent · Renewal $150". */
+/** Plain-language summary of the three fees, e.g. "Management 8% of gross income collected · Leasing 50% of a month's rent · Renewal $150". */
 export function describeFee(fee: ManagementFee): string {
   return describeFeeParts(fee).map((x) => `${x.label} ${x.text}`).join(" · ");
 }
@@ -127,7 +127,7 @@ export function describeFeeParts(fee: ManagementFee): { label: string; text: str
         ? `${dollars(fee.flatCents)} a month`
         : fee.basis === "per_unit"
           ? `${dollars(fee.flatCents)} per occupied unit a month`
-          : `${fee.percent}% of rent collected${percentLimits(fee)}`;
+          : `${fee.percent}% of gross income collected${percentLimits(fee)}`;
   const oneTime = (kind: "percent" | "flat" | "none", pct: number, flat: number) =>
     kind === "percent" && pct ? `${pct}% of a month's rent` : kind === "flat" && flat ? dollars(flat) : "none";
   return [

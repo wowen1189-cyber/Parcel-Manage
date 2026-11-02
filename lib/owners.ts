@@ -64,8 +64,10 @@ export function summarizeProperty(p: PropertyRow, ownerFee: unknown, companyFee:
 export async function listOwners(supabase: Db, companyId: string, companyFee: ManagementFee, q = "") {
   const { data, error } = await supabase
     .from("entity")
-    .select(`id, name, entity_type, email, phone, management_fee, property(${PROPERTY_FIELDS})`)
+    .select(`id, name, entity_type, email, phone, management_fee, books_mode, property(${PROPERTY_FIELDS})`)
     .eq("company_id", companyId)
+    // The management company's own books (Fee billing) aren't an owner.
+    .eq("is_manager", false)
     .order("name");
   if (error) throw error;
   const needle = q.trim().toLowerCase();
@@ -79,6 +81,7 @@ export async function listOwners(supabase: Db, companyId: string, companyFee: Ma
         type: e.entity_type,
         email: e.email,
         phone: e.phone,
+        booksMode: e.books_mode,
         unassigned: e.name === UNASSIGNED_OWNER,
         fee: agreement.fee,
         hasOwnFee: agreement.source === "owner",

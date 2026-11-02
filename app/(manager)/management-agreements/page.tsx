@@ -15,7 +15,7 @@ export default async function ManagementAgreementsPage() {
   const { supabase, company, membership } = await requireCompany();
   const canEdit = ["admin", "property_manager"].includes(membership.role);
   const [{ data: owners }, { data: agreements }] = await Promise.all([
-    supabase.from("entity").select("id, name, property(id)").eq("company_id", company.id).order("name"),
+    supabase.from("entity").select("id, name, property(id)").eq("company_id", company.id).eq("is_manager", false).order("name"),
     supabase.from("management_agreement").select("id, entity_id, status, start_date, end_date, property_ids, signed_at, created_at").eq("company_id", company.id).order("created_at", { ascending: false }),
   ]);
   const rows = (owners ?? [])

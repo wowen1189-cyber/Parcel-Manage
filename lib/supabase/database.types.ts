@@ -1436,11 +1436,13 @@ export type Database = {
       }
       entity: {
         Row: {
+          books_mode: string
           company_id: string
           created_at: string
           email: string | null
           entity_type: string | null
           id: string
+          is_manager: boolean
           mailing_address: string | null
           management_fee: Json
           name: string
@@ -1453,11 +1455,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          books_mode?: string
           company_id: string
           created_at?: string
           email?: string | null
           entity_type?: string | null
           id?: string
+          is_manager?: boolean
           mailing_address?: string | null
           management_fee?: Json
           name: string
@@ -1470,11 +1474,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          books_mode?: string
           company_id?: string
           created_at?: string
           email?: string | null
           entity_type?: string | null
           id?: string
+          is_manager?: boolean
           mailing_address?: string | null
           management_fee?: Json
           name?: string
@@ -1540,6 +1546,145 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_invoice: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          lines: Json
+          manager_entity_id: string
+          manager_entry_id: string | null
+          manager_payment_entry_id: string | null
+          method: string | null
+          number: number
+          owner_entity_id: string
+          owner_entry_id: string | null
+          owner_payment_entry_id: string | null
+          paid_on: string | null
+          period_end: string
+          period_start: string
+          reference: string | null
+          sent_at: string | null
+          status: string
+          total_cents: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lines: Json
+          manager_entity_id: string
+          manager_entry_id?: string | null
+          manager_payment_entry_id?: string | null
+          method?: string | null
+          number: number
+          owner_entity_id: string
+          owner_entry_id?: string | null
+          owner_payment_entry_id?: string | null
+          paid_on?: string | null
+          period_end: string
+          period_start: string
+          reference?: string | null
+          sent_at?: string | null
+          status?: string
+          total_cents: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lines?: Json
+          manager_entity_id?: string
+          manager_entry_id?: string | null
+          manager_payment_entry_id?: string | null
+          method?: string | null
+          number?: number
+          owner_entity_id?: string
+          owner_entry_id?: string | null
+          owner_payment_entry_id?: string | null
+          paid_on?: string | null
+          period_end?: string
+          period_start?: string
+          reference?: string | null
+          sent_at?: string | null
+          status?: string
+          total_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_invoice_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_manager_entity_id_fkey"
+            columns: ["manager_entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_manager_entry_id_fkey"
+            columns: ["manager_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_manager_payment_entry_id_fkey"
+            columns: ["manager_payment_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_owner_entity_id_fkey"
+            columns: ["owner_entity_id"]
+            isOneToOne: false
+            referencedRelation: "entity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_owner_entry_id_fkey"
+            columns: ["owner_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_owner_payment_entry_id_fkey"
+            columns: ["owner_payment_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entry"
             referencedColumns: ["id"]
           },
         ]

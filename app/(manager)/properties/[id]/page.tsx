@@ -32,7 +32,7 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
       .eq("id", id)
       .eq("company_id", company.id)
       .maybeSingle(),
-    supabase.from("entity").select("id, name").eq("company_id", company.id).order("name"),
+    supabase.from("entity").select("id, name").eq("company_id", company.id).eq("is_manager", false).order("name"),
   ]);
   if (!p) notFound();
   // The owner's agreement that covers this property (signed first, else the newest not ended).

@@ -635,7 +635,7 @@ export const REPORTS: ReportDef[] = [
     replaces: "Owner Directory",
     filters: [],
     run: async (db, companyId) => {
-      const { data } = await db.from("entity").select("name, entity_type, email, phone, mailing_address, property(name)").eq("company_id", companyId).order("name");
+      const { data } = await db.from("entity").select("name, entity_type, email, phone, mailing_address, property(name)").eq("company_id", companyId).eq("is_manager", false).order("name");
       const rows = (data ?? []).map((o) => ({ owner: o.name, type: o.entity_type ?? "", email: o.email ?? "", phone: o.phone ?? "", address: o.mailing_address ?? "", properties: o.property.map((p) => p.name).join(", ") }));
       return { columns: [{ key: "owner", label: "Owner" }, { key: "type", label: "Type" }, { key: "email", label: "E-mail" }, { key: "phone", label: "Phone" }, { key: "address", label: "Mailing address" }, { key: "properties", label: "Properties" }], rows };
     },

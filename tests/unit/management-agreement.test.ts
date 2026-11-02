@@ -29,7 +29,7 @@ describe("management agreement", () => {
     expect(missing).toEqual([]);
     const blank = usedFields(MANAGEMENT_AGREEMENT, conditions).filter((k) => !values[k]);
     expect(blank).toEqual([]);
-    expect(values.management_fee).toBe("5% of rent collected");
+    expect(values.management_fee).toBe("5% of gross income collected");
     expect(values.leasing_fee).toBe("none");
     expect(values.agent_license).toContain("CQ0000000");
     expect(values.term_years).toBe("three years");
@@ -65,7 +65,7 @@ describe("management agreement", () => {
       { name: "Elm Court", address: "9 Elm Ct", fee: effectiveFee(null, null, company).fee },
     ];
     const { values } = fillAgreement({ ...input, properties: props });
-    expect(values.management_fee).toBe("Oak House: 6% of rent collected; Pine Flats: 8% of rent collected; Elm Court: 10% of rent collected");
+    expect(values.management_fee).toBe("Oak House: 6% of gross income collected; Pine Flats: 8% of gross income collected; Elm Court: 10% of gross income collected");
     expect(values.leasing_fee).toContain("Pine Flats: $750");
     expect(values.renewal_fee).toContain("Oak House: $100");
   });

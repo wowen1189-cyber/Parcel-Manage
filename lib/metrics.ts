@@ -25,7 +25,7 @@ export async function computeMetrics(db: Db, companyId: string, today: string): 
     db.from("work_order").select("status, priority, created_at, completed_at, tech_arrived_at, self_resolved").eq("company_id", companyId).gte("created_at", `${yearAgo}T00:00:00Z`),
     db.from("guest_card").select("id").eq("company_id", companyId).gte("created_at", `${yearAgo}T00:00:00Z`),
     db.from("application").select("id").eq("company_id", companyId).eq("status", "signed").gte("created_at", `${yearAgo}T00:00:00Z`),
-    db.from("entity").select("id").eq("company_id", companyId),
+    db.from("entity").select("id").eq("company_id", companyId).eq("is_manager", false),
   ]);
   const { count: openCount } = await db.from("work_order").select("id", { count: "exact", head: true }).eq("company_id", companyId).not("status", "in", "(completed,canceled)");
 

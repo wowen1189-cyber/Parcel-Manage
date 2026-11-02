@@ -123,7 +123,7 @@ export function FeeForm({
             <fieldset className="rounded-[var(--radius-control)] border border-line p-4">
               <legend className="px-1 text-sm font-bold">Monthly management fee</legend>
               <Radio name="basis" value="percent" checked={basis === "percent"} onChange={setBasis}>
-                Percent of rent collected
+                Percent of gross income collected
               </Radio>
               <Radio name="basis" value="flat" checked={basis === "flat"} onChange={setBasis}>
                 Flat amount per property

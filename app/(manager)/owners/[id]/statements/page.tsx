@@ -30,7 +30,11 @@ export default async function StatementsPage({ params, searchParams }: PageProps
           ← {s.owner.name}
         </Link>
       </p>
-      <PageHeader title="Statements and distributions" subtitle={`${s.owner.name}: monthly close. Fees post from rent actually collected; distributions are what's left after bills and the reserve.`} />
+      <PageHeader title="Statements and distributions" subtitle={
+          s.managed
+            ? `${s.owner.name}: monthly close. Fees come from the month's fee bill; distributions are what's left after bills, unpaid fees and the reserve, and the statement must tie to the bank.`
+            : `${s.owner.name}: own books. The money stays in the owner's own bank, so there's nothing to distribute; the statement shows income, expenses, fees and owner draws.`
+        } />
       <Card className="mb-6 p-5">
         <form action={`/owners/${id}/statements`} className="flex flex-wrap items-end gap-3">
           <label className="text-[13px] font-semibold text-ink-2">
@@ -55,17 +59,42 @@ export default async function StatementsPage({ params, searchParams }: PageProps
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatTile label="Rent collected" value={money(s.properties.reduce((x, p) => x + p.collectedCents, 0))} note={`${date(s.from)} to ${date(s.to)}`} />
-            <StatTile label="Fees to post" value={money(s.totals.feesCents)} note="Management, leasing and renewal" />
-            <StatTile label="Cash after fees" value={money(s.totals.endingCashCents)} note={`Bills ${money(s.totals.payablesCents)} · reserve ${money(s.totals.reserveCents)}`} />
-            <StatTile label="Distribution" value={money(s.totals.distributableCents)} note={shares.map((x) => `${x.name} ${x.pct}%`).join(" · ")} />
+            <StatTile label="Gross income collected" value={money(s.properties.reduce((x, p) => x + p.collectedCents, 0))} note={`${date(s.from)} to ${date(s.to)}`} />
+            <StatTile label="Fees" value={money(s.totals.feesCents)} note={s.invoice ? `Fee bill #${s.invoice.number}: ${s.invoice.status}` : s.totals.feesCents ? "Not billed yet" : "None this month"} />
+            <StatTile label="Ending cash" value={money(s.totals.endingCashCents)} note={`Unpaid bills and fees ${money(s.totals.payablesCents)} · reserve ${money(s.totals.reserveCents)}`} />
+            {s.managed ? (
+              <StatTile label="Distribution" value={money(s.totals.distributableCents)} note={shares.map((x) => `${x.name} ${x.pct}%`).join(" · ")} />
+            ) : (
+              <StatTile label="Owner draws" value={money(s.totals.drawsCents ?? 0)} note={`Contributions ${money(s.totals.contributionsCents ?? 0)}`} />
+            )}
           </div>
+          {s.totals.feesCents > 0 && (!s.invoice || s.invoice.status === "draft") && (
+            <div className="mt-4">
+              <Notice tone="warn">
+                Bill this month&apos;s fees before closing:{" "}
+                <Link href={`/fee-billing?month=${month}`} className="font-semibold underline">
+                  Fee billing
+                </Link>
+                .
+              </Notice>
+            </div>
+          )}
+          {s.managed && (
+            <div className="mt-4">
+              <Notice tone={s.tieOut.ok ? "success" : "warn"}>
+                {s.tieOut.accounts.length
+                  ? s.tieOut.accounts.map((a) => `${a.name}: ${a.through ? `reconciled through ${date(a.through)}` : "never reconciled"}`).join(" · ")
+                  : "No operating bank account yet."}{" "}
+                {s.tieOut.ok ? "Ties to the bank." : `Reconcile through ${date(s.to)} before closing, so the statement matches the bank.`}
+              </Notice>
+            </div>
+          )}
           <Card className="mt-6 overflow-hidden">
             <CardHeader title={`Preview: ${month}`} description="Nothing is posted until you close the month." />
             <Table minWidth={720}>
               <Thead>
                 <Th>Property</Th>
-                <Th right>Collected</Th>
+                <Th right>Gross income collected</Th>
                 <Th>Fee terms</Th>
                 <Th right>Fees</Th>
               </Thead>
@@ -77,7 +106,7 @@ export default async function StatementsPage({ params, searchParams }: PageProps
                     <Td className="text-[12px] text-subtle">{p.feeTerms}</Td>
                     <Td right>
                       {money(p.managementFeeCents + p.leasingFeeCents)}
-                      {p.newLeases > 0 && <p className="text-[12px] text-subtle">incl. leasing fee for {p.newLeases} new lease{p.newLeases === 1 ? "" : "s"}</p>}
+                      {p.newLeases > 0 && <p className="text-[12px] text-subtle">incl. leasing or renewal fees for {p.newLeases} lease{p.newLeases === 1 ? "" : "s"}</p>}
                     </Td>
                   </tr>
                 ))}

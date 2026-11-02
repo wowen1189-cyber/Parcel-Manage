@@ -1,7 +1,7 @@
 // Owner statements: the monthly close for one owner (LLC). Pure math here; lib/owner-close.ts reads the books.
 //
-// Management fees come from rent actually collected that month (lib/management-fees.ts); leasing fees from
-// leases that started that month. What's distributable is operating cash after fees, less unpaid approved
+// Fees come from the month's fee bill (lib/fee-billing.ts): the management fee on gross income collected,
+// leasing fees for new leases and renewal fees for renewals. What's distributable is operating cash after fees, less unpaid approved
 // bills and the owner's cash reserve, never below zero (docs/02: distributions after expenses, debt service
 // and reserve). It's split by ownership percent when the owner's properties have partners.
 
@@ -26,6 +26,9 @@ export type StatementTotals = {
   reserveCents: number;
   distributableCents: number;
   depositsHeldCents: number;
+  // Own-books owners: money the owner took out (owner draws) and put in this month. Older statements lack them.
+  drawsCents?: number;
+  contributionsCents?: number;
 };
 
 export function distributable(endingCashCents: number, payablesCents: number, reserveCents: number): number {

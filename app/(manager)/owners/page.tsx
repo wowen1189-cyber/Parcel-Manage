@@ -68,7 +68,7 @@ export default async function OwnersPage({ searchParams }: PageProps<"/owners">)
               {shown.map((o) => (
                 <tr key={o.id}>
                   <Td>
-                    <RowLink href={`/owners/${o.id}`} sub={[o.type, o.email].filter(Boolean).join(" · ") || undefined}>
+                    <RowLink href={`/owners/${o.id}`} sub={[o.type, o.booksMode === "own_books" ? "Own books" : "Managed: distributions", o.email].filter(Boolean).join(" · ")}>
                       {o.name}
                     </RowLink>
                     {o.unassigned && (
@@ -100,7 +100,7 @@ export default async function OwnersPage({ searchParams }: PageProps<"/owners">)
           </Table>
         )}
         <p className="border-t border-line px-5 py-3 text-[13px] text-subtle">
-          Est. monthly fee assumes every current tenant pays this month&apos;s rent in full. Actual fees post from rent collected once payments move into Parcel Manage.
+          Est. monthly fee assumes every current tenant pays this month&apos;s rent in full. Actual fees are billed from gross income collected (rent, fees and other income) once payments move into Parcel Manage.
         </p>
       </Card>
 

@@ -38,7 +38,7 @@ export default async function StatementPage({ params, searchParams }: PageProps<
           </Link>
         </p>
         <PageHeader title={`${st.entity.name}: ${month}`} subtitle={`Closed ${date(st.created_at.slice(0, 10))}${st.sent_at ? ` · sent ${date(st.sent_at.slice(0, 10))}` : ""}`} action={<PrintButton />} />
-        {sp.closed && <Notice tone="success">Month closed: fees posted to the owner&apos;s books and the statement saved.</Notice>}
+        {sp.closed && <Notice tone="success">Month closed and the statement saved.</Notice>}
         <div className="my-4">
           <EmailStatementButton id={st.id} sent={Boolean(st.sent_at)} />
         </div>
@@ -55,10 +55,12 @@ export default async function StatementPage({ params, searchParams }: PageProps<
               {row("Beginning cash", t.beginningCashCents)}
               {row("Income", t.incomeCents)}
               {row("Expenses (including fees)", t.expensesCents)}
-              {row("Management, leasing and renewal fees", t.feesCents)}
+              {row("Management, leasing and renewal fees (billed)", t.feesCents)}
               {row("Ending cash", t.endingCashCents, true)}
-              {row("Unpaid bills", t.payablesCents)}
+              {row("Unpaid bills and fees", t.payablesCents)}
               {row("Cash reserve", t.reserveCents)}
+              {t.drawsCents ? row("Owner draws", t.drawsCents) : null}
+              {t.contributionsCents ? row("Owner contributions", t.contributionsCents) : null}
               {row("Distribution", t.distributableCents, true)}
               {row("Security deposits held in trust", t.depositsHeldCents)}
             </Tbody>
@@ -69,7 +71,7 @@ export default async function StatementPage({ params, searchParams }: PageProps<
           <Table minWidth={320}>
             <Thead>
               <Th>Property</Th>
-              <Th right>Collected</Th>
+              <Th right>Gross collected</Th>
               <Th right>Fees</Th>
             </Thead>
             <Tbody>
