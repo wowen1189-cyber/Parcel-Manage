@@ -23,7 +23,8 @@ export async function setPreviousSoftware(form: FormData): Promise<void> {
   const { supabase, company, membership } = await requireCompany();
   if (!isAdmin(membership)) return;
   const settings = company.settings && typeof company.settings === "object" && !Array.isArray(company.settings) ? (company.settings as Record<string, unknown>) : {};
-  const from = previousSoftware({ switchOver: { from: form.get("from") } });
+  const choice = String(form.get("choice") ?? "");
+  const from = previousSoftware({ switchOver: { from: choice === "__other" ? form.get("other") : choice } });
   await supabase.from("company").update({ settings: { ...settings, switchOver: { ...((settings.switchOver as Record<string, unknown>) ?? {}), from } } }).eq("id", company.id);
   revalidatePath("/switch-over");
   revalidatePath("/settings/billing");

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Button, Card, Field, Input, PageHeader, Pill } from "@/components/ui";
+import { Button, Card, PageHeader, Pill } from "@/components/ui";
 import { readAutomationSettings } from "@/lib/automation-rules";
 import { readBillingSettings } from "@/lib/billing-run";
 import { date } from "@/lib/format";
 import { isAdmin, requireCompany } from "@/lib/session";
 import { CUTOVER_DEPOSIT_REFS, PREVIOUS_SOFTWARE, oldSystemName, previousSoftware } from "@/lib/switch-over";
 import { setPreviousSoftware, toggleStep } from "./actions";
+import { SoftwarePicker } from "./software-picker";
 
 export const metadata = { title: "Switch-over checklist" };
 
@@ -49,14 +50,7 @@ export default async function SwitchOverPage() {
       {admin && (
         <Card className="mb-4">
           <form action={setPreviousSoftware} className="flex flex-wrap items-end gap-3 px-5 py-4">
-            <Field label="Moving from" hint="The software (or spreadsheet) you're leaving. The checklist uses its name.">
-              <Input name="from" list="previous-software" defaultValue={from ?? ""} placeholder="AppFolio, Buildium, Rent Manager…" className="w-72" />
-            </Field>
-            <datalist id="previous-software">
-              {PREVIOUS_SOFTWARE.map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
+            <SoftwarePicker key={from ?? ""} options={PREVIOUS_SOFTWARE} current={from} />
             <Button type="submit" small variant="secondary">
               Save
             </Button>
