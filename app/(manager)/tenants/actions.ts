@@ -444,3 +444,14 @@ export async function saveCommercialTerms(_: FormState, form: FormData): Promise
   revalidatePath(`/tenants/${lease.id}/lease`);
   return { message: "Saved. The lease below is updated." };
 }
+
+/** Record that someone asked (by phone, e-mail or in person) to stop texts. Only they can opt back in. */
+export async function stopTexts(form: FormData): Promise<void> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!EDIT_ROLES.includes(membership.role)) return;
+  const contactId = z.string().uuid().safeParse(form.get("contact_id"));
+  const leaseId = z.string().uuid().safeParse(form.get("lease_id"));
+  if (!contactId.success || !leaseId.success) return;
+  await supabase.from("contact").update({ sms_opt_in: false, sms_opt_out_at: new Date().toISOString() }).eq("id", contactId.data).eq("company_id", company.id);
+  revalidatePath(`/tenants/${leaseId.data}`);
+}

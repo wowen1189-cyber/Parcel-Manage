@@ -3,7 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { useActionState, useState } from "react";
 import { Button, Field, Input, Notice } from "@/components/ui";
-import { giveNotice, saveHousehold, saveInsurance, startInsuranceUpload, type PortalState } from "../actions";
+import { giveNotice, saveHousehold, saveInsurance, setTexts, startInsuranceUpload, type PortalState } from "../actions";
 
 const empty: PortalState = {};
 
@@ -136,6 +136,41 @@ export function NoticeForm({ minDate, noticeText }: { minDate: string; noticeTex
       <Button type="submit" small variant="secondary" disabled={pending}>
         {pending ? "Sending…" : "Send notice to vacate"}
       </Button>
+    </form>
+  );
+}
+
+export function TextsForm({ on, mobile, consent }: { on: boolean; mobile: string | null; consent: string }) {
+  const [state, action, pending] = useActionState(setTexts, empty);
+  return (
+    <form action={action} className="space-y-3 px-5 py-4 text-[14px]">
+      {state.error && <Notice tone="danger">{state.error}</Notice>}
+      {state.message && <Notice tone="success">{state.message}</Notice>}
+      {on ? (
+        <>
+          <p>
+            Texts are on for <span className="font-semibold">{mobile}</span>.
+          </p>
+          <input type="hidden" name="texts" value="off" />
+          <Button type="submit" small variant="secondary" disabled={pending}>
+            Turn texts off
+          </Button>
+        </>
+      ) : (
+        <>
+          <input type="hidden" name="texts" value="on" />
+          <Field label="Mobile number">
+            <Input name="mobile" type="tel" inputMode="tel" autoComplete="tel" defaultValue={state.values?.mobile ?? mobile ?? ""} />
+          </Field>
+          <label className="flex min-h-11 items-start gap-3">
+            <input type="checkbox" name="agree" className="mt-0.5 size-[18px] shrink-0 accent-[var(--color-accent)]" />
+            <span>{consent}</span>
+          </label>
+          <Button type="submit" small disabled={pending}>
+            Turn texts on
+          </Button>
+        </>
+      )}
     </form>
   );
 }

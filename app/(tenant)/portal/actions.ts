@@ -237,3 +237,20 @@ export async function saveInsurance(_: PortalState, form: FormData): Promise<Por
   revalidatePath("/portal/lease");
   return { message: "Thanks! The office will review it." };
 }
+
+/** The tenant turns texts on (with the consent wording and their mobile number) or off. */
+export async function setTexts(_: PortalState, form: FormData): Promise<PortalState> {
+  const { company, me } = await requireTenant();
+  const db = createAdminClient();
+  if (form.get("texts") !== "on") {
+    await db.from("contact").update({ sms_opt_in: false, sms_opt_out_at: new Date().toISOString() }).eq("id", me.id).eq("company_id", company.id);
+    revalidatePath("/portal/lease");
+    return { message: "Texts are off. We'll use e-mail and the portal." };
+  }
+  const mobile = String(form.get("mobile") ?? "").trim();
+  if (mobile.replace(/\D/g, "").length < 10) return { error: "Enter your 10-digit mobile number.", values: { mobile } };
+  if (form.get("agree") !== "on") return { error: "Check the box to agree to texts.", values: { mobile } };
+  await db.from("contact").update({ mobile, sms_opt_in: true, sms_opt_in_at: new Date().toISOString(), sms_opt_out_at: null }).eq("id", me.id).eq("company_id", company.id);
+  revalidatePath("/portal/lease");
+  return { message: "Texts are on. Reply STOP to any text to turn them off." };
+}

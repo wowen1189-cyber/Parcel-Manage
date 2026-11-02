@@ -2,7 +2,8 @@ import { Card, CardHeader, Pill } from "@/components/ui";
 import { contactName, date, money } from "@/lib/format";
 import { requireTenant } from "@/lib/portal";
 import { removeHousehold } from "../actions";
-import { EmergencyContactForm, InsuranceForm, NoticeForm, VehicleForm } from "./forms";
+import { smsConsentText } from "@/lib/sms-consent";
+import { EmergencyContactForm, InsuranceForm, NoticeForm, TextsForm, VehicleForm } from "./forms";
 
 export const metadata = { title: "My lease" };
 
@@ -14,11 +15,12 @@ const addDays = (iso: string, n: number) => {
 
 export default async function MyLeasePage() {
   const { supabase, company, lease, me } = await requireTenant();
-  const [{ data: vehicles }, { data: contacts }, { data: insurance }, { data: pets }] = await Promise.all([
+  const [{ data: vehicles }, { data: contacts }, { data: insurance }, { data: pets }, { data: sms }] = await Promise.all([
     supabase.from("vehicle").select("id, make_model, color, tag_number, tag_state").eq("lease_id", lease.id),
     supabase.from("emergency_contact").select("id, name, relationship, phone").eq("tenant_contact_id", me.id),
     supabase.from("renters_insurance").select("id, carrier, policy_number, expires_on, status").eq("lease_id", lease.id).order("expires_on", { ascending: false }),
     supabase.from("pet").select("id, kind, name, is_assistance_animal").eq("lease_id", lease.id),
+    supabase.from("contact").select("mobile, sms_opt_in").eq("id", me.id).single(),
   ]);
   const today = new Date().toISOString().slice(0, 10);
   const commercial = lease.unit.kind === "commercial";
@@ -99,6 +101,11 @@ export default async function MyLeasePage() {
             </div>
           </details>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Text messages" description={`Get rent reminders, repair updates and building notices from ${company.name} by text too.`} />
+        <TextsForm on={Boolean(sms?.sms_opt_in)} mobile={sms?.mobile ?? null} consent={smsConsentText(company.name)} />
       </Card>
 
       <Card>

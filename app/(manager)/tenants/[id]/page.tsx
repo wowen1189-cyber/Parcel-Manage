@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Card, CardHeader, EmptyState, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
-import { markLeaseSigned } from "../actions";
+import { markLeaseSigned, stopTexts } from "../actions";
 import { readBusinessRules } from "@/lib/business-rules";
 import { bedBath, contactName, date, money, todayIn } from "@/lib/format";
 import { lateFeeText, leaseTiming } from "@/lib/leases";
@@ -15,6 +15,9 @@ import { buildLedger } from "@/lib/ledger";
 import { depositHeldCents } from "@/lib/deposits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
+import { smsStatus } from "@/lib/sms-consent";
+import { DOCUMENT_CATEGORIES } from "../document-labels";
+import { TenantDocumentUpload } from "./document-upload";
 
 export async function generateMetadata({ params }: PageProps<"/tenants/[id]">) {
   const { id } = await params;
@@ -45,7 +48,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, portal_profile_id, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
+      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, portal_profile_id, sms_opt_in, sms_opt_in_at, sms_opt_out_at, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
@@ -242,6 +245,27 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                       <span className="font-semibold text-warn">No phone or email on file</span>
                     )}
                   </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px]">
+                    {smsStatus(c) === "opted_in" ? (
+                      <>
+                        <Pill tone="success">Texts on</Pill>
+                        <span className="text-subtle">agreed {c.sms_opt_in_at ? date(c.sms_opt_in_at.slice(0, 10)) : ""} in the portal</span>
+                        {canEdit && (
+                          <form action={stopTexts}>
+                            <input type="hidden" name="contact_id" value={c.id} />
+                            <input type="hidden" name="lease_id" value={l.id} />
+                            <button type="submit" className="min-h-10 px-1 font-semibold text-danger hover:underline">
+                              They asked to stop texts
+                            </button>
+                          </form>
+                        )}
+                      </>
+                    ) : smsStatus(c) === "opted_out" ? (
+                      <span className="text-subtle">Texts off (stopped {c.sms_opt_out_at ? date(c.sms_opt_out_at.slice(0, 10)) : ""}). Only they can turn texts back on, in the portal.</span>
+                    ) : (
+                      <span className="text-subtle">No texts: they haven&apos;t agreed. They can turn texts on in the portal (My lease).</span>
+                    )}
+                  </div>
                   <details className="mt-3">
                     <summary className="cursor-pointer text-[13px] font-semibold text-accent">Edit contact details</summary>
                     <div className="mt-3">
@@ -394,13 +418,16 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                     ) : (
                       <span>{d.file_name}</span>
                     )}
-                    <span className="shrink-0 text-subtle">{date(d.created_at.slice(0, 10))}</span>
+                    <span className="shrink-0 text-subtle">
+                      {DOCUMENT_CATEGORIES[d.category as keyof typeof DOCUMENT_CATEGORIES] ?? "Other"} · {date(d.created_at.slice(0, 10))}
+                    </span>
                   </li>
                 ))}
               </ul>
             ) : (
               <EmptyState title="No documents yet">Letters you send, insurance the tenant uploads and request photos are filed here.</EmptyState>
             )}
+            {canEdit && <TenantDocumentUpload leaseId={l.id} />}
           </Card>
         </div>
       </div>

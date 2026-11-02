@@ -100,6 +100,7 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 - A notice to vacate from the portal goes to the office as a message; the office confirms in writing and sets the move-out date (the lease's notice terms apply).
 
 ## Communications
+- Text opt-in (TCPA): only the tenant can opt in, in the portal (My lease › Text messages) with their mobile number and the consent wording (what texts are for, rates may apply, STOP/HELP, not a condition of renting); the time is recorded. The office can record that someone asked to stop, never an opt-in. Texts go only to people who opted in.
 - Letters and emails go out with the **sender's name and title**; signature = sender. Titles editable and saved per user.
 - Every message (email, text, portal, letter) is saved to the tenant's record; copies of letters file to the document cabinet.
 - Automations (Settings › Automations, off until the company turns them on): routine reminders (rent, renters insurance, repair visits) are e-mailed automatically; legal notices are only drafted as To do items for a person. The 83.575(2) end-of-term reminder must be delivered within the 15 days before the tenant's 60-day notice period starts, or liquidated damages for leaving without notice can't be charged.
