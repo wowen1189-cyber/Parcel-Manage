@@ -13,7 +13,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { readRentRoll, readVendorDirectory, type RentRollLease } from "../lib/import/appfolio.ts";
+import { parseCsv, readRentRoll, readVendorDirectory, type RentRollLease } from "../lib/import/appfolio.ts";
 import type { Database } from "../lib/supabase/database.types.ts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -42,25 +42,9 @@ const usDate = (s: string) => {
   return m ? `${m[3]}-${m[1]}-${m[2]}` : null;
 };
 
-/** A simple CSV reader for the work order export (quoted fields, commas inside quotes). */
+/** The work order export as rows keyed by column name. */
 function csvRows(text: string): Record<string, string>[] {
-  const rows: string[][] = [];
-  let row: string[] = [], cell = "", q = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (q) {
-      if (ch === '"' && text[i + 1] === '"') (cell += '"'), i++;
-      else if (ch === '"') q = false;
-      else cell += ch;
-    } else if (ch === '"') q = true;
-    else if (ch === ",") row.push(cell), (cell = "");
-    else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(cell), rows.push(row), (row = []), (cell = "");
-    } else cell += ch;
-  }
-  if (cell || row.length) row.push(cell), rows.push(row);
-  const [head, ...body] = rows;
+  const [head, ...body] = parseCsv(text);
   return body.filter((r) => r.some(Boolean)).map((r) => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? "").trim()])));
 }
 
