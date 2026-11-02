@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 // Cache Components is off: almost every screen is private to a signed-in user and
 // renders per request, so the static-shell rules would add work without speeding anything up.
 const nextConfig: NextConfig = {
+  // The build's commit, so open pages can notice a newer version is live (components/update-banner.tsx).
+  env: { NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
   // Company subdomains in local development (simreipm.localhost:3000) need the dev server's scripts too.
   allowedDevOrigins: ["*.localhost"],
   // Browser security headers on every page: no framing (clickjacking), no MIME sniffing, HTTPS only,

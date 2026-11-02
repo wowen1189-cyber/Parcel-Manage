@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo, Caveat } from "next/font/google";
+import { UpdateBanner } from "@/components/update-banner";
 import "./globals.css";
 
 const archivo = Archivo({
@@ -19,7 +20,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${archivo.variable} ${caveat.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {children}
+        <UpdateBanner />
+      </body>
     </html>
   );
 }
