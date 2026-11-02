@@ -92,7 +92,7 @@ export function NewWorkOrderForm({ properties, officePhone, defaultPropertyId, d
         <CardHeader title="Safety first" description="Ask these before anything else. Either one skips the questions." />
         <div className="grid gap-3 p-5 sm:grid-cols-2">
           {SAFETY_OPTIONS.map((o) => (
-            <button key={o.id} type="button" onClick={() => setSafety(safety === o.id ? "" : o.id)} className={`${chip(safety === o.id)} ${safety === o.id ? "!border-danger !bg-danger-bg !text-danger" : ""}`}>
+            <button key={o.id} type="button" aria-pressed={safety === o.id} onClick={() => setSafety(safety === o.id ? "" : o.id)} className={`${chip(safety === o.id)} ${safety === o.id ? "!border-danger !bg-danger-bg !text-danger" : ""}`}>
               <span className="font-semibold">{o.label}</span>
             </button>
           ))}
@@ -103,6 +103,9 @@ export function NewWorkOrderForm({ properties, officePhone, defaultPropertyId, d
               <span className="font-bold">Tell them now: </span>
               {safetyOption.screen.replace("{officePhone}", officePhone)}
             </Notice>
+            <Button type="button" variant="secondary" className="mt-3" onClick={() => setSafety("")}>
+              Not an emergency: back to the questions
+            </Button>
           </div>
         )}
       </Card>

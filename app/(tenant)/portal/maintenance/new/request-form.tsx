@@ -44,7 +44,7 @@ export function RequestForm({ officePhone, ackText }: { officePhone: string; ack
         <h2 className="text-[17px] font-bold">Is anyone in danger?</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {SAFETY_OPTIONS.map((o) => (
-            <button key={o.id} type="button" onClick={() => setSafety(safety === o.id ? "" : o.id)} className={`${chip(safety === o.id)} ${safety === o.id ? "!border-danger !bg-danger-bg !text-danger" : ""}`}>
+            <button key={o.id} type="button" aria-pressed={safety === o.id} onClick={() => setSafety(safety === o.id ? "" : o.id)} className={`${chip(safety === o.id)} ${safety === o.id ? "!border-danger !bg-danger-bg !text-danger" : ""}`}>
               {o.label}
             </button>
           ))}
@@ -54,6 +54,11 @@ export function RequestForm({ officePhone, ackText }: { officePhone: string; ack
             <span className="font-bold">Do this now: </span>
             {safetyOption.screen.replace("{officePhone}", officePhone)} When you&apos;re safe, tap Send below so we know.
           </Notice>
+        )}
+        {safetyOption && (
+          <Button type="button" variant="secondary" onClick={() => setSafety("")}>
+            Tapped by mistake? Go back
+          </Button>
         )}
       </section>
 
