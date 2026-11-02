@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { sheetToCsv } from "@/lib/import/sheet-to-csv";
 import { Button, Card, CardHeader, Field, Input, Notice, Select } from "@/components/ui";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { guessMapping, IMPORT_KINDS, kindInfo, normalize, readSheet, type ImportKind, type Mapping, type Normalized, type Sheet } from "@/lib/import/generic";
@@ -44,15 +45,25 @@ export function ImportWizard({ hasAi, defaultAsOf }: { hasAi: boolean; defaultAs
 
   async function pickFile(file: File | undefined) {
     if (!file) return;
-    if (!/\.(csv|txt)$/i.test(file.name)) {
-      setError("Save the report as CSV first (in Excel: File › Save As › CSV).");
+    if (!/\.(csv|txt|xlsx)$/i.test(file.name)) {
+      setError("Use a CSV or Excel (.xlsx) file. Older .xls files: open in Excel and save as .xlsx or CSV.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       setError("That file is over 5 MB. Split it into smaller files.");
       return;
     }
-    const t = await file.text();
+    let t: string;
+    if (/\.xlsx$/i.test(file.name)) {
+      // Read the first sheet in the browser; nothing leaves this computer until Import.
+      try {
+        const { readSheet } = await import("read-excel-file/browser");
+        t = sheetToCsv(await readSheet(file));
+      } catch {
+        setError("That Excel file couldn't be read. Open it in Excel and save it as CSV, then try again.");
+        return;
+      }
+    } else t = await file.text();
     setFileName(file.name);
     setText(t);
     load(kind, t);
@@ -90,8 +101,8 @@ export function ImportWizard({ hasAi, defaultAsOf }: { hasAi: boolean; defaultAs
             </div>
           </fieldset>
           <div className="flex flex-wrap items-end gap-4">
-            <Field label="CSV file" hint={fileName ? `Loaded: ${fileName}` : "Exported from your old software, or your own spreadsheet saved as CSV."}>
-              <input type="file" accept=".csv,text/csv,.txt" onChange={(e) => pickFile(e.target.files?.[0])} className="block min-h-11 text-sm file:mr-3 file:min-h-11 file:rounded-[var(--radius-control)] file:border file:border-line-strong file:bg-surface file:px-3 file:font-semibold" />
+            <Field label="CSV or Excel file" hint={fileName ? `Loaded: ${fileName}` : "Exported from your old software, or your own spreadsheet (CSV or .xlsx; the first sheet is read)."}>
+              <input type="file" accept=".csv,text/csv,.txt,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => pickFile(e.target.files?.[0])} className="block min-h-11 text-sm file:mr-3 file:min-h-11 file:rounded-[var(--radius-control)] file:border file:border-line-strong file:bg-surface file:px-3 file:font-semibold" />
             </Field>
             {kind === "rent_roll" && (
               <Field label="Export date (cutover)" hint="Balances and deposits are as of this date.">
@@ -230,7 +241,7 @@ export function ImportWizard({ hasAi, defaultAsOf }: { hasAi: boolean; defaultAs
                     onClick={() =>
                       start(async () => {
                         setError("");
-                        const r = await runImport({ ...payload(), mapping, asOf, commit: true });
+                        const r = await runImport({ ...payload(), mapping, asOf, commit: true, fileName });
                         if (r.error) return setError(r.error);
                         setDone(r.result ?? null);
                       })

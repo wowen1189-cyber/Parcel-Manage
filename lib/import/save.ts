@@ -9,7 +9,9 @@ import { sameName, type Normalized, type OwnerRow, type RentRollRow, type Tenant
 // are matched by name and skipped (or filled in), never duplicated.
 
 type Db = SupabaseClient<Database>;
-export type ImportResult = { done: string[]; skipped: string[]; problems: string[] };
+/** What a committed import created (ids), so it can be undone for 30 days (migration 0041). */
+export type Created = { entity?: string[]; property?: string[]; unit?: string[]; contact?: string[]; lease?: string[]; vendor_contact?: string[]; moved?: { id: string; from: string; to: string }[] };
+export type ImportResult = { done: string[]; skipped: string[]; problems: string[]; created?: Created };
 
 /** Placeholder owner for properties whose owner isn't known yet (same name the AppFolio import used). */
 const UNASSIGNED_OWNER = "Owner LLC not set yet";
@@ -162,6 +164,8 @@ async function saveRentRoll(db: Db, cid: string, rows: RentRollRow[], { commit, 
       }
       throw e;
     }
+    const ids = (rows: { id?: string }[]) => rows.map((r) => r.id!);
+    out.created = { entity: ids(newEntities), property: ids(newProps), unit: ids(newUnits), contact: ids(newContacts), lease: ids(newLeases) };
   }
   const verb = commit ? "Added" : "Will add";
   out.done.push(`${verb} ${n(newProps.length, "property", "properties")}, ${n(newUnits.length, "unit")} and ${n(newLeases.length, "lease")} with their tenants.`);
@@ -258,6 +262,7 @@ async function saveVendors(db: Db, cid: string, rows: VendorRow[], commit: boole
       }
       throw e;
     }
+    out.created = { vendor_contact: contacts.map((c) => c.id!) };
   }
   out.done.push(`${commit ? "Added" : "Will add"} ${n(vendors.length, "vendor")}. Each needs a W-9 on file before it's paid or sent to a unit.`);
   if (existing) out.skipped.push(`${n(existing, "vendor")} already on file.`);
@@ -315,10 +320,13 @@ async function saveOwners(db: Db, cid: string, rows: OwnerRow[], commit: boolean
   }
   if (commit) {
     await insertAll(db, "entity", inserts);
+    const moved: NonNullable<Created["moved"]> = [];
     for (const m of moves) {
       const { error } = await db.from("property").update({ entity_id: m.entity }).eq("id", m.id).eq("entity_id", unassigned!);
       if (error) out.problems.push(`${m.name}: ${error.message}`);
+      else moved.push({ id: m.id, from: unassigned!, to: m.entity });
     }
+    out.created = { entity: inserts.map((e) => e.id!), moved };
   }
   out.done.push(`${commit ? "Added" : "Will add"} ${n(inserts.length, "owner")}${filled ? `, filled in details for ${n(filled, "owner")}` : ""}, and ${commit ? "put" : "will put"} ${n(moves.length, "property", "properties")} under their owner.`);
   if (rows.length - inserts.length) out.skipped.push(`${n(rows.length - inserts.length, "owner")} already on file.`);

@@ -1448,6 +1448,67 @@ export type Database = {
           },
         ]
       }
+      import_batch: {
+        Row: {
+          company_id: string
+          created: Json
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          id: string
+          kind: string
+          summary: string | null
+          undone_at: string | null
+          undone_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created?: Json
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          kind: string
+          summary?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created?: Json
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          kind?: string
+          summary?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batch_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batch_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batch_undone_by_fkey"
+            columns: ["undone_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection: {
         Row: {
           company_id: string
@@ -4169,6 +4230,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_ids: { Args: { c: Json; k: string }; Returns: string[] }
       is_member: { Args: { cid: string }; Returns: boolean }
       owner_entity_ids: { Args: never; Returns: string[] }
       owner_property_ids: { Args: never; Returns: string[] }
@@ -4234,6 +4296,7 @@ export type Database = {
       }
       shares_company: { Args: { pid: string }; Returns: boolean }
       subdomain_available: { Args: { p_subdomain: string }; Returns: boolean }
+      undo_import: { Args: { p_batch: string }; Returns: undefined }
     }
     Enums: {
       member_role:

@@ -52,8 +52,8 @@ export async function matchColumnsWithAi(input: z.input<typeof sheetSchema>): Pr
 }
 
 /** Checks (commit=false) or imports (commit=true) the file. The rows are re-read here, never trusted as sent. */
-export async function runImport(input: z.input<typeof sheetSchema> & { mapping: Record<string, unknown>; asOf: string; commit: boolean }): Promise<{ result?: ImportResult; error?: string }> {
-  const { supabase, company, membership } = await requireCompany();
+export async function runImport(input: z.input<typeof sheetSchema> & { mapping: Record<string, unknown>; asOf: string; commit: boolean; fileName?: string }): Promise<{ result?: ImportResult; error?: string }> {
+  const { supabase, company, membership, user } = await requireCompany();
   if (!isAdmin(membership)) return { error: ADMIN_ONLY };
   const p = sheetSchema.safeParse(input);
   if (!p.success) return { error: p.error.issues[0].message };
@@ -67,10 +67,53 @@ export async function runImport(input: z.input<typeof sheetSchema> & { mapping: 
   try {
     const result = await saveImport(supabase, company.id, data, { commit: Boolean(input.commit), asOf: asOf.data });
     if (input.commit) {
+      // Kept for 30 days so the import can be undone (migration 0041).
+      await supabase.from("import_batch").insert({
+        company_id: company.id,
+        kind: p.data.kind,
+        file_name: String(input.fileName ?? "").slice(0, 200) || null,
+        summary: result.done.join(" ").slice(0, 1000),
+        created: result.created ?? {},
+        created_by: user.id,
+      });
       for (const path of ["/properties", "/tenants", "/vendors", "/owners", "/dashboard", "/switch-over"]) revalidatePath(path);
     }
     return { result };
   } catch (e) {
     return { error: `The import stopped: ${e instanceof Error ? e.message : "unknown error"}. Nothing from this file was kept; fix the problem and run it again.` };
   }
+}
+
+/** Undo an import from the last 30 days: removes what it created, unless something already uses it. */
+export async function undoImport(form: FormData): Promise<{ error?: string; message?: string }> {
+  const { supabase, membership } = await requireCompany();
+  if (!isAdmin(membership)) return { error: ADMIN_ONLY };
+  const id = z.string().uuid().safeParse(form.get("id"));
+  if (!id.success) return { error: "Import not found." };
+  const { error } = await supabase.rpc("undo_import", { p_batch: id.data });
+  if (error) {
+    const inUse = error.message.match(/in use now \((\d+) in (\w+)\)/);
+    const what: Record<string, [string, string]> = {
+      charge: ["charge", "charges"],
+      payment: ["payment", "payments"],
+      work_order: ["work order", "work orders"],
+      recurring_work_order: ["recurring maintenance schedule", "recurring maintenance schedules"],
+      bill: ["bill", "bills"],
+      document: ["document", "documents"],
+      unit: ["unit added by hand", "units added by hand"],
+      lease: ["lease added by hand", "leases added by hand"],
+      journal_line: ["accounting entry", "accounting entries"],
+      move_out: ["move-out", "move-outs"],
+      signature_request: ["signature request", "signature requests"],
+      automation_task: ["To do item", "To do items"],
+    };
+    if (inUse) {
+      const count = Number(inUse[1]);
+      const [one, many] = what[inUse[2]] ?? [inUse[2].replace(/_/g, " "), `${inUse[2].replace(/_/g, " ")} records`];
+      return { error: `Can't undo: ${count} ${count === 1 ? one : many} already ${count === 1 ? "uses" : "use"} records from this import. Remove ${count === 1 ? "it" : "them"} first if you still want to undo. Nothing was changed.` };
+    }
+    return { error: error.message };
+  }
+  for (const path of ["/import", "/properties", "/tenants", "/vendors", "/owners", "/dashboard", "/switch-over"]) revalidatePath(path);
+  return { message: "Undone. Everything this import added is removed." };
 }
