@@ -68,3 +68,33 @@ export function compareBalances(bankCents: number | null, bookCents: number): { 
   const diff = bankCents - bookCents;
   return { diffCents: diff, status: diff === 0 ? "match" : "off" };
 }
+
+/** The last day of the month before `today` ("2026-11-02" → "2026-10-31"). */
+export function lastMonthEnd(today: string): string {
+  const [y, m] = today.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10);
+}
+
+export type ReconcileInput = {
+  monthEnd: string;
+  bankBalanceCents: number; // the bank's balance at the end of monthEnd
+  bankTxns: { posted_on: string; status: string; journal_line_id: string | null }[];
+  bookLines: { id: string; entry_date: string; amount_cents: number; cleared: boolean }[];
+};
+
+/**
+ * Automatic month-end reconcile: every bank transaction through the month's end must be matched to the books,
+ * and the bank's month-end balance must equal what's cleared (earlier cleared items plus this month's matches).
+ * Book entries the bank hasn't shown yet (an uncashed check) stay outstanding, as in a hand reconcile.
+ */
+export function autoReconcile(i: ReconcileInput): { ok: true; clearedCents: number; clear: string[] } | { ok: false; reason: string } {
+  const through = i.bankTxns.filter((t) => t.posted_on <= i.monthEnd);
+  const open = through.filter((t) => t.status === "unmatched").length;
+  if (open) return { ok: false, reason: `${open} bank transaction${open === 1 ? "" : "s"} through ${i.monthEnd} not matched to the books yet.` };
+  const matched = new Set(through.filter((t) => t.status === "matched" && t.journal_line_id).map((t) => t.journal_line_id!));
+  const clear = i.bookLines.filter((l) => !l.cleared && l.entry_date <= i.monthEnd && matched.has(l.id));
+  const clearedCents = i.bookLines.filter((l) => l.cleared).reduce((s, l) => s + l.amount_cents, 0) + clear.reduce((s, l) => s + l.amount_cents, 0);
+  const diff = i.bankBalanceCents - clearedCents;
+  if (diff) return { ok: false, reason: `The bank's ${i.monthEnd} balance and the cleared books are $${(diff / 100).toFixed(2)} apart.` };
+  return { ok: true, clearedCents, clear: clear.map((l) => l.id) };
+}

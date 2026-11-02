@@ -16,7 +16,7 @@ export const metadata = { title: "Bank account" };
 export default async function BankAccountPage({ params }: PageProps<"/bank-accounts/[id]">) {
   const { id } = await params;
   const { supabase, company, membership } = await requireCompany();
-  const { data: a } = await supabase.from("bank_account").select("id, name, institution, last4, gl_number, entity_id, fc_account_id, fc_institution, fc_status, fc_synced_at, fc_balance_cents, fc_balance_as_of, entity(name), reconciliation(id, statement_date, statement_balance_cents, completed_at)").eq("id", id).eq("company_id", company.id).maybeSingle();
+  const { data: a } = await supabase.from("bank_account").select("id, name, institution, last4, gl_number, entity_id, fc_account_id, fc_institution, fc_status, fc_synced_at, fc_balance_cents, fc_balance_as_of, entity(name), reconciliation(id, statement_date, statement_balance_cents, completed_at, automatic)").eq("id", id).eq("company_id", company.id).maybeSingle();
   if (!a) notFound();
   const [lines, { data: txs }] = await Promise.all([bookLines(supabase, company.id, a), supabase.from("bank_transaction").select("id, posted_on, description, amount_cents, status, journal_line_id").eq("bank_account_id", id).order("posted_on", { ascending: false }).limit(300)]);
   const byId = new Map(lines.map((l) => [l.id, l]));
@@ -161,12 +161,14 @@ export default async function BankAccountPage({ params }: PageProps<"/bank-accou
             </Card>
           )}
           <Card>
-            <CardHeader title="Past reconciliations" />
+            <CardHeader title="Past reconciliations" description={a.fc_account_id ? "With the bank feed, each month reconciles by itself early the next month when everything ties." : undefined} />
             <ul className="divide-y divide-line text-sm">
               {recs.length ? (
                 recs.map((r) => (
                   <li key={r.id} className="flex justify-between px-5 py-2.5">
-                    <span>{date(r.statement_date)}</span>
+                    <span>
+                      {date(r.statement_date)} {r.automatic && <Pill tone="info">Automatic</Pill>}
+                    </span>
                     <span>{money(Number(r.statement_balance_cents))}</span>
                   </li>
                 ))

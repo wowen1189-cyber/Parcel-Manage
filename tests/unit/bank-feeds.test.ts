@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balanceAtEndOf, compareBalances, dayIn, feedRows, pairLinked, type FcTransaction } from "@/lib/bank-feeds";
+import { autoReconcile, balanceAtEndOf, compareBalances, dayIn, feedRows, lastMonthEnd, pairLinked, type FcTransaction } from "@/lib/bank-feeds";
 
 const tz = "America/New_York";
 // 2026-11-02 03:00 UTC is still Nov 1 in Florida.
@@ -53,5 +53,33 @@ describe("bank vs Parcel Manage balance", () => {
     expect(compareBalances(150000, 150000)).toEqual({ diffCents: 0, status: "match" });
     expect(compareBalances(150000, 162500)).toEqual({ diffCents: -12500, status: "off" });
     expect(compareBalances(null, 5000)).toEqual({ diffCents: null, status: "no_bank" });
+  });
+});
+
+describe("automatic month-end reconcile", () => {
+  const base = {
+    monthEnd: "2026-10-31",
+    bookLines: [
+      { id: "opening", entry_date: "2026-09-30", amount_cents: 100000, cleared: true },
+      { id: "rent", entry_date: "2026-10-05", amount_cents: 150000, cleared: false },
+      { id: "fee", entry_date: "2026-10-20", amount_cents: -1200, cleared: false },
+      { id: "check", entry_date: "2026-10-30", amount_cents: -40000, cleared: false }, // not cashed yet
+      { id: "nov", entry_date: "2026-11-01", amount_cents: 9999, cleared: false },
+    ],
+  };
+  const bankTxns = [
+    { posted_on: "2026-10-05", status: "matched", journal_line_id: "rent" },
+    { posted_on: "2026-10-20", status: "matched", journal_line_id: "fee" },
+    { posted_on: "2026-11-02", status: "unmatched", journal_line_id: null }, // next month: ignored here
+  ];
+
+  it("reconciles when every bank item is matched and the balance ties, leaving uncashed checks outstanding", () => {
+    expect(lastMonthEnd("2026-11-02")).toBe("2026-10-31");
+    expect(autoReconcile({ ...base, bankBalanceCents: 248800, bankTxns })).toEqual({ ok: true, clearedCents: 248800, clear: ["rent", "fee"] });
+  });
+
+  it("leaves the month for a person when something isn't matched or the balance doesn't tie", () => {
+    expect(autoReconcile({ ...base, bankBalanceCents: 248800, bankTxns: [...bankTxns, { posted_on: "2026-10-25", status: "unmatched", journal_line_id: null }] })).toEqual({ ok: false, reason: "1 bank transaction through 2026-10-31 not matched to the books yet." });
+    expect(autoReconcile({ ...base, bankBalanceCents: 250000, bankTxns }).ok).toBe(false);
   });
 });

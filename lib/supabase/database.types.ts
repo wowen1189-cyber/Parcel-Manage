@@ -3786,6 +3786,7 @@ export type Database = {
       }
       reconciliation: {
         Row: {
+          automatic: boolean
           bank_account_id: string
           cleared_balance_cents: number
           company_id: string
@@ -3796,6 +3797,7 @@ export type Database = {
           statement_date: string
         }
         Insert: {
+          automatic?: boolean
           bank_account_id: string
           cleared_balance_cents: number
           company_id: string
@@ -3806,6 +3808,7 @@ export type Database = {
           statement_date: string
         }
         Update: {
+          automatic?: boolean
           bank_account_id?: string
           cleared_balance_cents?: number
           company_id?: string
