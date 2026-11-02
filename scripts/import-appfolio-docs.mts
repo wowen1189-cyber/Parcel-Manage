@@ -13,6 +13,7 @@
 // Every file is office only: AppFolio didn't say which were shared with tenants, so the portal never shows them.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import https from "node:https";
 import { createClient } from "@supabase/supabase-js";
 import { parseCsv } from "../lib/import/appfolio.ts";
 import type { Database } from "../lib/supabase/database.types.ts";
@@ -28,7 +29,7 @@ const DIR = "imports/appfolio-docs";
 const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/\b(llc|inc|the)\b/g, "").replace(/[^a-z0-9]/g, "");
 /** A name as its words in order, ignoring middle initials and "Last, First" order. */
 const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 1).sort().join(" ");
-const TYPES: Record<string, string> = { pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", heic: "image/heic", webp: "image/webp", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", txt: "text/plain", csv: "text/csv" };
+const TYPES: Record<string, string> = { pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", heic: "image/heic", webp: "image/webp", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", txt: "text/plain", csv: "text/csv", mov: "video/quicktime", mp4: "video/mp4" };
 
 /** A sensible document category from the file name. */
 export function categoryFor(name: string): string {
@@ -42,6 +43,39 @@ export function categoryFor(name: string): string {
   if (/(application|income|pay.?stub|bank stmt|\bdl\b|license|passport|\bssn\b|ein|sunbiz|id card)/.test(n)) return "application";
   if (/(lease|renewal|addend|agreement|amendment)/.test(n)) return "lease";
   return "other";
+}
+
+/** One upload over its own fresh connection (reused connections go stale after a few dozen uploads), up to 4 tries. */
+async function uploadFile(path: string, bytes: Buffer, type: string): Promise<{ error: { message: string } | null }> {
+  const target = new URL(`${url}/storage/v1/object/documents/${path.split("/").map(encodeURIComponent).join("/")}`);
+  const once = () =>
+    new Promise<{ status: number; body: string }>((resolve, reject) => {
+      const req = https.request(
+        target,
+        { method: "POST", agent: false, timeout: 60_000, headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey!, "content-type": type, "content-length": bytes.length, "x-upsert": "true" } },
+        (res) => {
+          let body = "";
+          res.on("data", (c) => (body += c));
+          res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+        },
+      );
+      req.on("timeout", () => req.destroy(new Error("timed out")));
+      req.on("error", reject);
+      req.end(bytes);
+    });
+  let last = "";
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 1500 * attempt));
+    try {
+      const r = await once();
+      if (r.status >= 200 && r.status < 300) return { error: null };
+      last = (JSON.parse(r.body || "{}") as { message?: string }).message ?? `status ${r.status}`;
+      if (r.status < 500 && r.status !== 429) break;
+    } catch (e) {
+      last = e instanceof Error ? e.message : "upload failed";
+    }
+  }
+  return { error: { message: last } };
 }
 
 async function main() {
@@ -107,8 +141,18 @@ async function main() {
     const [afid, ...rest] = f.split("__");
     const original = rest.join("__");
     const o = owner.get(afid);
-    const ext = original.split(".").pop()!.toLowerCase();
-    const path = `${cid}/appfolio/${afid}-${original.replace(/[^A-Za-z0-9._-]+/g, "_").slice(-120)}`;
+    // Some AppFolio names have no extension: tell the type from the file's first bytes.
+    let ext = original.includes(".") ? original.split(".").pop()!.toLowerCase() : "";
+    let stored = original;
+    if (!TYPES[ext]) {
+      const head = readFileSync(`${DIR}/files/${f}`).subarray(0, 8);
+      const sniffed = head.subarray(0, 4).toString() === "%PDF" ? "pdf" : head[0] === 0x89 && head[1] === 0x50 ? "png" : head[0] === 0xff && head[1] === 0xd8 ? "jpg" : "";
+      if (sniffed) {
+        ext = sniffed;
+        stored = `${original}.${sniffed}`;
+      }
+    }
+    const path = `${cid}/appfolio/${afid}-${stored.replace(/[^A-Za-z0-9._-]+/g, "_").slice(-120)}`;
     if (have.has(path)) {
       counts.skipped++;
       continue;
@@ -139,12 +183,9 @@ async function main() {
     }
     if (!commit) continue;
     const bytes = readFileSync(`${DIR}/files/${f}`);
-    // The connection can drop under many uploads in a row: try up to 4 times, waiting a little longer each time.
-    let up = await db.storage.from("documents").upload(path, bytes, { contentType: TYPES[ext] ?? "application/octet-stream", upsert: true });
-    for (let attempt = 1; up.error && attempt < 4; attempt++) {
-      await new Promise((r) => setTimeout(r, 1500 * attempt));
-      up = await db.storage.from("documents").upload(path, bytes, { contentType: TYPES[ext] ?? "application/octet-stream", upsert: true });
-    }
+    // A direct request per file (a long-running client's connection goes stale after a few dozen uploads),
+    // tried up to 4 times, waiting a little longer each time.
+    const up = await uploadFile(path, bytes, TYPES[ext] ?? "application/octet-stream");
     if (up.error) {
       counts.failed++;
       console.error(`  upload failed: ${original}: ${up.error.message}`);

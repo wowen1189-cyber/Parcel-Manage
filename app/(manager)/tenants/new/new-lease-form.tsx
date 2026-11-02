@@ -51,7 +51,7 @@ export function NewLeaseForm({
     [unit, start, unitsByProperty, portfolioUnits, leaseEnds, rules],
   );
   const best = options.find((o) => o.recommended);
-  const [pickedMonths, setMonths] = useState<number | null>(state.values?.months ? Number(state.values.months) : null);
+  const [pickedMonths, setMonths] = useState<number | null>(v("months") ? Number(v("months")) : null);
   const commercial = unit?.kind === "commercial";
   const [commercialMonths, setCommercialMonths] = useState(() => {
     const m = Number(v("months", ""));

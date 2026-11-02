@@ -43,6 +43,10 @@ export default async function NewLeasePage({ searchParams }: PageProps<"/tenants
     ? await supabase.from("application").select("rent_cents, deposit_cents, desired_move_in, application_member(role, first_name, last_name, email, phone)").eq("id", applicationId).eq("company_id", company.id).eq("status", "approved").maybeSingle()
     : { data: null };
   const prefill: Record<string, string> = {};
+  // From the lease length planner: the chosen start, length and rent.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(param(sp, "start"))) prefill.start_date = param(sp, "start");
+  if (/^\d{1,2}$/.test(param(sp, "months"))) prefill.months = param(sp, "months");
+  if (/^\d+(\.\d{1,2})?$/.test(param(sp, "rent"))) prefill.rent = param(sp, "rent");
   if (app) {
     prefill.rent = (app.rent_cents / 100).toFixed(2);
     if (app.deposit_cents !== null) prefill.deposit = (app.deposit_cents / 100).toFixed(2);

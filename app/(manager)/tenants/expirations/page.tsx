@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoSubmitForm, ClickRow } from "@/components/click-row";
 import { Card, CardHeader, EmptyState, PageHeader, Pill, buttonClass, Field, Input, Select } from "@/components/ui";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { param } from "@/components/list-filters";
@@ -22,7 +23,7 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
     supabase.from("property").select("id, name, unit(id)").eq("company_id", company.id).order("name"),
     supabase
       .from("lease")
-      .select("id, status, start_date, end_date, move_out_on, rent_cents, unit!inner(label, property_id), lease_tenant(is_primary, contact(first_name, last_name, business_name))")
+      .select("id, status, start_date, end_date, move_out_on, rent_cents, unit!inner(id, label, property_id), lease_tenant(is_primary, contact(first_name, last_name, business_name))")
       .eq("company_id", company.id)
       .in("status", ["active", "notice"]),
   ]);
@@ -62,13 +63,20 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
       return { l, daysLeft, start, best };
     });
 
-  // Term planner.
+  // Term planner. Clicking a renewal loads that tenant here; clicking a length selects it.
   const planProperty = param(params, "property") || props[0]?.id || "";
   const planStart = /^\d{4}-\d{2}-\d{2}$/.test(param(params, "start")) ? param(params, "start") : firstOfNextMonth(today);
   const planRent = Number(param(params, "rent")) || 0;
   const plan = planProperty
-    ? recommendTerms({ start: planStart, propertyId: planProperty, propertyUnits: unitsByProperty.get(planProperty) ?? 1, portfolioUnits, counts, rules })
+    ? recommendTerms({ start: planStart, propertyId: planProperty, propertyUnits: unitsByProperty.get(planProperty) ?? 1, portfolioUnits, counts: countExpirations(ends, param(params, "lease") || undefined), rules })
     : [];
+  const renewing = (leases ?? []).find((l) => l.id === param(params, "lease") && l.unit.property_id === planProperty) ?? null;
+  const picked = plan.find((o) => o.months === Number(param(params, "months"))) ?? null;
+  const planHref = (extra: Record<string, string | number>) => {
+    const q = new URLSearchParams({ property: planProperty, start: planStart, ...(planRent ? { rent: String(planRent) } : {}), ...(renewing ? { lease: renewing.id } : {}) });
+    for (const [k, v] of Object.entries(extra)) q.set(k, String(v));
+    return `/tenants/expirations?${q}#planner`;
+  };
 
   return (
     <>
@@ -109,7 +117,7 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
             {props.map((p) => {
               const cells = calendar(counts.byProperty.get(p.id), p.units, thisMonth, HORIZON, rules);
               return (
-                <tr key={p.id}>
+                <ClickRow key={p.id} href={`/properties/${p.id}`}>
                   <Td>
                     <RowLink href={`/properties/${p.id}`} sub={`${p.units} unit${p.units === 1 ? "" : "s"} · limit ${cells[0]?.cap}/month`}>
                       {p.name}
@@ -120,7 +128,7 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
                       <Cell cell={c} />
                     </Td>
                   ))}
-                </tr>
+                </ClickRow>
               );
             })}
           </Tbody>
@@ -133,7 +141,7 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Card className="overflow-hidden">
-          <CardHeader title="Renewals to offer" description={`Leases ending within ${rules.expirations.renewalOfferDays} days, and month-to-month tenants. The suggested length keeps the calendar balanced.`} />
+          <CardHeader title="Renewals to offer" description={`Leases ending within ${rules.expirations.renewalOfferDays} days, and month-to-month tenants. The suggested length keeps the calendar balanced. Click a tenant to plan their renewal.`} />
           {renewals.length ? (
             <Table minWidth={560}>
               <Thead>
@@ -142,8 +150,12 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
                 <Th>Suggested renewal</Th>
               </Thead>
               <Tbody>
-                {renewals.map(({ l, daysLeft, best }) => (
-                  <tr key={l.id}>
+                {renewals.map(({ l, daysLeft, start, best }) => (
+                  <ClickRow
+                    key={l.id}
+                    selected={renewing?.id === l.id}
+                    href={`/tenants/expirations?${new URLSearchParams({ property: l.unit.property_id, start, rent: (l.rent_cents / 100).toFixed(2), lease: l.id, months: String(best.months) })}#planner`}
+                  >
                     <Td>
                       <RowLink href={`/tenants/${l.id}`} sub={l.unit.label}>
                         {name(l)}
@@ -157,7 +169,7 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
                         {best.status !== "good" && ` · ${best.reasons[0]}`}
                       </p>
                     </Td>
-                  </tr>
+                  </ClickRow>
                 ))}
               </Tbody>
             </Table>
@@ -166,9 +178,20 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
           )}
         </Card>
 
-        <Card className="overflow-hidden">
-          <CardHeader title="Lease length planner" description="For a new lease or renewal: which lengths keep move-outs spread out." />
-          <form action="/tenants/expirations" className="grid gap-3 border-b border-line px-5 py-4 sm:grid-cols-[1fr_150px_120px_auto] sm:items-end">
+        <Card className="overflow-hidden scroll-mt-20" id="planner">
+          <CardHeader
+            title="Lease length planner"
+            description={renewing ? `Renewal for ${name(renewing)} (${renewing.unit.label}). Click a length to choose it.` : "For a new lease or renewal: which lengths keep move-outs spread out. Click a length to choose it."}
+            action={
+              renewing ? (
+                <Link href={`/tenants/expirations?${new URLSearchParams({ property: planProperty, start: planStart })}#planner`} className="text-[13px] font-semibold text-muted hover:underline">
+                  Clear tenant
+                </Link>
+              ) : undefined
+            }
+          />
+          <AutoSubmitForm action="/tenants/expirations" className="grid gap-3 border-b border-line px-5 py-4 sm:grid-cols-[1fr_150px_120px_auto] sm:items-end">
+            {renewing && <input type="hidden" name="lease" value={renewing.id} />}
             <Field label="Property">
               <Select name="property" defaultValue={planProperty}>
                 {props.map((p) => (
@@ -185,9 +208,9 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
               <Input name="rent" inputMode="decimal" defaultValue={planRent ? String(planRent) : ""} placeholder="Optional" />
             </Field>
             <button type="submit" className={buttonClass("secondary")}>
-              Show options
+              Update
             </button>
-          </form>
+          </AutoSubmitForm>
           <Table minWidth={560}>
             <Thead>
               <Th>Length</Th>
@@ -197,11 +220,13 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
             </Thead>
             <Tbody>
               {plan.map((o) => (
-                <tr key={o.months} className={o.recommended ? "bg-accent-softer" : undefined}>
+                <ClickRow key={o.months} href={planHref({ months: o.months })} selected={picked?.months === o.months}>
                   <Td>
-                    <p className="font-semibold">
-                      {o.months} months {o.recommended && <Pill tone="success">Best</Pill>}
-                    </p>
+                    <Link href={planHref({ months: o.months })} scroll={false} className="font-semibold text-ink">
+                      {o.months} months
+                    </Link>{" "}
+                    {o.recommended && <Pill tone="success">Best</Pill>}
+                    {picked?.months === o.months && <span className="ml-1 text-[12px] font-semibold text-accent-deep">✓ Selected</span>}
                   </Td>
                   <Td className="text-[13px]">{date(o.endDate)}</Td>
                   <Td className="text-[13px]">
@@ -225,10 +250,34 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
                       "—"
                     )}
                   </Td>
-                </tr>
+                </ClickRow>
               ))}
             </Tbody>
           </Table>
+          {picked && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-accent-softer px-5 py-4">
+              <div className="text-[14px]">
+                <p className="font-semibold">
+                  {renewing ? `Renewal for ${name(renewing)}: ` : ""}
+                  {picked.months} months, {date(planStart)} to {date(picked.endDate)}
+                </p>
+                <p className="text-muted">
+                  {planRent ? `${money(Math.round(planRent * 100) + picked.surchargeCents)} a month` : "Rent not entered"}
+                  {picked.surchargeCents > 0 && ` (includes ${money(picked.surchargeCents)} short-term)`}
+                  {picked.months > 12 && `, then +${rules.lease.longTermYearlyIncreasePercent}% after 12 months`}
+                </p>
+              </div>
+              {renewing ? (
+                <Link href={`/tenants/${renewing.id}`} className={buttonClass("primary", true)}>
+                  Open {name(renewing)}&apos;s lease
+                </Link>
+              ) : (
+                <Link href={`/tenants/new?${new URLSearchParams({ start: planStart, months: String(picked.months), ...(planRent ? { rent: planRent.toFixed(2) } : {}) })}`} className={buttonClass("primary", true)}>
+                  Start a lease with this
+                </Link>
+              )}
+            </div>
+          )}
         </Card>
       </div>
     </>
