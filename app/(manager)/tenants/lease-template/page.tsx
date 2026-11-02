@@ -25,7 +25,7 @@ export default async function LeaseTemplatePage({ searchParams }: PageProps<"/te
           ← Tenants & leases
         </Link>
       </p>
-      <PageHeader title="Lease and disclosures" subtitle="SIM REI's residential lease, Florida disclosures and commercial lease. Every optional section is shown; each lease includes only what applies." action={<PrintButton />} />
+      <PageHeader title="Lease and disclosures" subtitle="Your residential lease, Florida disclosures and commercial lease. Every optional section is shown; each lease includes only what applies." action={<PrintButton />} />
 
       <div className="mb-4 flex flex-wrap gap-2 print:hidden">
         {all.map((t) => (

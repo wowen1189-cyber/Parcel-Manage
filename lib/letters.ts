@@ -228,7 +228,7 @@ export const LETTERS: LetterTemplate[] = [
     description: "Send within the 15 days before the tenant's notice period starts. Without it, liquidated damages for leaving without notice can't be charged.",
     inputs: [
       { id: "notice_days", label: "Notice days in the lease", kind: "text", hint: "60" },
-      { id: "ld_amount", label: "Liquidated damages ($)", kind: "money", hint: "SIM REI's lease: one month's rent." },
+      { id: "ld_amount", label: "Liquidated damages ($)", kind: "money", hint: "The amount in the lease. Leave blank for one month's rent." },
     ],
     subject: () => "Your lease end date and notice requirement",
     body: (c, v) => {
