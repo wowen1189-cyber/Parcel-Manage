@@ -27,11 +27,16 @@ export default async function OwnersPage({ searchParams }: PageProps<"/owners">)
         title="Owners"
         subtitle="Who owns each property, their management agreement and what you earn managing it."
         action={
-          canEdit && (
-            <Link href="/owners/new" className={buttonClass("primary", true)}>
-              + New owner
+          <div className="flex gap-2">
+            {canEdit && (
+              <Link href="/owners/new" className={buttonClass("primary", true)}>
+                + New owner
+              </Link>
+            )}
+            <Link href="/owners/portal-invites" className={buttonClass("secondary", true)}>
+              Portal invites
             </Link>
-          )
+          </div>
         }
       />
       {params.deleted && (

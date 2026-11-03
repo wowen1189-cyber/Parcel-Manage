@@ -1211,6 +1211,8 @@ export type Database = {
       }
       contact: {
         Row: {
+          owner_portal_invited_at: string | null
+          portal_invited_at: string | null
           address_line1: string | null
           address_line2: string | null
           business_name: string | null
@@ -1236,6 +1238,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          owner_portal_invited_at?: string | null
+          portal_invited_at?: string | null
           address_line1?: string | null
           address_line2?: string | null
           business_name?: string | null
@@ -1261,6 +1265,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          owner_portal_invited_at?: string | null
+          portal_invited_at?: string | null
           address_line1?: string | null
           address_line2?: string | null
           business_name?: string | null
@@ -1492,6 +1498,7 @@ export type Database = {
       }
       entity: {
         Row: {
+          portal_invited_at: string | null
           books_mode: string
           company_id: string
           created_at: string
@@ -1511,6 +1518,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          portal_invited_at?: string | null
           books_mode?: string
           company_id: string
           created_at?: string
@@ -1530,6 +1538,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          portal_invited_at?: string | null
           books_mode?: string
           company_id?: string
           created_at?: string

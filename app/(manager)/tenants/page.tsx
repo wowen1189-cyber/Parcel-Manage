@@ -33,6 +33,9 @@ export default async function TenantsPage({ searchParams }: PageProps<"/tenants"
             <Link href="/tenants/expirations" className={buttonClass("secondary", true)}>
               Lease expirations
             </Link>
+            <Link href="/tenants/portal-invites" className={buttonClass("secondary", true)}>
+              Portal invites
+            </Link>
           </div>
         } />
       <Card className="overflow-hidden">

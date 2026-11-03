@@ -4,39 +4,25 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { emailHtml, emailText } from "@/lib/email/layout";
 import { ROOT_DOMAIN } from "@/lib/env";
-import { contactName } from "@/lib/format";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
+import { inviteSummary, sendInvites } from "@/lib/portal-invites";
 import { requireCompany } from "@/lib/session";
 import { companyUrl } from "@/lib/tenant";
 
 export type PortalStaffState = { error?: string; message?: string };
 const ROLES = ["admin", "property_manager", "leasing_agent", "maintenance_coordinator", "accountant"];
 
-/** E-mail a tenant the link to their portal. They sign in with the same e-mail (no password needed). */
+/** E-mail a tenant the link to their portal (and open the portal for them). They sign in with the same e-mail. */
 export async function sendPortalInvite(_: PortalStaffState, form: FormData): Promise<PortalStaffState> {
   const { supabase, company, membership } = await requireCompany();
   if (!ROLES.includes(membership.role)) return { error: "Your role can't invite tenants." };
   const id = z.string().uuid().safeParse(form.get("contact_id"));
   if (!id.success) return { error: "Tenant not found." };
-  const { data: c } = await supabase.from("contact").select("id, kind, first_name, last_name, business_name, email").eq("id", id.data).eq("company_id", company.id).maybeSingle();
-  const email = c?.email?.split(/[,;]/)[0]?.trim();
-  if (!c || !email) return { error: "Add their e-mail first." };
   if (!company.subdomain) return { error: "The company has no web address yet." };
-  const link = companyUrl(company.subdomain, ROOT_DOMAIN, "/sign-in?next=/portal");
-  const content = {
-    preheader: `Pay rent, request repairs and message ${company.name} online.`,
-    heading: "Your tenant portal is ready",
-    paragraphs: [
-      `Hi ${escapeHtml(c.first_name ?? contactName(c))},`,
-      `${escapeHtml(company.name)} has a tenant portal where you can see what you owe, request repairs (with photos), keep your insurance and vehicles up to date, and message the office.`,
-      `Sign in with <strong>${escapeHtml(email)}</strong>. We'll e-mail you a sign-in link; there's no password to remember.`,
-    ],
-    button: { label: "Open my portal", url: link },
-    fromLine: company.name,
-    footer: [company.name, company.office_phone].filter(Boolean).join(" · "),
-  };
-  const ok = await sendEmail({ to: email, subject: `Your ${company.name} tenant portal`, html: emailHtml(content), text: emailText(content), fromName: company.name, replyTo: company.office_email });
-  return ok ? { message: `Invite sent to ${email}.` } : { error: "The e-mail couldn't be sent." };
+  const r = await sendInvites(supabase, company, [`t:${id.data}`]);
+  if (!r.sent.length && !r.skipped.length && !r.failed.length) return { error: "Only tenants on a current lease can be invited." };
+  revalidatePath("/tenants", "layout");
+  return inviteSummary(r);
 }
 
 /** Reply to a tenant: shows in their portal and is e-mailed to them, signed by the sender with their title. */

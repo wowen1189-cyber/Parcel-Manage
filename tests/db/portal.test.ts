@@ -37,6 +37,11 @@ beforeAll(async () => {
 afterAll(cleanup);
 
 describe("tenant portal", () => {
+  it("can't link until the office invites them", async () => {
+    expect((await tenant.client.rpc("claim_portal", { p_company: company.id })).data).toBe(0);
+    await staff.client.from("contact").update({ portal_invited_at: new Date().toISOString() }).eq("id", ids.contactA);
+  });
+
   it("sees nothing before claiming, then links by verified e-mail (any letter case)", async () => {
     expect((await tenant.client.from("lease").select("id")).data).toEqual([]);
     const { data, error } = await tenant.client.rpc("claim_portal", { p_company: company.id });
@@ -76,11 +81,13 @@ describe("tenant portal", () => {
 });
 
 describe("owner portal", () => {
-  it("shows an owner only the owners whose records list their e-mail", async () => {
+  it("shows an owner nothing until invited, then only the owners whose records list their e-mail", async () => {
     const owner = await createTestUser("owner-portal");
     const c = staff.client;
     const mine = (await c.from("entity").insert({ company_id: company.id, name: "Mine LLC", email: `x@example.test, ${owner.email.toUpperCase()}` }).select().single()).data!;
-    await c.from("entity").insert({ company_id: company.id, name: "Not Mine LLC", email: "other@example.test" });
+    await c.from("entity").insert({ company_id: company.id, name: "Not Mine LLC", email: "other@example.test", portal_invited_at: new Date().toISOString() });
+    expect((await owner.client.from("entity").select("id")).data).toEqual([]);
+    await c.from("entity").update({ portal_invited_at: new Date().toISOString() }).eq("id", mine.id);
     const seen = (await owner.client.from("entity").select("id, name")).data ?? [];
     expect(seen.map((e) => e.name)).toEqual(["Mine LLC"]);
     expect(seen[0].id).toBe(mine.id);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Card, CardHeader, EmptyState, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
+import { buttonClass, Card, CardHeader, EmptyState, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money } from "@/lib/format";
 import { AGREEMENT_STATUS } from "@/lib/management-agreement";
@@ -230,6 +230,20 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
         <Card className="mt-6">
           <CardHeader title="Fees" description="The management, leasing and renewal fees you charge this owner. Every property they own uses them unless that property has its own." />
           <FeeForm scope="owner" targetId={owner.id} fee={agreement.fee} custom={agreement.source === "owner"} inheritLabel={`Use the company default (${describeFee(companyFee)})`} canEdit={canEdit} />
+        </Card>
+      )}
+
+      {!unassigned && (
+        <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+          <div>
+            <h2 className="text-[15px] font-semibold">Owner portal</h2>
+            <p className="text-[13px] text-subtle">
+              {owner.portal_invited_at ? `Invited ${date(owner.portal_invited_at.slice(0, 10))}.` : "Not invited yet: this owner can't sign in to the owner portal."} Partners are invited on the same screen.
+            </p>
+          </div>
+          <Link href={`/owners/portal-invites?owner=${owner.id}`} className={buttonClass("secondary", true)}>
+            {owner.portal_invited_at ? "Invites" : "Invite to portal"}
+          </Link>
         </Card>
       )}
 

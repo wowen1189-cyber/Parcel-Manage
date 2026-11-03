@@ -50,7 +50,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const { data: l } = await supabase
     .from("lease")
     .select(
-      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, portal_profile_id, sms_opt_in, sms_opt_in_at, sms_opt_out_at, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
+      "*, unit(id, label, kind, beds, baths, sqft, amenities, access_notes, property(id, name)), lease_tenant(is_primary, role, contact(id, kind, first_name, last_name, business_name, email, mobile, phone, preferred_contact, tags, portal_profile_id, portal_invited_at, sms_opt_in, sms_opt_in_at, sms_opt_out_at, emergency_contact(id, name, relationship, phone, tenant_contact_id), vehicle(id, make_model, color, tag_number, tag_state, parking_permit_number, tenant_contact_id))), recurring_charge(id, description, amount_cents), charge(id, charge_type, description, amount_cents, due_date, created_at), payment(id, method, amount_cents, received_on, status, purpose, reference, returned_on, created_at), pet(id, kind, name, weight_lbs, is_assistance_animal, notes), renters_insurance(id, carrier, policy_number, expires_on, status, liability_cents, company_is_interested_party, tenant_contact_id)",
     )
     .eq("id", id)
     .eq("company_id", company.id)
@@ -361,9 +361,9 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-[14px]">
                   <span>
                     <span className="font-semibold">{contactName(c)}</span>
-                    <span className="block text-[12px] text-subtle">{c.portal_profile_id ? "Using the portal" : c.email ? c.email : "No e-mail on file"}</span>
+                    <span className="block text-[12px] text-subtle">{c.portal_profile_id ? "Using the portal" : !c.email ? "No e-mail on file" : c.portal_invited_at ? `Invited ${date(c.portal_invited_at.slice(0, 10))} · ${c.email}` : `Not invited yet · ${c.email}`}</span>
                   </span>
-                  {c.email && canEdit && <InviteButton contactId={c.id} label={c.portal_profile_id ? "Re-send link" : "Send portal invite"} />}
+                  {c.email && canEdit && <InviteButton contactId={c.id} label={c.portal_profile_id || c.portal_invited_at ? "Re-send invite" : "Send portal invite"} />}
                 </li>
               ))}
             </ul>
