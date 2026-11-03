@@ -29,7 +29,7 @@ export function describeFile(original: string): NamedDoc {
   base = base.replace(/\s*\(\d+\)$/, "").replace(/\[\d+\]/g, "").trim(); // "(1)" download copies, "[92]" upload counters
 
   // AppFolio e-signed lease: "first-m-last_MM-DD-YYYY" (sometimes "lease_" in front).
-  let x = base.match(/^(?:lease_)?[a-z0-9]+(?:-[a-z0-9]+)+_(\d{2})-(\d{2})-(\d{4})$/i);
+  let x = base.match(/^(?:lease_)?[a-z0-9]+(?:-[a-z0-9]+)+_(\d{2})-(\d{2})-(\d{4})(?:_\d{6,})?$/i);
   if (x) return { what: "Signed lease", date: day(+x[3], +x[1], +x[2]), ext };
   // AppFolio tenant ledger export: "tenant_ledger-name-YYYYMMDD".
   x = base.match(/^tenant_ledger-.*-(\d{4})(\d{2})(\d{2})$/i);

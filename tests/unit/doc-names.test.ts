@@ -5,6 +5,7 @@ import { describeFile, documentName, uniqueNames } from "@/lib/import/doc-names"
 describe("AppFolio document names", () => {
   it("names AppFolio's e-signed leases, ledgers and letters by what they are and their date", () => {
     expect(documentName("zoe-q-tester_04-26-2026.pdf", "Zoe Q. Tester")).toBe("Signed lease – Zoe Q. Tester – Apr 26, 2026.pdf");
+    expect(documentName("zoe-q-tester_04-15-2026_14308023837960092096.pdf", "Zoe Q. Tester")).toBe("Signed lease – Zoe Q. Tester – Apr 15, 2026.pdf");
     expect(documentName("lease_zoe-q-tester_02-28-2025 (1).pdf", "Zoe Q. Tester")).toBe("Signed lease – Zoe Q. Tester – Feb 28, 2025.pdf");
     expect(documentName("tenant_ledger-zoe_q_tester-20260413.pdf", "Zoe Q. Tester")).toBe("Tenant ledger – Zoe Q. Tester – Apr 13, 2026.pdf");
     expect(documentName("elevator_down_zoe_q_tester_103126.pdf", "Zoe Q. Tester")).toBe("Elevator down notice – Zoe Q. Tester – Oct 31, 2026.pdf");
