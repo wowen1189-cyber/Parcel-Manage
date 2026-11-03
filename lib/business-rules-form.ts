@@ -74,6 +74,8 @@ export const RULE_SECTIONS: RuleSection[] = [
       { path: "rent.dueDay", label: "Rent due on day", type: "number" },
       { path: "rent.lateFeeDay", label: "Late fee posts on day", type: "number" },
       { path: "rent.lateFeeCents", label: "Late fee", type: "money", hint: "Must also be written in the lease." },
+      { path: "rent.lateFeeDailyCents", label: "Daily late fee after that", type: "money", hint: "Each day rent is still unpaid after the late fee posts. $0 for none." },
+      { path: "rent.lateFeeDailyMaxCents", label: "Most daily late fees in a month", type: "money", hint: "A cap on the daily fees (the first late fee isn't counted). $0 for no cap." },
       { path: "rent.cardCostPercent", label: "Credit card fee: your processor's percent", type: "percent", hint: "Tenants paying by credit card pay what the processor charges you (Stripe: 2.9% + 30¢), never more than 3%. Debit cards and bank transfers are free." },
       { path: "rent.cardCostFixedCents", label: "Credit card fee: your processor's fixed charge", type: "money", hint: "Per payment (Stripe: $0.30)." },
       { path: "rent.onlineOnly", label: "Tenants pay online only", type: "boolean", hint: "Rent is paid only through the resident portal (bank or card). Certified funds are still taken for move-in funds and after a returned payment, as the lease says." },

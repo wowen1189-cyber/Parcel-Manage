@@ -70,7 +70,8 @@ export function lateFeePolicy(lease: LeaseLateTerms, rules: BusinessRules, comme
     };
   }
   if (!rules.rent.lateFeeCents) return null;
-  return { postsOnDay: rules.rent.lateFeeDay, flatCents: rules.rent.lateFeeCents, percent: null, basis: "rent", dailyCents: 0, dailyMaxCents: null };
+  const r = rules.rent;
+  return { postsOnDay: r.lateFeeDay, flatCents: r.lateFeeCents, percent: null, basis: "rent", dailyCents: r.lateFeeDailyCents, dailyMaxCents: r.lateFeeDailyMaxCents || null };
 }
 
 /** The first late fee for the month. */

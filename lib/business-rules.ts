@@ -85,6 +85,10 @@ export const businessRulesSchema = z
       dueDay: z.coerce.number().int().min(1).max(28),
       lateFeeCents: cents,
       lateFeeDay: z.coerce.number().int().min(2).max(28),
+      // Then a fee each day rent is still unpaid, up to a monthly maximum for the daily fees (0 = no daily fee;
+      // max 0 = no maximum). Florida (ch. 83 Part II) sets no amount; the lease must state it.
+      lateFeeDailyCents: cents,
+      lateFeeDailyMaxCents: cents,
       // What the card processor charges the company per credit card payment (Stripe: 2.9% + 30¢). Tenants
       // paying by credit card pay this cost, never more than 3%; debit cards and bank transfers are free.
       cardCostPercent: z.coerce.number().min(0).max(3),
@@ -191,7 +195,8 @@ export const DEFAULT_BUSINESS_RULES: BusinessRules = {
       "Wolf Hybrid",
     ],
   },
-  rent: { dueDay: 1, lateFeeCents: 5000, lateFeeDay: 6, cardCostPercent: 2.9, cardCostFixedCents: 30, onlineOnly: true },
+  // SIM REI's late fee (Wesley Owen, Nov 2, 2026): $75 on the 4th, then $10 a day, up to $250 in daily fees.
+  rent: { dueDay: 1, lateFeeCents: 7500, lateFeeDay: 4, lateFeeDailyCents: 1000, lateFeeDailyMaxCents: 25000, cardCostPercent: 2.9, cardCostFixedCents: 30, onlineOnly: true },
   maintenance: {
     falseEmergencyFeeCents: 10000,
     acEmergencyAboveF: 80,

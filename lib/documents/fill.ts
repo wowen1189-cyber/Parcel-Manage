@@ -5,6 +5,7 @@
 import type { BusinessRules } from "@/lib/business-rules";
 import { contactName, date, money, oneLineAddress, type NamedContact } from "@/lib/format";
 import type { Condition, DocumentTemplate, PartyNames } from "./types";
+import { leaseLateFeeFields } from "@/lib/leases";
 import type { LeaseSettings } from "@/lib/property-lease-settings";
 import { rentSchedule, type CommercialTerms } from "@/lib/commercial-terms";
 
@@ -53,6 +54,9 @@ export function fillLease(template: DocumentTemplate, l: LeaseForDocument, compa
       ? oneLineAddress(l.property)
       : oneLineAddress({ ...l.property, address_line2: [l.property.address_line2, `Unit ${l.unitLabel}`].filter(Boolean).join(", ") });
   const increase = rules.lease.longTermYearlyIncreasePercent;
+
+  // Late fee blanks follow the company's rule, so the lease states what billing charges (Fla. Stat. 83.43).
+  if ("late_fee_rule" in template.fields) Object.assign(values, leaseLateFeeFields(rules));
 
   Object.assign(values, {
     landlord_name: l.property.entityName && l.property.entityName !== NOT_SET ? l.property.entityName : "",

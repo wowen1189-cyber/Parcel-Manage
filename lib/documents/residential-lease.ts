@@ -1108,9 +1108,9 @@ const fields: Record<string, TemplateField> = {
   prorate_after_day: f("Move-in day after which next month's rent is also due", "setting", "19th"),
   rent_due_day: f("Rent due day", "setting", "1st"),
   rent_late_after_day: f("Rent is late after this day", "setting", "3rd"),
-  late_fee_rule: f("Late fee rule", "setting", "$50.00 on the 4th"),
+  late_fee_rule: f("Late fee rule", "setting", "$75.00 on the 4th"),
   daily_late_fee_start_day: f("Daily late fee starts after this day", "setting", "4th"),
-  daily_late_fee: f("Daily late fee", "setting", "$0.00"),
+  daily_late_fee: f("Daily late fee", "setting", "$10.00 a day, up to $250.00 in daily late fees a month"),
   nsf_fee: money("Returned payment (NSF) fee (attorney to confirm legal cap)", "50.00"),
 
   // Deposit

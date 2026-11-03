@@ -32,7 +32,7 @@ export function lateFeeText(lease: LateFeeFields, rules: BusinessRules): { text:
       : "";
     return { text: `${amount} if unpaid after the ${ordinal(lease.late_fee_grace_days)}${daily}`, source: "lease" };
   }
-  return { text: `${money(rules.rent.lateFeeCents)} on the ${ordinal(rules.rent.lateFeeDay)}`, source: "company" };
+  return { text: companyLateFeeText(rules), source: "company" };
 }
 
 export type LeaseDates = { status: string; end_date: string | null; move_out_on: string | null };
@@ -46,4 +46,22 @@ export function leaseTiming(l: LeaseDates, today: string): { label: string; tone
   if (days < 0) return { label: "Past end date", tone: "danger", daysLeft: days };
   if (days <= 90) return { label: `Ends in ${days} days`, tone: "warn", daysLeft: days };
   return { label: "Active", tone: "success", daysLeft: days };
+}
+
+/** The company's own late fee rule in words, e.g. "$75.00 on the 4th, then $10.00 a day up to $250.00". */
+export function companyLateFeeText(rules: BusinessRules): string {
+  const r = rules.rent;
+  const daily = r.lateFeeDailyCents ? `, then ${money(r.lateFeeDailyCents)} a day${r.lateFeeDailyMaxCents ? ` up to ${money(r.lateFeeDailyMaxCents)}` : ""}` : "";
+  return `${money(r.lateFeeCents)} on the ${ordinal(r.lateFeeDay)}${daily}`;
+}
+
+/** The residential lease's late fee blanks, from the company's rule (so the lease says what billing charges). */
+export function leaseLateFeeFields(rules: BusinessRules) {
+  const r = rules.rent;
+  return {
+    rent_late_after_day: ordinal(r.lateFeeDay - 1),
+    late_fee_rule: `${money(r.lateFeeCents)} on the ${ordinal(r.lateFeeDay)}`,
+    daily_late_fee_start_day: ordinal(r.lateFeeDay),
+    daily_late_fee: r.lateFeeDailyCents ? `${money(r.lateFeeDailyCents)} a day${r.lateFeeDailyMaxCents ? `, up to ${money(r.lateFeeDailyMaxCents)} in daily late fees a month` : ""}` : "$0.00",
+  };
 }

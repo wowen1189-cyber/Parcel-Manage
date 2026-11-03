@@ -6,10 +6,12 @@ import { buildLedger, endOfMonth, lateFeeAmount, lateFeePolicy, leaseBillsInMont
 const noTerms = { late_fee_grace_days: null, late_fee_flat_cents: null, late_fee_pct: null, late_fee_basis: null, late_fee_daily_cents: null, late_fee_daily_max_cents: null };
 
 describe("late fee policy", () => {
-  it("uses the company rule ($50 on the 6th) when the lease has no terms of its own", () => {
+  it("uses the company rule ($75 on the 4th, then $10 a day up to $250) when the lease has no terms of its own", () => {
     const p = lateFeePolicy(noTerms, DEFAULT_BUSINESS_RULES, null)!;
-    expect(p).toMatchObject({ postsOnDay: 6, flatCents: 5000 });
-    expect(lateFeeAmount(p, 150000, 150000)).toBe(5000);
+    expect(p).toMatchObject({ postsOnDay: 4, flatCents: 7500, dailyCents: 1000, dailyMaxCents: 25000 });
+    expect(lateFeeAmount(p, 150000, 150000)).toBe(7500);
+    const noCap = lateFeePolicy(noTerms, { ...DEFAULT_BUSINESS_RULES, rent: { ...DEFAULT_BUSINESS_RULES.rent, lateFeeDailyMaxCents: 0 } }, null)!;
+    expect(noCap.dailyMaxCents).toBeNull();
   });
   it("uses the lease's own terms: late after 3 days, 10% of rent, then $10 a day up to $100", () => {
     const p = lateFeePolicy({ ...noTerms, late_fee_grace_days: 3, late_fee_pct: 10, late_fee_basis: "rent", late_fee_daily_cents: 1000, late_fee_daily_max_cents: 10000 }, DEFAULT_BUSINESS_RULES, null)!;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_BUSINESS_RULES } from "@/lib/business-rules";
 import { csvDate, daysBetween, money } from "@/lib/format";
 import { toCsv } from "@/lib/csv";
-import { lateFeeText, leaseTiming } from "@/lib/leases";
+import { companyLateFeeText, lateFeeText, leaseLateFeeFields, leaseTiming } from "@/lib/leases";
 import { vendorCompliance } from "@/lib/vendors";
 
 const TODAY = "2026-11-01";
@@ -20,9 +20,21 @@ describe("lateFeeText", () => {
 
   it("falls back to the company's business rules", () => {
     expect(lateFeeText({ late_fee_grace_days: null, late_fee_flat_cents: null, late_fee_pct: null }, DEFAULT_BUSINESS_RULES)).toEqual({
-      text: "$50.00 on the 6th",
+      text: "$75.00 on the 4th, then $10.00 a day up to $250.00",
       source: "company",
     });
+  });
+
+  it("fills the lease's late fee blanks from the company rule, so the lease says what billing charges", () => {
+    expect(leaseLateFeeFields(DEFAULT_BUSINESS_RULES)).toEqual({
+      rent_late_after_day: "3rd",
+      late_fee_rule: "$75.00 on the 4th",
+      daily_late_fee_start_day: "4th",
+      daily_late_fee: "$10.00 a day, up to $250.00 in daily late fees a month",
+    });
+    const noDaily = { ...DEFAULT_BUSINESS_RULES, rent: { ...DEFAULT_BUSINESS_RULES.rent, lateFeeDailyCents: 0 } };
+    expect(leaseLateFeeFields(noDaily).daily_late_fee).toBe("$0.00");
+    expect(companyLateFeeText(noDaily)).toBe("$75.00 on the 4th");
   });
 });
 
