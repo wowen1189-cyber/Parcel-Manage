@@ -10,12 +10,16 @@
 //   tenants.txt      "<tenant id>~<name>~<C|N|F|P status>~" separated by ";"
 //   tenant-property.txt  "<property id>:<tenant id>.<tenant id>…" separated by spaces (current tenants)
 // Past tenants' properties come from the AppFolio tenant directory exports in imports/.
+// A second batch (Nov 2, 2026) in imports/appfolio-docs-2/: files/<id>__<name> plus manifest.json, one
+// { id, name, kind, ref, title } per file, where ref is o<occupancy> (tenant; kind "lease" for the signed lease
+// from the Lease Documents section), p<property>, u<unit>, w<owner> or v<vendor>, and title is that page's name.
 // Every file is office only: AppFolio didn't say which were shared with tenants, so the portal never shows them.
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import https from "node:https";
 import { createClient } from "@supabase/supabase-js";
 import { parseCsv } from "../lib/import/appfolio.ts";
+import { describeFile, documentName, uniqueNames } from "../lib/import/doc-names.ts";
 import type { Database } from "../lib/supabase/database.types.ts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -23,6 +27,8 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceKey) throw new Error("Missing Supabase settings. Run with --env-file=.env.local.");
 const db = createClient<Database>(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const commit = process.argv.includes("--commit");
+// --rename: give documents already brought over readable names (lib/import/doc-names.ts) and fix their type.
+const renameExisting = process.argv.includes("--rename");
 const subdomain = process.argv.find((a) => a.startsWith("--company="))?.split("=")[1] ?? "simreipm";
 const DIR = "imports/appfolio-docs";
 
@@ -34,6 +40,12 @@ const TYPES: Record<string, string> = { pdf: "application/pdf", png: "image/png"
 /** A sensible document category from the file name. */
 export function categoryFor(name: string): string {
   const n = name.toLowerCase();
+  // AppFolio's own generated files first (a "trash disposal policy" letter isn't an insurance policy).
+  const what = describeFile(name).what;
+  if (what === "Signed lease") return "lease";
+  if (what === "Tenant ledger") return "statement";
+  if (/notice|policy$|disposition|confirmation letter/i.test(what) && !/insurance/i.test(n)) return "notice";
+  if (what === "Photo" || what === "Screenshot") return "photo";
   if (/\.(png|jpe?g|gif|heic|webp)$/.test(n) && !/(license|\bdl\b|\bid\b|passport|insurance|lease)/.test(n)) return "photo";
   if (/(insurance|policy|\bcoi\b|acord|declaration|renters)/.test(n)) return "insurance";
   if (/(ledger|statement|receipt)/.test(n)) return "statement";
@@ -83,11 +95,15 @@ async function main() {
   if (!company) throw new Error(`No company at ${subdomain}.`);
   const cid = company.id;
 
-  const owner = new Map<string, { kind: "p" | "o"; id: string }>();
+  const owner = new Map<string, { kind: "p" | "o" | "u" | "w" | "v"; id: string; title?: string; lease?: boolean }>();
   for (const line of readFileSync(`${DIR}/pairs.txt`, "utf8").split("\n").filter(Boolean)) {
     const m = line.match(/^(\d+)([po])(\d+)$/);
     if (m) owner.set(m[1], { kind: m[2] as "p" | "o", id: m[3] });
   }
+  const DIR2 = "imports/appfolio-docs-2";
+  type Entry = { id: string; name: string; kind: string; ref: string; title: string };
+  const manifest: Entry[] = existsSync(`${DIR2}/manifest.json`) ? JSON.parse(readFileSync(`${DIR2}/manifest.json`, "utf8")) : [];
+  for (const m of manifest) owner.set(m.id, { kind: m.ref[0] as "p" | "o" | "u" | "w" | "v", id: m.ref.slice(1), title: m.title, lease: m.kind === "lease" });
   const propName = new Map(readFileSync(`${DIR}/records.txt`, "utf8").split("\n").filter(Boolean).map((l) => [l.split("~")[0].slice(1), l.split("~")[1]] as const));
   const tenants = new Map(
     readFileSync(`${DIR}/tenants.txt`, "utf8")
@@ -109,11 +125,19 @@ async function main() {
     for (const r of rows) if (r[ti] && r[pi]) dirProp.set(nameKey(r[ti]), r[pi].split(" - ")[0].trim());
   }
 
-  const [{ data: props }, { data: leases }, { data: existing }] = await Promise.all([
+  const [{ data: props }, { data: leases }, { data: existing }, { data: entities }, { data: vendors }] = await Promise.all([
     db.from("property").select("id, name").eq("company_id", cid),
     db.from("lease").select("id, status, unit(property_id), lease_tenant(is_primary, role, contact(id, first_name, last_name, business_name))").eq("company_id", cid),
     db.from("document").select("storage_path").eq("company_id", cid).like("storage_path", `${cid}/appfolio/%`),
+    db.from("entity").select("id, name").eq("company_id", cid),
+    db.from("vendor").select("id, contact(first_name, last_name, business_name)").eq("company_id", cid),
   ]);
+  const entityByName = (n: string) => (entities ?? []).find((e) => norm(e.name) === norm(n))?.id ?? null;
+  const vendorByName = (n: string) =>
+    (vendors ?? []).find((v) => {
+      const c = v.contact;
+      return c && [c.business_name, `${c.first_name ?? ""} ${c.last_name ?? ""}`].some((x) => x && norm(x) === norm(n));
+    })?.id ?? null;
   const propByName = new Map((props ?? []).map((p) => [p.name, p.id]));
   const have = new Set((existing ?? []).map((d) => d.storage_path));
   const rank: Record<string, number> = { active: 0, notice: 1, pending_signature: 2, draft: 3 };
@@ -134,10 +158,16 @@ async function main() {
     return best ? { ...best, several: new Set(hits.map((h) => h.lease.id)).size > 1 } : null;
   };
 
-  const counts = { property: 0, lease: 0, tenantPropertyOnly: 0, unlinked: 0, skipped: 0, uploaded: 0, failed: 0 };
+  const counts = { property: 0, unit: 0, owner: 0, vendor: 0, lease: 0, tenantPropertyOnly: 0, unlinked: 0, skipped: 0, uploaded: 0, failed: 0 };
   const unlinked: string[] = [];
-  const files = readdirSync(`${DIR}/files`).filter((f) => /^\d+__/.test(f));
-  for (const f of files) {
+  const planned: string[] = [];
+  if (renameExisting) return renameDocs(cid);
+  const files = [
+    ...readdirSync(`${DIR}/files`).filter((f) => /^\d+__/.test(f)).map((f) => `${DIR}/files/${f}`),
+    ...(existsSync(`${DIR2}/files`) ? readdirSync(`${DIR2}/files`).filter((f) => /^\d+__/.test(f)).map((f) => `${DIR2}/files/${f}`) : []),
+  ];
+  for (const full of files) {
+    const f = full.split("/").pop()!;
     const [afid, ...rest] = f.split("__");
     const original = rest.join("__");
     const o = owner.get(afid);
@@ -145,7 +175,7 @@ async function main() {
     let ext = original.includes(".") ? original.split(".").pop()!.toLowerCase() : "";
     let stored = original;
     if (!TYPES[ext]) {
-      const head = readFileSync(`${DIR}/files/${f}`).subarray(0, 8);
+      const head = readFileSync(full).subarray(0, 8);
       const sniffed = head.subarray(0, 4).toString() === "%PDF" ? "pdf" : head[0] === 0x89 && head[1] === 0x50 ? "png" : head[0] === 0xff && head[1] === 0xd8 ? "jpg" : "";
       if (sniffed) {
         ext = sniffed;
@@ -158,11 +188,38 @@ async function main() {
       continue;
     }
     let row: Database["public"]["Tables"]["document"]["Insert"] = { company_id: cid, storage_path: path, file_name: original.slice(0, 200), category: categoryFor(original), source: "appfolio", office_only: true };
+    if (o?.lease) row.category = "lease";
     if (o?.kind === "p") {
-      row.property_id = propByName.get(propName.get(o.id) ?? "") ?? null;
+      row.property_id = propByName.get(propName.get(o.id) ?? o.title ?? "") ?? null;
       counts.property++;
+    } else if (o?.kind === "u") {
+      // Unit pages are titled "<unit> - <property>".
+      const [label, ...rest] = (o.title ?? "").split(" - ");
+      row.property_id = propByName.get(rest.join(" - ")) ?? null;
+      row.file_name = `Unit ${label}: ${original}`.slice(0, 200);
+      if (row.property_id) counts.unit++;
+      else {
+        counts.unlinked++;
+        unlinked.push(row.file_name);
+      }
+    } else if (o?.kind === "w") {
+      row.entity_id = entityByName(o.title ?? "");
+      if (!row.entity_id) row.file_name = `${o.title}: ${original}`.slice(0, 200);
+      if (row.entity_id) counts.owner++;
+      else {
+        counts.unlinked++;
+        unlinked.push(row.file_name);
+      }
+    } else if (o?.kind === "v") {
+      row.vendor_id = vendorByName(o.title ?? "");
+      if (!row.vendor_id) row.file_name = `${o.title}: ${original}`.slice(0, 200);
+      if (row.vendor_id) counts.vendor++;
+      else {
+        counts.unlinked++;
+        unlinked.push(row.file_name);
+      }
     } else if (o?.kind === "o") {
-      const t = tenants.get(o.id);
+      const t = tenants.get(o.id) ?? (o.title ? { name: o.title, status: "" } : undefined);
       const hit = t ? findLease(t.name) : null;
       if (hit) {
         row = { ...row, lease_id: hit.lease.id, contact_id: hit.contact.id, property_id: hit.lease.unit.property_id, ...(hit.several ? { file_name: `${t!.name}: ${original}`.slice(0, 200) } : {}) };
@@ -181,8 +238,13 @@ async function main() {
       counts.unlinked++;
       unlinked.push(original);
     }
+    // Readable name: "what – who – date" (lib/import/doc-names.ts).
+    const who = o?.kind === "o" ? row.file_name.includes(": ") ? row.file_name.split(": ")[0] : (tenants.get(o.id)?.name ?? o.title ?? null) : o?.kind === "u" ? `Unit ${(o.title ?? "").split(" - ")[0]}` : o?.kind === "w" || o?.kind === "v" ? (o.title ?? null) : null;
+    row.file_name = documentName(original, who).slice(0, 200);
+    if (!o?.lease) row.category = categoryFor(original);
+    planned.push(row.file_name);
     if (!commit) continue;
-    const bytes = readFileSync(`${DIR}/files/${f}`);
+    const bytes = readFileSync(full);
     // A direct request per file (a long-running client's connection goes stale after a few dozen uploads),
     // tried up to 4 times, waiting a little longer each time.
     const up = await uploadFile(path, bytes, TYPES[ext] ?? "application/octet-stream");
@@ -201,14 +263,53 @@ async function main() {
     if (counts.uploaded % 10 === 0) console.log(`  …${counts.uploaded} uploaded`);
   }
 
-  const size = files.reduce((s, f) => s + statSync(`${DIR}/files/${f}`).size, 0);
+  const size = files.reduce((s, f) => s + statSync(f).size, 0);
   console.log(`${company.name}: ${files.length} AppFolio files (${(size / 1048576).toFixed(0)} MB)${commit ? "" : " (preview, nothing changes)"}`);
   console.log(`  on a property: ${counts.property}`);
   console.log(`  on a tenant's lease: ${counts.lease}`);
+  console.log(`  on a unit (filed on its property): ${counts.unit}`);
+  console.log(`  on an owner: ${counts.owner}`);
+  console.log(`  on a vendor: ${counts.vendor}`);
   console.log(`  past or upcoming tenants, filed on their property: ${counts.tenantPropertyOnly}`);
   console.log(`  not linked to a property or lease: ${counts.unlinked}${unlinked.length ? `\n    ${unlinked.slice(0, 20).join("\n    ")}` : ""}`);
   if (counts.skipped) console.log(`  already brought over: ${counts.skipped}`);
   if (commit) console.log(`Uploaded ${counts.uploaded}${counts.failed ? `, ${counts.failed} failed` : ""}.`);
+  if (!commit && planned.length) console.log(`  names, for example:\n    ${planned.slice(0, 25).join("\n    ")}`);
+}
+
+/** Rename documents already brought over from AppFolio, numbering repeats on the same record. */
+async function renameDocs(cid: string) {
+  const { data: docs } = await db
+    .from("document")
+    .select("id, file_name, category, lease_id, property_id, entity_id, vendor_id, created_at, lease(lease_tenant(is_primary, role, contact(first_name, last_name, business_name))), entity(name), vendor(contact(first_name, last_name, business_name))")
+    .eq("company_id", cid)
+    .eq("source", "appfolio")
+    .order("created_at");
+  const person = (c: { first_name: string | null; last_name: string | null; business_name: string | null } | null | undefined) => (c ? c.business_name || [c.first_name, c.last_name].filter(Boolean).join(" ") : "");
+  const plan = (docs ?? []).map((d) => {
+    // Earlier imports put who it's for in front: "Name (past tenant): file".
+    const [prefix, ...rest] = d.file_name.includes(": ") ? d.file_name.split(": ") : ["", d.file_name];
+    const original = rest.join(": ");
+    const primary = d.lease?.lease_tenant.filter((t) => t.role === "tenant").sort((a, b) => Number(b.is_primary) - Number(a.is_primary))[0];
+    const who = prefix || person(primary?.contact) || d.entity?.name || person(d.vendor?.contact) || null;
+    const category = d.category === "lease" && describeFile(original).what !== "Signed lease" ? "lease" : categoryFor(original);
+    return { d, name: documentName(original, who).slice(0, 200), category, record: d.lease_id ?? d.entity_id ?? d.vendor_id ?? d.property_id ?? "none" };
+  });
+  // Number repeats per record.
+  const byRecord = new Map<string, typeof plan>();
+  for (const p of plan) byRecord.set(p.record, [...(byRecord.get(p.record) ?? []), p]);
+  for (const group of byRecord.values()) uniqueNames(group.map((p) => p.name)).forEach((n, i) => (group[i].name = n));
+  const changes = plan.filter((p) => p.name !== p.d.file_name || p.category !== p.d.category);
+  console.log(`${changes.length} of ${plan.length} AppFolio documents get a new name or type${commit ? "" : " (preview, nothing changes)"}:`);
+  for (const p of changes.slice(0, 40)) console.log(`  ${p.d.file_name}  →  ${p.name}${p.category !== p.d.category ? `  [${p.d.category} → ${p.category}]` : ""}`);
+  if (!commit) return;
+  let done = 0;
+  for (const p of changes) {
+    const { error } = await db.from("document").update({ file_name: p.name, category: p.category }).eq("id", p.d.id);
+    if (error) console.error(`  not renamed: ${p.d.file_name}: ${error.message}`);
+    else done++;
+  }
+  console.log(`Renamed ${done}.`);
 }
 
 main().catch((e) => {
