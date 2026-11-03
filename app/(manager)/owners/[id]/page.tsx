@@ -8,6 +8,8 @@ import { describeFee, effectiveFee, FEE_SOURCE_LABEL, readCompanyFee } from "@/l
 import { getOwner, UNASSIGNED_OWNER } from "@/lib/owners";
 import { stripeConfigured } from "@/lib/integrations/stripe/client";
 import { isAdmin, requireCompany } from "@/lib/session";
+import { DocumentList } from "@/components/document-list";
+import { listDocuments } from "@/lib/document-files";
 import { connectOwnerStripe, refreshOwnerStripe } from "../stripe-actions";
 import { createAgreement } from "../../management-agreements/actions";
 import { DeleteOwnerForm, FeeForm, MovePropertiesForm, OwnerForm } from "../forms";
@@ -37,6 +39,7 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
   if (owner.is_manager) redirect("/fee-billing");
 
   const canEdit = ["admin", "property_manager"].includes(membership.role);
+  const ownerDocs = await listDocuments(supabase, company.id, { entityId: id });
   const unassigned = owner.name === UNASSIGNED_OWNER;
   const agreement = effectiveFee(null, owner.management_fee, companyFee);
   const props = owner.properties;
@@ -229,6 +232,11 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
           <FeeForm scope="owner" targetId={owner.id} fee={agreement.fee} custom={agreement.source === "owner"} inheritLabel={`Use the company default (${describeFee(companyFee)})`} canEdit={canEdit} />
         </Card>
       )}
+
+      <Card className="mt-6 overflow-hidden">
+        <CardHeader title="Documents" description="This owner's own files (1099s, statements, agreements). Switch on Owner to show a file in the owner portal." />
+        <DocumentList docs={ownerDocs} share={["admin", "property_manager", "accountant"].includes(membership.role)} showTenant={false} empty="Files filed on this owner show here." />
+      </Card>
 
       <Card className="mt-6">
         <CardHeader title="Owner details" description="Name on the deed and where statements go." />

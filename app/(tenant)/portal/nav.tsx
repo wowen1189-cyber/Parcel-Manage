@@ -8,6 +8,7 @@ const TABS = [
   { href: "/portal/maintenance", label: "Repairs" },
   { href: "/portal/payments", label: "Payments" },
   { href: "/portal/lease", label: "My lease" },
+  { href: "/portal/documents", label: "Documents" },
   { href: "/portal/messages", label: "Messages" },
 ];
 

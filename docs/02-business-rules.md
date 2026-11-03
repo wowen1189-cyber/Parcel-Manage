@@ -114,6 +114,7 @@ Every rule here is a **company setting**. Build a Settings › Business rules sc
 ## Tenant portal
 - Tenants sign in on the company's site with the e-mail on their tenant record (a sign-in link, no password); their first sign-in creates the login and links it by verified e-mail. They see only their own lease, ledger, requests and messages (Row Level Security, migration 0017).
 - Repair requests use the same triage as the office: gas or fire buttons skip every question and send an emergency; otherwise priority comes from the answers, self-check tips show first, and an emergency needs the false-emergency acknowledgment (text, fee and answers stored on the work order). The office is e-mailed for every request, message, insurance upload and notice to vacate.
+- Documents (Wesley Owen, Nov 2, 2026): the office chooses, file by file, what the tenant sees (resident portal › Documents) and what the owner sees (owner portal › Documents), with Tenant and Owner switches on each file on the tenant, property and owner pages. Leases and renewals are shared with both by default (not internal papers like a broker commission); applications, invoices and inspections start office only; everything brought over from AppFolio starts office only except leases. Owners see files on their LLC, their properties and their properties' leases.
 - A notice to vacate from the portal goes to the office as a message; the office confirms in writing and sets the move-out date (the lease's notice terms apply).
 
 ## Communications

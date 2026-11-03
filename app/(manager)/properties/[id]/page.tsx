@@ -11,6 +11,8 @@ import { describeFee, effectiveFee, monthlyFee, readCompanyFee } from "@/lib/man
 import { UNASSIGNED_OWNER } from "@/lib/owners";
 import { buildLedger } from "@/lib/ledger";
 import { FeeForm } from "../../owners/forms";
+import { DocumentList } from "@/components/document-list";
+import { listDocuments } from "@/lib/document-files";
 
 export async function generateMetadata({ params }: PageProps<"/properties/[id]">) {
   const { id } = await params;
@@ -38,6 +40,8 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
   // The owner's agreement that covers this property (signed first, else the newest not ended).
   const { data: agreements } = await supabase.from("management_agreement").select("id, status, end_date, property_ids").eq("company_id", company.id).eq("entity_id", p.entity_id).contains("property_ids", [p.id]).order("created_at", { ascending: false });
   const agreement = agreements?.find((x) => x.status === "signed") ?? agreements?.find((x) => x.status !== "ended") ?? null;
+  // The property's own files (insurance, permits, unit photos); tenants' files are on their lease.
+  const propertyDocs = await listDocuments(supabase, company.id, { propertyIds: [p.id], propertyOnly: true });
 
   const units = [...(p.unit ?? [])].sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
   const current = (u: (typeof units)[number]) => (u.lease ?? []).find((l) => l.status === "active" || l.status === "notice");
@@ -201,6 +205,11 @@ export default async function PropertyPage({ params, searchParams }: PageProps<"
           canEdit={canEdit}
           mode={leaseMode}
         />
+      </Card>
+
+      <Card className="mt-6 overflow-hidden">
+        <CardHeader title="Documents" description="Insurance, permits, contracts and unit files. Switch on Owner to show a file in the owner portal." />
+        <DocumentList docs={propertyDocs} share={["admin", "property_manager", "accountant", "leasing_agent"].includes(membership.role)} showTenant={false} empty="Files filed on this property show here." />
       </Card>
 
       <div className="mt-6">

@@ -13,11 +13,11 @@ import { ChargeForm, PaymentForm, ReturnPaymentButton } from "./ledger";
 import { InviteButton, ReplyForm } from "./portal";
 import { buildLedger } from "@/lib/ledger";
 import { depositHeldCents } from "@/lib/deposits";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { smsStatus } from "@/lib/sms-consent";
-import { DOCUMENT_CATEGORIES } from "../document-labels";
 import { TenantDocumentUpload } from "./document-upload";
+import { DocumentList } from "@/components/document-list";
+import { listDocuments } from "@/lib/document-files";
 
 export async function generateMetadata({ params }: PageProps<"/tenants/[id]">) {
   const { id } = await params;
@@ -87,13 +87,8 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
     .in("contact_id", tenantContacts.map((c) => c.id))
     .order("created_at", { ascending: false })
     .limit(20);
-  const { data: documents } = await supabase.from("document").select("id, file_name, storage_path, category, created_at").eq("company_id", company.id).eq("lease_id", l.id).order("created_at", { ascending: false }).limit(50);
-  const docs = documents ?? [];
-  const docLinks = new Map<string, string>();
-  if (docs.length) {
-    const { data: signed } = await createAdminClient().storage.from("documents").createSignedUrls(docs.map((d) => d.storage_path), 600);
-    for (const x of signed ?? []) if (x.path && x.signedUrl) docLinks.set(x.path, x.signedUrl);
-  }
+  const docs = await listDocuments(supabase, company.id, { leaseIds: [l.id] });
+
 
   return (
     <>
@@ -426,26 +421,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                 </span>
               }
             />
-            {docs.length ? (
-              <ul className="divide-y divide-line">
-                {docs.map((d) => (
-                  <li key={d.id} className="flex items-center justify-between gap-3 px-5 py-2.5 text-[13px]">
-                    {docLinks.get(d.storage_path) ? (
-                      <a href={docLinks.get(d.storage_path)} target="_blank" rel="noreferrer" className="font-semibold text-accent hover:underline">
-                        {d.file_name}
-                      </a>
-                    ) : (
-                      <span>{d.file_name}</span>
-                    )}
-                    <span className="shrink-0 text-subtle">
-                      {DOCUMENT_CATEGORIES[d.category as keyof typeof DOCUMENT_CATEGORIES] ?? "Other"} · {date(d.created_at.slice(0, 10))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState title="No documents yet">Letters you send, insurance the tenant uploads and request photos are filed here.</EmptyState>
-            )}
+            <DocumentList docs={docs} share={canEdit} empty="Letters you send, insurance the tenant uploads and request photos are filed here. The lease is shared with the tenant and owner; use the switches to share anything else." />
             {canEdit && <TenantDocumentUpload leaseId={l.id} />}
           </Card>
         </div>

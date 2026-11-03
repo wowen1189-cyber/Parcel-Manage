@@ -1318,6 +1318,7 @@ export type Database = {
           office_only: boolean
           photo_stage: string | null
           property_id: string | null
+          shared_with_owner: boolean
           source: string | null
           storage_path: string
           uploaded_by: string | null
@@ -1339,6 +1340,7 @@ export type Database = {
           office_only?: boolean
           photo_stage?: string | null
           property_id?: string | null
+          shared_with_owner?: boolean
           source?: string | null
           storage_path: string
           uploaded_by?: string | null
@@ -1360,6 +1362,7 @@ export type Database = {
           office_only?: boolean
           photo_stage?: string | null
           property_id?: string | null
+          shared_with_owner?: boolean
           source?: string | null
           storage_path?: string
           uploaded_by?: string | null

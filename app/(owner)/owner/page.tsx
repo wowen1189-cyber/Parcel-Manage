@@ -14,7 +14,12 @@ export default async function OwnerHome() {
   ]);
   return (
     <div className="space-y-6">
-      <h1 className="text-[28px] font-extrabold">Your properties with {company.name}</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-[28px] font-extrabold">Your properties with {company.name}</h1>
+        <Link href="/owner/documents" className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-line-strong bg-surface px-4 text-sm font-semibold">
+          Documents
+        </Link>
+      </div>
       {owners.map((o) => {
         const units = o.property.flatMap((p) => p.unit);
         const occupied = units.filter((u) => u.status === "occupied" || u.status === "notice").length;
