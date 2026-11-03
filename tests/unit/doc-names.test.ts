@@ -14,6 +14,7 @@ describe("AppFolio document names", () => {
 
   it("turns camera, scanner and random names into Photo or Scan", () => {
     expect(documentName("IMG_7042.jpeg", "Zoe Q. Tester")).toBe("Photo – Zoe Q. Tester.jpeg");
+    expect(documentName("image.jpg", "Zoe Q. Tester")).toBe("Photo – Zoe Q. Tester.jpg");
     expect(documentName("AD9E85F4-26B6-4CB2-8E44-D45906877833.jpeg", "Zoe Q. Tester")).toBe("Photo – Zoe Q. Tester.jpeg");
     expect(documentName("8503143587034385042.pdf", "Unit 204")).toBe("Scan – Unit 204.pdf");
     expect(documentName("Screenshot_20260311_175501_Chrome.jpg", "Zoe Q. Tester")).toBe("Screenshot – Zoe Q. Tester – Mar 11, 2026.jpg");

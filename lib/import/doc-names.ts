@@ -45,7 +45,7 @@ export function describeFile(original: string): NamedDoc {
   x = base.match(/^screen ?shot[ _-]?(\d{4})-?(\d{2})-?(\d{2})/i);
   if (x) return { what: "Screenshot", date: day(+x[1], +x[2], +x[3]), ext };
   // Camera, scanner and random names say nothing: call them what they are.
-  if (/^(img|dsc|pxl|mvimg|photo|image)[ _-]?\d+$/i.test(base) || /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(base)) return { what: "Photo", date: "", ext };
+  if (/^(img|dsc|pxl|mvimg|photo|image)([ _-]?\d+)?$/i.test(base) || /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(base)) return { what: "Photo", date: "", ext };
   // Download links and mail attachments with machine names ("att.OTHAM…", ",DanaInfo=…").
   if (/^att\.|danainfo|[=+]/i.test(base) || (/^[A-Za-z0-9._-]{20,}$/.test(base) && !/[ _-][A-Za-z]{3,}[ _-]/.test(base) && /\d/.test(base) && /[A-Z]/.test(base) && /[a-z]/.test(base)))
     return { what: /^(jpe?g|png|heic|gif|webp)$/.test(ext) ? "Photo" : "Document", date: "", ext };

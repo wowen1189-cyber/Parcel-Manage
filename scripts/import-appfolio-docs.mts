@@ -103,6 +103,8 @@ async function main() {
   const DIR2 = "imports/appfolio-docs-2";
   type Entry = { id: string; name: string; kind: string; ref: string; title: string };
   const manifest: Entry[] = existsSync(`${DIR2}/manifest.json`) ? JSON.parse(readFileSync(`${DIR2}/manifest.json`, "utf8")) : [];
+  // Tenants the first pass missed: their property, from the AppFolio unit on their page.
+  const tenantProp2: Record<string, string> = existsSync(`${DIR2}/tenant-property.json`) ? JSON.parse(readFileSync(`${DIR2}/tenant-property.json`, "utf8")) : {};
   for (const m of manifest) owner.set(m.id, { kind: m.ref[0] as "p" | "o" | "u" | "w" | "v", id: m.ref.slice(1), title: m.title, lease: m.kind === "lease" });
   const propName = new Map(readFileSync(`${DIR}/records.txt`, "utf8").split("\n").filter(Boolean).map((l) => [l.split("~")[0].slice(1), l.split("~")[1]] as const));
   const tenants = new Map(
@@ -132,7 +134,12 @@ async function main() {
     db.from("entity").select("id, name").eq("company_id", cid),
     db.from("vendor").select("id, contact(first_name, last_name, business_name)").eq("company_id", cid),
   ]);
-  const entityByName = (n: string) => (entities ?? []).find((e) => norm(e.name) === norm(n))?.id ?? null;
+  // A person who is an owner in AppFolio (a partner) is a partner on an LLC's property here: file on that LLC.
+  const { data: partners } = await db.from("property_owner").select("contact(first_name, last_name, business_name), property!inner(entity_id, company_id)").eq("property.company_id", cid);
+  const entityByName = (n: string) =>
+    (entities ?? []).find((e) => norm(e.name) === norm(n))?.id ??
+    (partners ?? []).find((p) => p.contact && [p.contact.business_name, `${p.contact.first_name ?? ""} ${p.contact.last_name ?? ""}`].some((x) => x && norm(x) === norm(n)))?.property.entity_id ??
+    null;
   const vendorByName = (n: string) =>
     (vendors ?? []).find((v) => {
       const c = v.contact;
@@ -225,7 +232,7 @@ async function main() {
         row = { ...row, lease_id: hit.lease.id, contact_id: hit.contact.id, property_id: hit.lease.unit.property_id, ...(hit.several ? { file_name: `${t!.name}: ${original}`.slice(0, 200) } : {}) };
         counts.lease++;
       } else {
-        const pname = tenantProp.get(o.id) || (t ? dirProp.get(nameKey(t.name)) : undefined) || "";
+        const pname = tenantProp.get(o.id) || (t ? dirProp.get(nameKey(t.name)) : undefined) || tenantProp2[o.id] || "";
         row.property_id = propByName.get(pname) ?? null;
         row.file_name = `${t?.name ?? "AppFolio tenant"}${t?.status === "P" ? " (past tenant)" : t?.status === "F" ? " (upcoming tenant)" : ""}: ${original}`.slice(0, 200);
         if (row.property_id) counts.tenantPropertyOnly++;
@@ -292,8 +299,11 @@ async function renameDocs(cid: string) {
     const original = rest.join(": ");
     const primary = d.lease?.lease_tenant.filter((t) => t.role === "tenant").sort((a, b) => Number(b.is_primary) - Number(a.is_primary))[0];
     const who = prefix || person(primary?.contact) || d.entity?.name || person(d.vendor?.contact) || null;
-    const category = d.category === "lease" && describeFile(original).what !== "Signed lease" ? "lease" : categoryFor(original);
-    return { d, name: documentName(original, who).slice(0, 200), category, record: d.lease_id ?? d.entity_id ?? d.vendor_id ?? d.property_id ?? "none" };
+    // A name already in "what – who" form was set by an earlier run (or a person): keep its type.
+    const category = original.includes(" – ") || (d.category === "lease" && describeFile(original).what !== "Signed lease") ? d.category : categoryFor(original);
+    // Already readable: only number repeats (strip an old number so it's counted again).
+    const name = original.includes(" – ") ? original.replace(/ \(\d+\)(?=\.[a-z0-9]+$|$)/i, "") : documentName(original, who).slice(0, 200);
+    return { d, name, category, record: d.lease_id ?? d.entity_id ?? d.vendor_id ?? d.property_id ?? "none" };
   });
   // Number repeats per record.
   const byRecord = new Map<string, typeof plan>();
@@ -301,7 +311,7 @@ async function renameDocs(cid: string) {
   for (const group of byRecord.values()) uniqueNames(group.map((p) => p.name)).forEach((n, i) => (group[i].name = n));
   const changes = plan.filter((p) => p.name !== p.d.file_name || p.category !== p.d.category);
   console.log(`${changes.length} of ${plan.length} AppFolio documents get a new name or type${commit ? "" : " (preview, nothing changes)"}:`);
-  for (const p of changes.slice(0, 40)) console.log(`  ${p.d.file_name}  →  ${p.name}${p.category !== p.d.category ? `  [${p.d.category} → ${p.category}]` : ""}`);
+  for (const p of changes.slice(0, commit ? 40 : 1000)) console.log(`  ${p.d.file_name}  →  ${p.name}${p.category !== p.d.category ? `  [${p.d.category} → ${p.category}]` : ""}`);
   if (!commit) return;
   let done = 0;
   for (const p of changes) {
