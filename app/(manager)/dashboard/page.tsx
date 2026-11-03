@@ -30,10 +30,12 @@ export default async function DashboardPage() {
     supabase.from("profile").select("preferences").eq("id", user.id).single(),
     supabase.from("lease").select("id, status, end_date, move_out_on, unit!inner(property_id)").eq("company_id", company.id).in("status", ["active", "notice"]),
   ]);
-  const [workOrders, { data: moveOuts }, { data: bills }] = await Promise.all([
+  const [workOrders, { data: moveOuts }, { data: bills }, { data: paid }] = await Promise.all([
     listWorkOrders(supabase, company.id, { q: "", view: "open", priority: "", property: "" }),
     supabase.from("move_out").select("id, lease_id, vacated_on, decision, claim_notice_sent_on, claim_notice_method, lease(unit(label, property(name)), lease_tenant(is_primary, role, contact(kind, first_name, last_name, business_name)))").eq("company_id", company.id).is("closed_at", null),
     supabase.from("bill").select("id, amount_cents").eq("company_id", company.id).eq("status", "received"),
+    // Collected this month: tenant payments received since the 1st, less any returned; deposits aren't counted.
+    supabase.from("payment").select("amount_cents").eq("company_id", company.id).gte("received_on", `${today.slice(0, 7)}-01`).lte("received_on", today).neq("status", "returned").neq("purpose", "deposit"),
   ]);
   const depositRows = (moveOuts ?? [])
     .map((m) => {
@@ -46,6 +48,7 @@ export default async function DashboardPage() {
   const occupied = units?.filter((u) => u.status === "occupied" || u.status === "notice").length ?? 0;
   const signed = leases.filter((l) => l.status !== "draft");
   const rent = signed.reduce((s, l) => s + l.rentCents, 0);
+  const collected = (paid ?? []).reduce((s, p) => s + p.amount_cents, 0);
   const owing = leases.filter((l) => (l.balanceCents ?? 0) > 0).sort((a, b) => (b.balanceCents ?? 0) - (a.balanceCents ?? 0));
   const owed = owing.reduce((s, l) => s + (l.balanceCents ?? 0), 0);
   const ending = leases.filter((l) => l.timing.daysLeft != null && l.timing.daysLeft <= 90).sort((a, b) => (a.timing.daysLeft ?? 0) - (b.timing.daysLeft ?? 0));
@@ -62,9 +65,10 @@ export default async function DashboardPage() {
 
   const tiles: Record<string, ReactNode> = {
     "key-numbers": (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatTile label="Occupancy" value={total ? `${Math.round((occupied / total) * 100)}%` : "—"} note={`${occupied} of ${total} units · ${propertyCount ?? 0} properties`} />
         <StatTile label="Monthly rent" value={money(rent)} note={`${signed.length} leases`} />
+        <StatTile label={`Collected in ${new Date(`${today}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" })}`} value={money(collected)} note={`${rent ? Math.round((collected / rent) * 100) : 0}% of monthly rent · ${paid?.length ?? 0} payment${paid?.length === 1 ? "" : "s"}`} />
         <StatTile label="Owed by tenants" value={money(owed)} note={`${owing.length} tenants`} />
         <StatTile label="Vacant" value={total - occupied} note={total - occupied === 1 ? "unit" : "units"} />
       </div>
