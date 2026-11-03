@@ -64,13 +64,14 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
     });
 
   // Term planner. Clicking a renewal loads that tenant here; clicking a length selects it.
-  const planProperty = param(params, "property") || props[0]?.id || "";
+  // A renewal plans for the tenant's own property; otherwise the one picked (first by default).
+  const renewing = (leases ?? []).find((l) => l.id === param(params, "lease")) ?? null;
+  const planProperty = renewing?.unit.property_id ?? (param(params, "property") || props[0]?.id || "");
   const planStart = /^\d{4}-\d{2}-\d{2}$/.test(param(params, "start")) ? param(params, "start") : firstOfNextMonth(today);
   const planRent = Number(param(params, "rent")) || 0;
   const plan = planProperty
     ? recommendTerms({ start: planStart, propertyId: planProperty, propertyUnits: unitsByProperty.get(planProperty) ?? 1, portfolioUnits, counts: countExpirations(ends, param(params, "lease") || undefined), rules })
     : [];
-  const renewing = (leases ?? []).find((l) => l.id === param(params, "lease") && l.unit.property_id === planProperty) ?? null;
   const picked = plan.find((o) => o.months === Number(param(params, "months"))) ?? null;
   const planHref = (extra: Record<string, string | number>) => {
     const q = new URLSearchParams({ property: planProperty, start: planStart, ...(planRent ? { rent: String(planRent) } : {}), ...(renewing ? { lease: renewing.id } : {}) });
@@ -190,17 +191,28 @@ export default async function ExpirationsPage({ searchParams }: PageProps<"/tena
               ) : undefined
             }
           />
-          <AutoSubmitForm action="/tenants/expirations" className="grid gap-3 border-b border-line px-5 py-4 sm:grid-cols-[1fr_150px_120px_auto] sm:items-end">
-            {renewing && <input type="hidden" name="lease" value={renewing.id} />}
-            <Field label="Property">
-              <Select name="property" defaultValue={planProperty}>
-                {props.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+          {/* Keyed so the boxes reset when another tenant is picked; a renewal is always for the tenant's own property. */}
+          <AutoSubmitForm key={`${renewing?.id ?? ""}:${planProperty}:${planStart}`} action="/tenants/expirations" className="grid gap-3 border-b border-line px-5 py-4 sm:grid-cols-[1fr_150px_120px_auto] sm:items-end">
+            {renewing ? (
+              <div>
+                <input type="hidden" name="lease" value={renewing.id} />
+                <input type="hidden" name="property" value={planProperty} />
+                <p className="text-[13px] font-semibold text-ink-2">Property</p>
+                <p className="mt-1.5 flex min-h-11 items-center text-sm font-semibold">
+                  {props.find((p) => p.id === planProperty)?.name} · {renewing.unit.label}
+                </p>
+              </div>
+            ) : (
+              <Field label="Property">
+                <Select name="property" defaultValue={planProperty}>
+                  {props.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
             <Field label="Starts">
               <Input type="date" name="start" defaultValue={planStart} />
             </Field>
