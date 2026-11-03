@@ -5,6 +5,8 @@
 // bills and the owner's cash reserve, never below zero (docs/02: distributions after expenses, debt service
 // and reserve). It's split by ownership percent when the owner's properties have partners.
 
+import type { StatementDetail } from "./owner-statement-detail";
+
 export type StatementProperty = {
   id: string;
   name: string;
@@ -29,6 +31,8 @@ export type StatementTotals = {
   // Own-books owners: money the owner took out (owner draws) and put in this month. Older statements lack them.
   drawsCents?: number;
   contributionsCents?: number;
+  // The itemized lines and cash walk (lib/owner-statement-detail.ts), saved at close. Older statements lack it.
+  detail?: StatementDetail;
 };
 
 export function distributable(endingCashCents: number, payablesCents: number, reserveCents: number): number {

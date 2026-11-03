@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardHeader, Notice, PageHeader, Pill } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
+import { StatementDetailView } from "@/components/statement-detail";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money, todayIn } from "@/lib/format";
 import type { StatementProperty, StatementTotals } from "@/lib/owner-statements";
@@ -86,6 +87,13 @@ export default async function StatementPage({ params, searchParams }: PageProps<
           </Table>
         </Card>
       </div>
+      {t.detail ? (
+        <div className="mt-6">
+          <StatementDetailView detail={t.detail} />
+        </div>
+      ) : (
+        <p className="mt-6 text-[13px] text-subtle">This statement was closed before itemized lines were added.</p>
+      )}
       <Card className="mt-6 overflow-hidden">
         <CardHeader title="Distributions" description="Split by ownership percent. Record each payout when it's sent." />
         {st.owner_distribution.length ? (

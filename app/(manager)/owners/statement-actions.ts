@@ -8,6 +8,7 @@ import { money } from "@/lib/format";
 import { sendEmail } from "@/lib/integrations/resend/send";
 import { letterPdf } from "@/lib/letter-pdf";
 import { previewStatement } from "@/lib/owner-close";
+import { detailRows, type StatementDetail } from "@/lib/owner-statement-detail";
 import { splitByOwnership } from "@/lib/owner-statements";
 import { requireCompany } from "@/lib/session";
 
@@ -39,7 +40,7 @@ export async function closeMonth(_: CloseState, form: FormData): Promise<CloseSt
 
   const { data: statement, error } = await supabase
     .from("owner_statement")
-    .insert({ company_id: company.id, entity_id: p.data.entity_id, period_start: s.from, period_end: s.to, totals: s.totals as never, lines: s.properties as never, fee_entry_ids: [], created_by: user.id })
+    .insert({ company_id: company.id, entity_id: p.data.entity_id, period_start: s.from, period_end: s.to, totals: { ...s.totals, detail: s.detail } as never, lines: s.properties as never, fee_entry_ids: [], created_by: user.id })
     .select("id")
     .single();
   if (error) return { error: error.message };
@@ -110,6 +111,8 @@ export async function emailStatement(_: CloseState, form: FormData): Promise<Clo
     ...props.map((p) => `${p.name}: gross income collected ${money(p.collectedCents)}, fees ${money(p.managementFeeCents + p.leasingFeeCents)}`),
     "",
     ...st.owner_distribution.map((d) => `${d.payee_name}: ${money(d.amount_cents)} (${d.status})`),
+    "",
+    ...(t.detail ? detailRows(t.detail as unknown as StatementDetail, money) : []),
   ];
   const pdf = await letterPdf({ letterhead: [company.legal_name ?? company.name, company.address ?? "", company.office_phone ?? ""], date: st.period_end, title: `Owner statement: ${st.entity.name}, ${month}`, paragraphs: rows.filter((r) => r !== "") });
   const content = {

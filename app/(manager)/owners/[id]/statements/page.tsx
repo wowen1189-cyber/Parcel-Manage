@@ -5,6 +5,7 @@ import { param } from "@/components/list-filters";
 import { RowLink, Table, Tbody, Td, Th, Thead } from "@/components/table";
 import { date, money, todayIn } from "@/lib/format";
 import { previewStatement } from "@/lib/owner-close";
+import { StatementDetailView } from "@/components/statement-detail";
 import { previousMonth, splitByOwnership } from "@/lib/owner-statements";
 import { requireCompany } from "@/lib/session";
 import { CloseMonthForm, ReserveForm } from "../../statement-forms";
@@ -35,17 +36,17 @@ export default async function StatementsPage({ params, searchParams }: PageProps
             ? `${s.owner.name}: monthly close. Fees come from the month's fee bill; distributions are what's left after bills, unpaid fees and the reserve, and the statement must tie to the bank.`
             : `${s.owner.name}: own books. The money stays in the owner's own bank, so there's nothing to distribute; the statement shows income, expenses, fees and owner draws.`
         } />
-      <Card className="mb-6 p-5">
+      <Card className="mb-6 flex flex-wrap items-end gap-3 p-5">
         <form action={`/owners/${id}/statements`} className="flex flex-wrap items-end gap-3">
           <label className="text-[13px] font-semibold text-ink-2">
             Month
             <input type="month" name="month" defaultValue={month} max={today.slice(0, 7)} className="mt-1.5 block min-h-11 rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 text-sm" />
           </label>
           <button className="min-h-11 rounded-[var(--radius-control)] border border-line-strong bg-surface px-4 text-sm font-semibold">Show</button>
-          <div className="ml-auto">
-            <ReserveForm entityId={id} reserve={(s.owner.reserve_cents / 100).toFixed(2)} />
-          </div>
         </form>
+        <div className="ml-auto">
+          <ReserveForm entityId={id} reserve={(s.owner.reserve_cents / 100).toFixed(2)} />
+        </div>
       </Card>
 
       {closed ? (
@@ -119,6 +120,9 @@ export default async function StatementsPage({ params, searchParams }: PageProps
               </div>
             )}
           </Card>
+          <div className="mt-6">
+            <StatementDetailView detail={s.detail} />
+          </div>
         </>
       )}
 

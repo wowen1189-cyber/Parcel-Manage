@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardHeader, Pill } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
+import { StatementDetailView } from "@/components/statement-detail";
 import { date, money } from "@/lib/format";
 import type { StatementProperty, StatementTotals } from "@/lib/owner-statements";
 import { requireOwner } from "@/lib/portal";
@@ -64,6 +65,7 @@ export default async function OwnerStatementPage({ params }: PageProps<"/owner/s
           ))}
         </ul>
       </Card>
+      {t.detail && <StatementDetailView detail={t.detail} />}
       <Card>
         <CardHeader title="Distributions" />
         <ul className="divide-y divide-line">

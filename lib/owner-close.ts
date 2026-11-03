@@ -1,10 +1,11 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalBalance, type AccountBalance } from "@/lib/books";
-import { feeTotal, type FeeLine } from "@/lib/fee-billing";
+import { FEE_KIND_LABEL, feeTotal, type FeeLine } from "@/lib/fee-billing";
 import { ownerMonthFees } from "@/lib/fee-billing-data";
 import { contactName } from "@/lib/format";
 import { describeFeeParts } from "@/lib/management-fees";
+import { cashFlow, itemize, type DetailLine } from "@/lib/owner-statement-detail";
 import { distributable, payeesFor, type StatementProperty, type StatementTotals } from "@/lib/owner-statements";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -21,13 +22,22 @@ export async function previewStatement(supabase: Db, company: { id: string; sett
   if (!f) return null;
   const { owner, from, to } = f;
   const dayBefore = new Date(new Date(`${from}T12:00:00Z`).getTime() - 86_400_000).toISOString().slice(0, 10);
-  const [before, period, asOf, { data: bills }, { data: invoice }, { data: banks }] = await Promise.all([
+  const [before, period, asOf, { data: bills }, { data: invoice }, { data: banks }, { data: booked }] = await Promise.all([
     supabase.rpc("account_balances", { p_company: company.id, p_entity: entityId, p_from: "1900-01-01", p_to: dayBefore }),
     supabase.rpc("account_balances", { p_company: company.id, p_entity: entityId, p_from: from, p_to: to }),
     supabase.rpc("account_balances", { p_company: company.id, p_entity: entityId, p_from: "1900-01-01", p_to: to }),
     supabase.from("bill").select("amount_cents").eq("company_id", company.id).eq("entity_id", entityId).eq("status", "approved"),
     supabase.from("fee_invoice").select("id, number, status, total_cents, lines").eq("owner_entity_id", entityId).eq("period_start", from).neq("status", "void").maybeSingle(),
     supabase.from("bank_account").select("id, name, last4, gl_number, reconciliation(statement_date, statement_balance_cents)").eq("company_id", company.id).eq("entity_id", entityId),
+    supabase
+      .from("journal_line")
+      .select("debit_cents, credit_cents, property_id, memo, unit(label), journal_entry!inner(id, entity_id, entry_date, memo, source, status), gl_account!inner(number, name, type)")
+      .eq("company_id", company.id)
+      .eq("journal_entry.entity_id", entityId)
+      .in("journal_entry.status", ["posted", "reversed"])
+      .gte("journal_entry.entry_date", from)
+      .lte("journal_entry.entry_date", to)
+      .limit(20000),
   ]);
 
   // The bill decides the fees once it exists; until then, what it would be.
@@ -84,5 +94,37 @@ export async function previewStatement(supabase: Db, company: { id: string; sett
     return { name: `${b.name} …${b.last4 ?? ""}`, through: last?.statement_date ?? null, ok: Boolean(last && last.statement_date >= to) };
   });
   const tieOut = { accounts: reconciled, ok: operating.length > 0 && reconciled.every((r) => r.ok) };
-  return { owner, properties, totals, payees, from, to, invoice, feeLines: lines, managed, tieOut };
+
+  // The itemized detail (lib/owner-statement-detail.ts): each income and expense line, and the cash walk.
+  const entryIds = [...new Set((booked ?? []).map((l) => l.journal_entry.id))];
+  const { data: billRows } = entryIds.length
+    ? await supabase.from("bill").select("journal_entry_id, paid_entry_id, vendor(contact(kind, first_name, last_name, business_name))").eq("company_id", company.id).eq("entity_id", entityId).or(`journal_entry_id.in.(${entryIds.join(",")}),paid_entry_id.in.(${entryIds.join(",")})`)
+    : { data: [] };
+  const vendorOf = new Map<string, string>();
+  for (const b of billRows ?? []) {
+    const name = b.vendor?.contact ? contactName(b.vendor.contact) : null;
+    if (!name) continue;
+    if (b.journal_entry_id) vendorOf.set(b.journal_entry_id, name);
+    if (b.paid_entry_id) vendorOf.set(b.paid_entry_id, name);
+  }
+  const detailLines: DetailLine[] = (booked ?? []).map((l) => ({
+    entryId: l.journal_entry.id,
+    date: l.journal_entry.entry_date,
+    source: l.journal_entry.source,
+    account: l.gl_account.number,
+    accountName: l.gl_account.name,
+    type: l.gl_account.type,
+    debit: Number(l.debit_cents),
+    credit: Number(l.credit_cents),
+    propertyId: l.property_id,
+    unit: l.unit?.label ?? null,
+    memo: l.memo || l.journal_entry.memo,
+    payee: vendorOf.get(l.journal_entry.id) ?? null,
+  }));
+  const unposted = posted ? [] : lines.map((l) => ({ propertyId: l.propertyId, label: `${FEE_KIND_LABEL[l.kind]}, ${l.property}`, amountCents: l.amountCents }));
+  const detail = {
+    groups: itemize(detailLines, properties, unposted, to),
+    cash: cashFlow(detailLines, totals.beginningCashCents, endingCash),
+  };
+  return { owner, properties, totals, payees, from, to, invoice, feeLines: lines, managed, tieOut, detail };
 }
