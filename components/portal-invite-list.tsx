@@ -26,7 +26,14 @@ export function PortalInviteList({ rows, noun, canSend }: { rows: InviteRow[]; n
   const pick = (which: "new" | "all" | "none") => setChecked(new Set(which === "none" ? [] : sendable.filter((r) => which === "all" || r.status === "new").map((r) => r.key)));
 
   return (
-    <form action={(f) => (setConfirming(false), action(f))}>
+    <form
+      action={(f) => {
+        // Clear the ticks once sent, so pressing Send again can't e-mail the same people twice.
+        setConfirming(false);
+        setChecked(new Set());
+        action(f);
+      }}
+    >
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3 text-[13px]">
         <span className="font-semibold">{checked.size} checked</span>
         <span className="text-subtle">·</span>

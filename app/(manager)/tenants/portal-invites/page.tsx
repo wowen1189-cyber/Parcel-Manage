@@ -18,7 +18,7 @@ export default async function TenantPortalInvitesPage() {
     <>
       <PageHeader title="Tenant portal invites" subtitle="Tenants can only sign in to the portal after you invite them." action={<Link href="/tenants" className="text-[13px] font-semibold text-accent hover:underline">← Tenants</Link>} />
       <Card className="overflow-hidden">
-        <CardHeader title={`${rows.length} tenants on current leases`} description={`${invited} invited so far. Check who should get an invite, then press Send. Each person gets an e-mail with the link and signs in with that same e-mail address.`} />
+        <CardHeader title={`${rows.length} ${rows.length === 1 ? "tenant" : "tenants"} on current leases`} description={`${invited} invited so far. Check who should get an invite, then press Send. Each person gets an e-mail with the link and signs in with that same e-mail address.`} />
         {rows.length ? <PortalInviteList rows={rows} noun="tenant" canSend={canSend} /> : <EmptyState title="No current tenants">Add a lease first.</EmptyState>}
       </Card>
     </>

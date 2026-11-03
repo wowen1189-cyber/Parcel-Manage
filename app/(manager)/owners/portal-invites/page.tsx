@@ -25,7 +25,7 @@ export default async function OwnerPortalInvitesPage({ searchParams }: PageProps
       />
       <Card className="overflow-hidden">
         <CardHeader
-          title={owner && rows[0] ? rows[0].name : `${rows.length} owners and partners`}
+          title={owner && rows[0] ? rows[0].name : `${rows.length} ${rows.length === 1 ? "owner or partner" : "owners and partners"}`}
           description={`${invited} invited so far. An owner sees their properties, statements, distributions and the documents you share with them. A partner sees the owners they're a partner in.`}
         />
         {owner && (
