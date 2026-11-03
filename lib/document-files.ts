@@ -34,4 +34,4 @@ export async function documentLinks(docs: { storage_path: string }[]): Promise<M
   return links;
 }
 
-export const DOCUMENT_TYPE_LABEL: Record<string, string> = { lease: "Lease", notice: "Notice", statement: "Statement", insurance: "Insurance", inspection: "Inspection", photo: "Photo", application: "Application", invoice: "Invoice", other: "Other" };
+export const DOCUMENT_TYPE_LABEL: Record<string, string> = { lease: "Lease", notice: "Notice", statement: "Statement", insurance: "Insurance", inspection: "Inspection", photo: "Photo", application: "Application", invoice: "Invoice", agreement: "Agreement", other: "Other" };
