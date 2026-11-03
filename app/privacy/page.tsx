@@ -79,7 +79,7 @@ export default function PrivacyPage() {
         <p>Only the service providers that run parts of Parcel Manage for us, each limited to what its job needs:</p>
         <ul className="list-disc space-y-2 pl-5">
           <li>Supabase (database and file storage, in the United States) and Vercel (hosting).</li>
-          <li>Stripe (payments and bank connections), Resend (e-mail) and Checkr (tenant screening).</li>
+          <li>Stripe (payments and bank connections), Resend (e-mail), Twilio (text messages) and Checkr (tenant screening).</li>
           <li>The AI provider a property management company chooses to connect with its own key, for the AI features it turns on.</li>
         </ul>
         <p>We may also share information if the law requires it, or to protect people&apos;s safety or our rights.</p>
@@ -101,7 +101,7 @@ export default function PrivacyPage() {
           <a href={`mailto:${CONTACT}`} className="font-semibold text-accent underline">
             {CONTACT}
           </a>
-          , to see or correct your information. You can opt out of text messages by replying STOP. Parcel Manage isn&apos;t meant for children under 13.
+          , to see or correct your information. Text messages go only to people who agree to them, and you can opt out by replying STOP (see our <Link href="/texting" className="font-semibold text-accent underline">texting terms</Link>). Mobile numbers and text consent are never shared with third parties or affiliates for marketing. Parcel Manage isn&apos;t meant for children under 13.
         </p>
       </Section>
 

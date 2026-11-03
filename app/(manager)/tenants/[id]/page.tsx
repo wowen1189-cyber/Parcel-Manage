@@ -10,11 +10,13 @@ import { requireCompany } from "@/lib/session";
 import { LeaseNotesForm, BillingSettingsForm, TenantContactForm } from "../forms";
 import { HouseholdCard } from "./household";
 import { ChargeForm, PaymentForm, ReturnPaymentButton } from "./ledger";
-import { InviteButton, ReplyForm } from "./portal";
+import { InviteButton, PracticeReplyForm, ReplyForm, TextForm } from "./portal";
 import { buildLedger } from "@/lib/ledger";
 import { depositHeldCents } from "@/lib/deposits";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
+import { prettyPhone, toE164 } from "@/lib/sms";
 import { smsStatus } from "@/lib/sms-consent";
+import { companyTextMode } from "@/lib/sms-send";
 import { TenantDocumentUpload } from "./document-upload";
 import { DocumentList } from "@/components/document-list";
 import { listDocuments } from "@/lib/document-files";
@@ -82,12 +84,14 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
   const tenantContacts = people.filter((p) => p.role === "tenant").map((p) => p.contact);
   const { data: messages } = await supabase
     .from("message")
-    .select("id, direction, body, sender_name, sender_title, created_at, contact_id")
+    .select("id, channel, direction, body, status, sender_name, sender_title, created_at, contact_id")
     .eq("company_id", company.id)
     .in("contact_id", tenantContacts.map((c) => c.id))
     .order("created_at", { ascending: false })
     .limit(20);
   const docs = await listDocuments(supabase, company.id, { leaseIds: [l.id] });
+  const textMode = companyTextMode(company);
+  const textable = tenantContacts.filter((c) => c.sms_opt_in && toE164(c.mobile)).map((c) => ({ id: c.id, name: contactName(c), mobile: prettyPhone(toE164(c.mobile)) }));
 
 
   return (
@@ -151,7 +155,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
         </div>
       )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr]">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] [&>*]:min-w-0">
         <div className="space-y-6">
           <Card>
             <CardHeader title="Lease terms" description={commercial ? "Commercial lease (Fla. Stat. ch. 83, Part I)." : "Residential lease (Fla. Stat. ch. 83, Part II)."} />
@@ -272,7 +276,7 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                         )}
                       </>
                     ) : smsStatus(c) === "opted_out" ? (
-                      <span className="text-subtle">Texts off (stopped {c.sms_opt_out_at ? date(c.sms_opt_out_at.slice(0, 10)) : ""}). Only they can turn texts back on, in the portal.</span>
+                      <span className="text-subtle">Texts off (stopped {c.sms_opt_out_at ? date(c.sms_opt_out_at.slice(0, 10)) : ""}). Only they can turn texts back on, in the portal or by texting START.</span>
                     ) : (
                       <span className="text-subtle">No texts: they haven&apos;t agreed. They can turn texts on in the portal (My lease).</span>
                     )}
@@ -369,14 +373,18 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
             </ul>
           </Card>
           <Card>
-            <CardHeader title="Messages" description="Portal messages with this household, newest first." />
+            <CardHeader title="Messages and texts" description="Portal messages and texts with this household, newest first." />
             <div className="space-y-2 px-5 py-4">
+              {!textMode.live && textable.length > 0 && canEdit && <Notice tone="info">Practice mode: texts are saved here but not sent. {textMode.reason}</Notice>}
               {messages?.length ? (
                 messages.map((m) => (
                   <div key={m.id} className={`rounded-[12px] px-3 py-2 text-[14px] ${m.direction === "inbound" ? "bg-surface-muted" : "bg-accent-softer"}`}>
                     <p className="whitespace-pre-wrap">{m.body}</p>
-                    <p className="mt-1 text-[12px] text-subtle">
-                      {m.direction === "inbound" ? contactName(tenantContacts.find((c) => c.id === m.contact_id)) : [m.sender_name, m.sender_title].filter(Boolean).join(", ")} · {date(m.created_at.slice(0, 10))}
+                    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-subtle">
+                      {m.channel === "sms" && <Pill tone={m.status === "failed" ? "danger" : m.status === "simulated" ? "warn" : "info"}>{m.status === "simulated" ? "Practice text, not sent" : m.status === "failed" ? "Text failed" : "Text"}</Pill>}
+                      <span>
+                        {m.direction === "inbound" ? contactName(tenantContacts.find((c) => c.id === m.contact_id)) : [m.sender_name, m.sender_title].filter(Boolean).join(", ")} · {date(m.created_at.slice(0, 10))}
+                      </span>
                     </p>
                   </div>
                 ))
@@ -384,6 +392,10 @@ export default async function LeasePage({ params, searchParams }: PageProps<"/te
                 <p className="text-[13px] text-subtle">No messages yet.</p>
               )}
               {tenantContacts[0] && canEdit && <ReplyForm contactId={(messages?.find((m) => m.direction === "inbound")?.contact_id ?? tenantContacts[0].id) as string} leaseId={l.id} />}
+              {canEdit && (textable.length ? <TextForm people={textable} leaseId={l.id} practice={!textMode.live} /> : <p className="border-t border-line pt-3 text-[13px] text-subtle">No one here can get texts yet: a tenant turns texts on in their portal (My lease).</p>)}
+              {canEdit && !textMode.live && tenantContacts.some((c) => c.sms_opt_in_at && toE164(c.mobile)) && (
+                <PracticeReplyForm people={tenantContacts.filter((c) => c.sms_opt_in_at && toE164(c.mobile)).map((c) => ({ id: c.id, name: contactName(c) }))} leaseId={l.id} />
+              )}
             </div>
           </Card>
           <Card>

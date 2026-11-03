@@ -76,7 +76,7 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
       .eq("id", id)
       .eq("company_id", company.id)
       .maybeSingle(),
-    supabase.from("vendor").select("id, trade, w9_on_file, coi_expires_on, workers_comp_expires_on, dispatch_override, contact(first_name, last_name, business_name, email)").eq("company_id", company.id).eq("is_active", true),
+    supabase.from("vendor").select("id, trade, w9_on_file, coi_expires_on, workers_comp_expires_on, dispatch_override, contact(first_name, last_name, business_name, email, sms_opt_in)").eq("company_id", company.id).eq("is_active", true),
   ]);
   if (!w) notFound();
 
@@ -90,7 +90,7 @@ export default async function WorkOrderPage({ params, searchParams }: PageProps<
   const vendorOptions: VendorOption[] = (vendors ?? [])
     .map((v) => {
       const c = vendorCompliance(v, today);
-      return { id: v.id, name: contactName(v.contact), trade: v.trade, canDispatch: c.canDispatch, issues: c.issues, matchesTrade: fit.includes(v.trade ?? ""), email: v.contact.email };
+      return { id: v.id, name: contactName(v.contact), trade: v.trade, canDispatch: c.canDispatch, issues: c.issues, matchesTrade: fit.includes(v.trade ?? ""), email: v.contact.email, texts: Boolean(v.contact.sms_opt_in) };
     })
     .sort((a, b) => Number(b.canDispatch) - Number(a.canDispatch) || a.name.localeCompare(b.name));
   const events = [...w.work_order_event].sort((a, b) => b.created_at.localeCompare(a.created_at));

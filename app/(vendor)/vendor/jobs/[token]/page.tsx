@@ -9,7 +9,8 @@ import { JobFinish } from "@/components/job-finish";
 import { aiReady } from "@/lib/job-finish";
 import { hoursSince } from "@/lib/job-finish-rules";
 import { finishJob, jobReadInvoice, jobWriteUp, startJobUpload } from "./actions";
-import { AcceptDecline, CheckInButton, ScheduleForm } from "./job-forms";
+import { AcceptDecline, CheckInButton, ScheduleForm, VendorTextsForm } from "./job-forms";
+import { vendorSmsConsentText } from "@/lib/sms-consent";
 
 export const metadata: Metadata = { title: "Work order", robots: { index: false, follow: false } };
 // The AI write-up and invoice reading can take most of a minute.
@@ -139,6 +140,12 @@ export default async function VendorJobPage({ params }: PageProps<"/vendor/jobs/
         <Card className="mt-4 p-5">
           <p className="font-semibold">Marked done. Thank you!</p>
           {wo.resolution && <p className="mt-1 text-muted">{wo.resolution}</p>}
+        </Card>
+      )}
+      {wo.vendor && (
+        <Card className="mt-4 p-5">
+          <h2 className="mb-3 font-semibold">Get new jobs by text</h2>
+          <VendorTextsForm token={token} on={wo.vendor.contact.sms_opt_in} mobile={wo.vendor.contact.mobile ?? ""} consent={vendorSmsConsentText(wo.company.name)} />
         </Card>
       )}
       <p className="mt-8 text-[14px] text-subtle">

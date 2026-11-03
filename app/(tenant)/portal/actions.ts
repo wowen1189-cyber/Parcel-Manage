@@ -10,6 +10,7 @@ import { emailHtml, emailText } from "@/lib/email/layout";
 import { ROOT_DOMAIN } from "@/lib/env";
 import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
 import { requireTenant } from "@/lib/portal";
+import { textAlert } from "@/lib/sms-send";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { companyUrl } from "@/lib/tenant";
 import { FALSE_EMERGENCY_ACK, findSymptom, PRIORITY_DB, SAFETY_OPTIONS, technicianSummary, triagePriority } from "@/lib/triage";
@@ -116,6 +117,14 @@ export async function createRequest(_: PortalState, form: FormData): Promise<Por
     [`<strong>${escapeHtml(title)}</strong> at ${escapeHtml(lease.unit.property.name)}${lease.unit.label !== "Home" ? `, unit ${escapeHtml(lease.unit.label)}` : ""}.`, escapeHtml(summary)],
     `/maintenance/${wo.id}`,
   );
+  if (priority === "emergency") {
+    // Text the company's on-call number (Settings › Texting). Service role: tenants can't read company settings.
+    const db = createAdminClient();
+    const { data: c } = await db.from("company").select("id, name, subdomain, office_email, sms_from_number, sms_alert_number, sms_live").eq("id", company.id).single();
+    const where = `${lease.unit.property.name}${lease.unit.label !== "Home" ? ` unit ${lease.unit.label}` : ""}`;
+    const link = c?.subdomain ? ` ${companyUrl(c.subdomain, ROOT_DOMAIN, `/maintenance/${wo.id}`)}` : "";
+    if (c?.sms_alert_number) await textAlert(db, c, `EMERGENCY repair #${wo.number} at ${where}: ${title}.${link}`, wo.id);
+  }
   revalidatePath("/portal");
   redirect(`/portal/maintenance/${wo.id}?sent=1`);
 }

@@ -13,7 +13,7 @@ function Status({ state }: { state: FormState }) {
   return null;
 }
 
-export type VendorOption = { id: string; name: string; trade: string | null; canDispatch: boolean; issues: string[]; matchesTrade: boolean; email: string | null };
+export type VendorOption = { id: string; name: string; trade: string | null; canDispatch: boolean; issues: string[]; matchesTrade: boolean; email: string | null; texts: boolean };
 
 export function AssignVendorForm({ workOrderId, vendors, currentVendorId }: { workOrderId: string; vendors: VendorOption[]; currentVendorId: string | null }) {
   const [state, action, pending] = useActionState(assignVendor, empty);
@@ -44,6 +44,12 @@ export function AssignVendorForm({ workOrderId, vendors, currentVendorId }: { wo
         <input type="checkbox" name="email_vendor" defaultChecked className="size-5 accent-[var(--color-accent)]" />
         Email the job to them now{picked?.email ? ` (${picked.email})` : picked ? " (no email on file)" : ""}
       </label>
+      {picked?.texts && (
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" name="text_vendor" defaultChecked className="size-5 accent-[var(--color-accent)]" />
+          Text the job to them too
+        </label>
+      )}
       <Button type="submit" small disabled={pending || !vendorId}>
         {pending ? "Assigning…" : currentVendorId ? "Change vendor" : "Assign vendor"}
       </Button>

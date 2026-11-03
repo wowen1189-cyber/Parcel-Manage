@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button, Field, Input, Notice, Select } from "@/components/ui";
-import { acceptJob, checkIn, declineJob, scheduleJob, type JobState } from "./actions";
+import { acceptJob, checkIn, declineJob, scheduleJob, setVendorTexts, type JobState } from "./actions";
 
 const empty: JobState = {};
 
@@ -84,6 +84,40 @@ export function CheckInButton({ token }: { token: string }) {
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? "Checking in…" : "I'm here: check in"}
       </Button>
+    </form>
+  );
+}
+
+/** Job texts: the vendor agrees with the consent wording, or turns texts off. */
+export function VendorTextsForm({ token, on, mobile, consent }: { token: string; on: boolean; mobile: string; consent: string }) {
+  const [state, action, pending] = useActionState(setVendorTexts, empty);
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="token" value={token} />
+      {state.error && <Notice tone="danger">{state.error}</Notice>}
+      {state.message && <Notice tone="success">{state.message}</Notice>}
+      {on ? (
+        <>
+          <p className="text-[14px]">Job texts are on for {mobile}.</p>
+          <Button type="submit" small variant="secondary" disabled={pending}>
+            Turn job texts off
+          </Button>
+        </>
+      ) : (
+        <>
+          <input type="hidden" name="texts" value="on" />
+          <Field label="Mobile number">
+            <Input name="mobile" defaultValue={state.values?.mobile ?? mobile} inputMode="tel" autoComplete="tel" />
+          </Field>
+          <label className="flex items-start gap-3 text-[14px]">
+            <input type="checkbox" name="agree" className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
+            <span>{consent}</span>
+          </label>
+          <Button type="submit" small disabled={pending}>
+            {pending ? "Saving…" : "Text me new jobs"}
+          </Button>
+        </>
+      )}
     </form>
   );
 }

@@ -12,6 +12,7 @@ import { finishSchema, jobPhotoPaths } from "@/lib/job-finish-rules";
 import { signedJobUpload, type InvoiceReadResult, type UploadKind, type UploadStart, type WriteUpResult } from "@/lib/job-upload";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadJob } from "@/lib/vendor-jobs";
+import { toE164 } from "@/lib/sms";
 import { companyUrl } from "@/lib/tenant";
 import { checkEntryWindow, formatWhen, zonedToDate } from "@/lib/work-orders";
 
@@ -179,4 +180,25 @@ export async function finishJob(token: string, _: JobState, form: FormData): Pro
   );
   revalidatePath(`/vendor/jobs/${token}`);
   return { message: `Thanks! Marked done.${p.data.amount ? " Your invoice was sent to the office for approval." : ""}` };
+}
+
+/** The vendor turns job texts on (only they can agree, with their mobile number) or off. */
+export async function setVendorTexts(_: JobState, form: FormData): Promise<JobState> {
+  const found = await loadJob(String(form.get("token")));
+  if (!found?.wo.vendor) return { error: DEAD };
+  const { db, wo } = found;
+  const contactId = wo.vendor!.contact.id;
+  const now = new Date().toISOString();
+  if (form.get("texts") !== "on") {
+    await db.from("contact").update({ sms_opt_in: false, sms_opt_out_at: now }).eq("id", contactId).eq("company_id", wo.company_id);
+    revalidatePath(`/vendor/jobs/${form.get("token")}`);
+    return { message: "Job texts are off." };
+  }
+  const mobile = String(form.get("mobile") ?? "").trim();
+  if (!toE164(mobile)) return { error: "Enter your 10-digit mobile number.", values: { mobile } };
+  if (form.get("agree") !== "on") return { error: "Check the box to agree to texts.", values: { mobile } };
+  await db.from("contact").update({ mobile, sms_opt_in: true, sms_opt_in_at: now, sms_opt_out_at: null }).eq("id", contactId).eq("company_id", wo.company_id);
+  await event(db, wo, "note", { note: `${vendorName(wo)} turned on job texts.` });
+  revalidatePath(`/vendor/jobs/${form.get("token")}`);
+  return { message: "Job texts are on. Reply STOP to any text to turn them off." };
 }

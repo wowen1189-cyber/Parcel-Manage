@@ -376,6 +376,6 @@ export const LETTERS: LetterTemplate[] = [
   },
 ];
 
-export const DELIVERY_LABEL: Record<string, string> = { email: "E-mail", portal: "Portal", posted: "Posted on the door", hand_delivered: "Hand-delivered", mail: "Mailed", certified_mail: "Certified mail", print: "Printed" };
+export const DELIVERY_LABEL: Record<string, string> = { email: "E-mail", portal: "Portal", sms: "Text", posted: "Posted on the door", hand_delivered: "Hand-delivered", mail: "Mailed", certified_mail: "Certified mail", print: "Printed" };
 
 export const letterById = (id: string) => LETTERS.find((l) => l.id === id);

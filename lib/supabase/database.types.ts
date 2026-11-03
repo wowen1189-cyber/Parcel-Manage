@@ -1166,6 +1166,9 @@ export type Database = {
           office_email: string | null
           office_phone: string | null
           settings: Json
+          sms_alert_number: string | null
+          sms_from_number: string | null
+          sms_live: boolean
           stripe_account_id: string | null
           stripe_charges_enabled: boolean
           stripe_fc_customer_id: string | null
@@ -1183,6 +1186,9 @@ export type Database = {
           office_email?: string | null
           office_phone?: string | null
           settings?: Json
+          sms_alert_number?: string | null
+          sms_from_number?: string | null
+          sms_live?: boolean
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
           stripe_fc_customer_id?: string | null
@@ -1200,6 +1206,9 @@ export type Database = {
           office_email?: string | null
           office_phone?: string | null
           settings?: Json
+          sms_alert_number?: string | null
+          sms_from_number?: string | null
+          sms_live?: boolean
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
           stripe_fc_customer_id?: string | null
@@ -1223,6 +1232,7 @@ export type Database = {
           kind: string
           last_name: string | null
           mobile: string | null
+          mobile_digits: string | null
           notes: string | null
           owner_portal_invited_at: string | null
           phone: string | null
@@ -1250,6 +1260,7 @@ export type Database = {
           kind: string
           last_name?: string | null
           mobile?: string | null
+          mobile_digits?: string | null
           notes?: string | null
           owner_portal_invited_at?: string | null
           phone?: string | null
@@ -1277,6 +1288,7 @@ export type Database = {
           kind?: string
           last_name?: string | null
           mobile?: string | null
+          mobile_digits?: string | null
           notes?: string | null
           owner_portal_invited_at?: string | null
           phone?: string | null
@@ -2912,6 +2924,7 @@ export type Database = {
           subject: string | null
           template_id: string | null
           thread_key: string
+          work_order_id: string | null
         }
         Insert: {
           body: string
@@ -2933,6 +2946,7 @@ export type Database = {
           subject?: string | null
           template_id?: string | null
           thread_key: string
+          work_order_id?: string | null
         }
         Update: {
           body?: string
@@ -2954,6 +2968,7 @@ export type Database = {
           subject?: string | null
           template_id?: string | null
           thread_key?: string
+          work_order_id?: string | null
         }
         Relationships: [
           {
@@ -2989,6 +3004,13 @@ export type Database = {
             columns: ["sender_membership_id"]
             isOneToOne: false
             referencedRelation: "membership"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_order"
             referencedColumns: ["id"]
           },
         ]

@@ -16,6 +16,7 @@ import { escapeHtml, sendEmail } from "@/lib/integrations/resend/send";
 import { ROOT_DOMAIN } from "@/lib/env";
 import { companyUrl } from "@/lib/tenant";
 import { newToken } from "@/lib/vendor-requests";
+import { textContact } from "@/lib/sms-send";
 import { requireCompany } from "@/lib/session";
 import { findSymptom, PRIORITY_DB, SAFETY_OPTIONS, technicianSummary, triagePriority } from "@/lib/triage";
 import { vendorCompliance } from "@/lib/vendors";
@@ -149,7 +150,7 @@ export async function assignVendor(_: FormState, form: FormData): Promise<FormSt
   const ctx = await requireCompany();
   const { supabase, company, membership } = ctx;
   if (!EDIT_ROLES.includes(membership.role)) return { error: NOT_ALLOWED };
-  const p = z.object({ work_order_id: z.string().uuid(), vendor_id: z.string().uuid("Choose a vendor."), email_vendor: z.literal("on").optional() }).safeParse(Object.fromEntries(form));
+  const p = z.object({ work_order_id: z.string().uuid(), vendor_id: z.string().uuid("Choose a vendor."), email_vendor: z.literal("on").optional(), text_vendor: z.literal("on").optional() }).safeParse(Object.fromEntries(form));
   if (!p.success) return { error: p.error.issues[0].message };
   const wo = await loadWorkOrder(ctx, p.data.work_order_id);
   if (!wo) return { error: "Work order not found." };
@@ -180,6 +181,20 @@ export async function assignVendor(_: FormState, form: FormData): Promise<FormSt
       await logEvent(ctx, wo.id, "notified", { to: vendor.contact.email, channel: "email", sent });
       if (sent) await supabase.from("work_order").update({ vendor_notified_at: new Date().toISOString() }).eq("id", wo.id);
       note = sent ? ` Emailed to ${vendor.contact.email}.` : " The email didn't send; call or text them.";
+    }
+  }
+  if (p.data.text_vendor) {
+    if (!vendor.contact.sms_opt_in) note += " They haven't turned on job texts, so no text was sent.";
+    else {
+      const priority = WO_PRIORITY[wo.priority]?.label ?? wo.priority;
+      const where = [wo.property.name, wo.unit?.label && wo.unit.label !== "Home" ? `Unit ${wo.unit.label}` : null].filter(Boolean).join(", ");
+      const r = await textContact(supabase, company, {
+        contactId: vendor.contact.id,
+        workOrderId: wo.id,
+        body: `${priority} job #${wo.number} at ${where}: ${wo.title}.${jobUrl ? ` Accept and schedule: ${jobUrl}` : company.office_phone ? ` Call ${company.office_phone}.` : ""}`,
+      });
+      await logEvent(ctx, wo.id, "notified", { to: vendor.contact.mobile, channel: "sms", sent: r.ok, practice: r.practice });
+      note += r.ok ? (r.practice ? " Practice text saved (not sent)." : " Texted them.") : ` The text didn't send: ${r.error}`;
     }
   }
   revalidatePath(`/maintenance/${wo.id}`);
