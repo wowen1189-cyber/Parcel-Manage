@@ -1,3 +1,4 @@
+import { billAccounts } from "@/lib/accounts";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { buttonClass, Card, CardHeader, EmptyState, Notice, PageHeader, Pill, StatTile } from "@/components/ui";
@@ -29,11 +30,12 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
   const { supabase, company, membership } = await requireCompany();
   const companyFee = readCompanyFee(company.settings);
   if (sp.stripe && isAdmin(membership)) await refreshOwnerStripe(id);
-  const [owner, { data: others }, { data: agreements }, { data: pay }] = await Promise.all([
+  const [owner, { data: others }, { data: agreements }, { data: pay }, accounts] = await Promise.all([
     getOwner(supabase, company.id, id, companyFee),
     supabase.from("property").select("id, name, entity(id, name)").eq("company_id", company.id).neq("entity_id", id).order("name"),
     supabase.from("management_agreement").select("id, status, start_date, end_date").eq("company_id", company.id).eq("entity_id", id).order("created_at", { ascending: false }),
     supabase.from("entity").select("stripe_account_id, stripe_charges_enabled").eq("id", id).eq("company_id", company.id).maybeSingle(),
+    billAccounts(supabase, company.id),
   ]);
   if (!owner) notFound();
   if (owner.is_manager) redirect("/fee-billing");
@@ -169,7 +171,7 @@ export default async function OwnerPage({ params, searchParams }: PageProps<"/ow
                 title="Record owner money"
                 description={owner.books_mode === "own_books" ? "Money you took out or put in, bills paid from outside this LLC's account, and loan payments split into interest and principal." : "Money a partner put in, bills paid from outside this LLC's account, and loan payments. Payouts go through distributions."}
               />
-              <OwnerMoneyForm entityId={owner.id} properties={props.map((p) => ({ id: p.id, name: p.name }))} today={todayIn(company.time_zone)} mode={owner.books_mode} />
+              <OwnerMoneyForm entityId={owner.id} properties={props.map((p) => ({ id: p.id, name: p.name }))} accounts={accounts} today={todayIn(company.time_zone)} mode={owner.books_mode} />
             </Card>
           )}
         </div>

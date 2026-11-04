@@ -9,6 +9,7 @@ const TABS = [
   { href: "/settings/business-rules", label: "Business rules" },
   { href: "/settings/billing", label: "Billing" },
   { href: "/settings/payments", label: "Payments" },
+  { href: "/settings/accounts", label: "Accounts" },
   { href: "/settings/texting", label: "Texting" },
   { href: "/settings/automations", label: "Automations" },
   { href: "/settings/ai", label: "AI" },

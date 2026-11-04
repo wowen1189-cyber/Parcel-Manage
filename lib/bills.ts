@@ -14,17 +14,6 @@ export const BILL_STATUS: Record<string, { label: string; tone: "success" | "war
   void: { label: "Void", tone: "neutral" },
 };
 
-export const EXPENSE_ACCOUNTS: [string, string][] = [
-  ["5000", "Repairs and maintenance"],
-  ["5200", "Utilities"],
-  ["5300", "Insurance"],
-  ["5400", "Property taxes"],
-  ["5500", "Mortgage interest"],
-  ["5100", "Management fees"],
-  ["5110", "Leasing and renewal fees"],
-  ["5900", "Other expenses"],
-];
-
 export type BillFilters = { status: string; property: string; q: string };
 
 export async function listBills(supabase: Db, companyId: string, f: BillFilters) {
@@ -70,4 +59,31 @@ export async function runRecurringBills(supabase: Db, companyId: string, today: 
     await supabase.from("recurring_bill").update({ next_on: next }).eq("id", r.id);
   }
   return n;
+}
+
+export type WorkOrderPick = { number: number; title: string; property: string };
+const pick = (w: { number: number; title: string; property: { name: string } | null }): WorkOrderPick => ({ number: w.number, title: w.title, property: w.property?.name ?? "" });
+
+/** The 5 newest work orders, offered first when linking a bill to one. */
+export async function recentWorkOrders(supabase: Db, companyId: string): Promise<WorkOrderPick[]> {
+  const { data } = await supabase.from("work_order").select("number, title, property(name)").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5);
+  return (data ?? []).map(pick);
+}
+
+/** Work orders matching a number, a few words of the title, or the property name. */
+export async function findWorkOrders(supabase: Db, companyId: string, q: string): Promise<WorkOrderPick[]> {
+  const text = q.trim().replace(/^#/, "");
+  if (!text) return [];
+  const base = () => supabase.from("work_order").select("number, title, property(name)").eq("company_id", companyId).order("created_at", { ascending: false }).limit(10);
+  if (/^\d{1,7}$/.test(text)) {
+    const { data } = await base().eq("number", Number(text));
+    return (data ?? []).map(pick);
+  }
+  // Characters that would change the meaning of the filter are dropped.
+  const safe = text.replace(/[%_,()*\\"]/g, " ").trim().slice(0, 60);
+  if (!safe) return [];
+  const { data: props } = await supabase.from("property").select("id").eq("company_id", companyId).ilike("name", `%${safe}%`).limit(20);
+  const ids = (props ?? []).map((p) => p.id);
+  const { data } = await base().or([`title.ilike.%${safe}%`, ...(ids.length ? [`property_id.in.(${ids.join(",")})`] : [])].join(","));
+  return (data ?? []).map(pick);
 }

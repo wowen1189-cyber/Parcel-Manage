@@ -1,5 +1,6 @@
 "use server";
 
+import { billAccountProblem } from "@/lib/accounts";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { money } from "@/lib/format";
@@ -51,6 +52,10 @@ export async function recordOwnerMoney(_: MoneyState, form: FormData): Promise<M
   if (!owner) return { error: "Owner not found." };
   const propertyId = p.data.property_id && owner.property.some((x) => x.id === p.data.property_id) ? p.data.property_id : null;
   const kind = p.data.kind as OwnerMoneyKind;
+  if (kind === "paid_personally") {
+    const badAccount = await billAccountProblem(supabase, company.id, p.data.expense_account);
+    if (badAccount) return { error: badAccount };
+  }
   const r = ownerMoneyLines({ kind, amountCents: amount, interestCents: interest, principalCents: principal, expenseAccount: p.data.expense_account, propertyId });
   if (!r.lines) return { error: r.error };
   const total = kind === "loan_payment" ? interest + principal : amount;

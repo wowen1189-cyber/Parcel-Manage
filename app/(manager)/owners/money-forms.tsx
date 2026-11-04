@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { AccountSelect } from "@/components/account-select";
 import { Button, Field, Input, Notice, Select } from "@/components/ui";
+import type { AccountOption } from "@/lib/accounts";
 import { OWNER_MONEY_LABEL, type OwnerMoneyKind } from "@/lib/owner-money";
 import { recordOwnerMoney, saveBooksMode, type MoneyState } from "./money-actions";
 
@@ -44,16 +46,7 @@ export function BooksModeForm({ entityId, mode, canEdit }: { entityId: string; m
   );
 }
 
-const EXPENSES = [
-  ["5000", "Repairs and maintenance"],
-  ["5200", "Utilities"],
-  ["5300", "Insurance"],
-  ["5400", "Property taxes"],
-  ["5500", "Mortgage interest"],
-  ["5900", "Other expenses"],
-];
-
-export function OwnerMoneyForm({ entityId, properties, today, mode }: { entityId: string; properties: { id: string; name: string }[]; today: string; mode: string }) {
+export function OwnerMoneyForm({ entityId, properties, accounts, today, mode }: { entityId: string; properties: { id: string; name: string }[]; accounts: AccountOption[]; today: string; mode: string }) {
   const [state, action, pending] = useActionState(recordOwnerMoney, empty);
   const [kind, setKind] = useState<OwnerMoneyKind>(mode === "own_books" ? "draw" : "contribution");
   const kinds = (Object.keys(OWNER_MONEY_LABEL) as OwnerMoneyKind[]).filter((k) => mode === "own_books" || k !== "draw");
@@ -90,13 +83,7 @@ export function OwnerMoneyForm({ entityId, properties, today, mode }: { entityId
         )}
         {kind === "paid_personally" && (
           <Field label="Expense">
-            <Select name="expense_account" defaultValue="5000">
-              {EXPENSES.map(([n, l]) => (
-                <option key={n} value={n}>
-                  {l}
-                </option>
-              ))}
-            </Select>
+            <AccountSelect accounts={accounts} defaultValue="5000" />
           </Field>
         )}
         <Field label="Property (optional)">

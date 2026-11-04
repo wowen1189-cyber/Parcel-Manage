@@ -1,7 +1,7 @@
 import "server-only";
 import { agreementText } from "@/lib/agreement-import";
 import { aiComplete } from "@/lib/ai/provider";
-import { EXPENSE_ACCOUNTS } from "@/lib/bills";
+import { billAccounts } from "@/lib/accounts";
 import { contactName, todayIn } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -102,17 +102,18 @@ export async function receiveInvoiceEmail(emailId: string): Promise<IntakeResult
     // Forwarded by someone on the company's own team: trusted, and the vendor comes from the invoice itself.
     const { data: staff } = await db.from("membership").select("id, profile!inner(email, full_name)").eq("company_id", company.id).eq("status", "active").ilike("profile.email", from.replace(/[%_]/g, "")).limit(1).maybeSingle();
 
+    const accounts = await billAccounts(db, company.id);
     const ai = await aiComplete({
       companyId: company.id,
       feature: "invoice reading",
       system: INVOICE_SYSTEM,
-      prompt: invoicePrompt({ from: email.from, subject: email.subject ?? "", body, attachments: texts, vendors, properties, workOrders, accounts: EXPENSE_ACCOUNTS, today }),
+      prompt: invoicePrompt({ from: email.from, subject: email.subject ?? "", body, attachments: texts, vendors, properties, workOrders, accounts: accounts.map((a) => [a.number, a.name] as [string, string]), today }),
       maxTokens: 700,
       timeoutMs: 45_000,
     });
     const read = ai.ok ? parseInvoiceRead(ai.text) : null;
     const c = read
-      ? cleanRead(read, { vendors, properties, workOrders, accounts: EXPENSE_ACCOUNTS.map(([n]) => n) })
+      ? cleanRead(read, { vendors, properties, workOrders, accounts: accounts.map((a) => a.number) })
       : { vendorId: null, propertyId: null, workOrder: null, invoiceNumber: guessInvoiceNumber(allText), invoiceDate: null, dueDate: null, amountCents: guessAmountCents(allText), expenseAccount: "5000", memo: (email.subject ?? "").slice(0, 300) || null, notes: [] as string[] };
     const vendorId = c.vendorId ?? sender?.id ?? null;
     const propertyId = c.propertyId;

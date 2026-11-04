@@ -13,7 +13,7 @@ export default async function NewJournalEntryPage({ searchParams }: PageProps<"/
   await supabase.rpc("ensure_chart_of_accounts", { p_company: company.id });
   const [{ data: owners }, { data: accounts }, { data: properties }] = await Promise.all([
     supabase.from("entity").select("id, name").eq("company_id", company.id).order("name"),
-    supabase.from("gl_account").select("id, number, name").eq("company_id", company.id).order("number"),
+    supabase.from("gl_account").select("id, number, name").eq("company_id", company.id).eq("active", true).order("number"),
     supabase.from("property").select("id, name, entity_id").eq("company_id", company.id).order("name"),
   ]);
   const canPost = ["admin", "accountant"].includes(membership.role);

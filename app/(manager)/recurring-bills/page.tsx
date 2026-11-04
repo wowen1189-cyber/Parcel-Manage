@@ -1,6 +1,6 @@
 import { Card, CardHeader, EmptyState, PageHeader, Pill } from "@/components/ui";
 import { Table, Tbody, Td, Th, Thead } from "@/components/table";
-import { EXPENSE_ACCOUNTS } from "@/lib/bills";
+import { billAccounts } from "@/lib/accounts";
 import { contactName, date, money, todayIn } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
 import { toggleRecurringBill } from "./actions";
@@ -10,10 +10,11 @@ export const metadata = { title: "Recurring bills" };
 
 export default async function RecurringBillsPage() {
   const { supabase, company, membership } = await requireCompany();
-  const [{ data: rows }, { data: vendors }, { data: properties }] = await Promise.all([
+  const [{ data: rows }, { data: vendors }, { data: properties }, accounts] = await Promise.all([
     supabase.from("recurring_bill").select("id, amount_cents, memo, frequency, next_on, active, vendor(contact(kind, first_name, last_name, business_name)), property(name)").eq("company_id", company.id).order("next_on"),
     supabase.from("vendor").select("id, contact(kind, first_name, last_name, business_name)").eq("company_id", company.id).eq("is_active", true),
     supabase.from("property").select("id, name").eq("company_id", company.id).order("name"),
+    billAccounts(supabase, company.id),
   ]);
   const canEdit = ["admin", "accountant", "property_manager"].includes(membership.role);
   return (
@@ -65,7 +66,7 @@ export default async function RecurringBillsPage() {
             <NewRecurringForm
               vendors={(vendors ?? []).map((v) => ({ id: v.id, name: contactName(v.contact) })).sort((a, b) => a.name.localeCompare(b.name))}
               properties={properties ?? []}
-              accounts={EXPENSE_ACCOUNTS}
+              accounts={accounts}
               today={todayIn(company.time_zone)}
             />
           </div>

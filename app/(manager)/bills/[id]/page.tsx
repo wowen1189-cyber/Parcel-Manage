@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button, Card, CardHeader, Notice, PageHeader, Pill } from "@/components/ui";
-import { BILL_STATUS, EXPENSE_ACCOUNTS } from "@/lib/bills";
+import { billAccounts } from "@/lib/accounts";
+import { BILL_STATUS, recentWorkOrders } from "@/lib/bills";
 import { contactName, date, money, todayIn } from "@/lib/format";
 import { requireCompany } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,6 +30,7 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
   const canApprove = ["admin", "property_manager", "accountant"].includes(membership.role);
   const canPayRole = ["admin", "accountant"].includes(membership.role);
   const editing = b.status === "received" && canApprove;
+  const [accounts, recent] = editing ? await Promise.all([billAccounts(supabase, company.id, b.expense_account), recentWorkOrders(supabase, company.id)]) : [[], []];
   const [{ data: vendors }, { data: properties }] = editing
     ? await Promise.all([
         supabase.from("vendor").select("id, contact(kind, first_name, last_name, business_name)").eq("company_id", company.id),
@@ -126,9 +128,10 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
           <CardHeader title="Correct the details" description="Fix anything read wrong from the invoice before approving." />
           <div className="px-5 py-4">
             <EditBillForm
-              bill={{ id: b.id, vendor_id: b.vendor_id, property_id: b.property_id, work_order: b.work_order ? String(b.work_order.number) : "", invoice_number: b.invoice_number ?? "", invoice_date: b.invoice_date ?? today, memo: b.memo ?? "" }}
+              bill={{ id: b.id, vendor_id: b.vendor_id, property_id: b.property_id, work_order: b.work_order ? { number: b.work_order.number, title: b.work_order.title, property: b.property?.name ?? "" } : null, invoice_number: b.invoice_number ?? "", invoice_date: b.invoice_date ?? today, memo: b.memo ?? "" }}
               vendors={(vendors ?? []).map((v) => ({ id: v.id, name: contactName(v.contact) })).sort((x, y) => x.name.localeCompare(y.name))}
               properties={properties ?? []}
+              recentWorkOrders={recent}
             />
           </div>
         </Card>
@@ -137,7 +140,7 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
         <Card className="mt-6">
           <CardHeader title="Approve" description="Check the amount and account against the invoice. Approving posts the expense and what's owed to the vendor." />
           <div className="px-5 py-4">
-            <ApproveForm id={b.id} amount={b.amount_cents ? (b.amount_cents / 100).toFixed(2) : ""} account={b.expense_account} due={b.due_date ?? today} accounts={EXPENSE_ACCOUNTS} />
+            <ApproveForm id={b.id} amount={b.amount_cents ? (b.amount_cents / 100).toFixed(2) : ""} account={b.expense_account} due={b.due_date ?? today} accounts={accounts} />
           </div>
         </Card>
       )}

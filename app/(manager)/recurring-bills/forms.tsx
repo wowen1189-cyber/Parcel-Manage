@@ -1,12 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { AccountSelect } from "@/components/account-select";
 import { Button, Field, Input, Notice, Select } from "@/components/ui";
+import type { AccountOption } from "@/lib/accounts";
 import { createDueNow, createRecurringBill, type RecurringState } from "./actions";
 
 const empty: RecurringState = {};
 
-export function NewRecurringForm({ vendors, properties, accounts, today }: { vendors: { id: string; name: string }[]; properties: { id: string; name: string }[]; accounts: [string, string][]; today: string }) {
+export function NewRecurringForm({ vendors, properties, accounts, today }: { vendors: { id: string; name: string }[]; properties: { id: string; name: string }[]; accounts: AccountOption[]; today: string }) {
   const [state, action, pending] = useActionState(createRecurringBill, empty);
   return (
     <form action={action} className="space-y-3">
@@ -40,13 +42,7 @@ export function NewRecurringForm({ vendors, properties, accounts, today }: { ven
           <Input name="memo" placeholder="Monthly lawn care" />
         </Field>
         <Field label="Expense account">
-          <Select name="expense_account" defaultValue="5000">
-            {accounts.map(([n, l]) => (
-              <option key={n} value={n}>
-                {n} {l}
-              </option>
-            ))}
-          </Select>
+          <AccountSelect accounts={accounts} defaultValue="5000" />
         </Field>
         <Field label="How often">
           <Select name="frequency" defaultValue="monthly">

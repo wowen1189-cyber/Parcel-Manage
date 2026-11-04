@@ -673,7 +673,7 @@ export const REPORTS: ReportDef[] = [
       if (!f.owner) return { columns: [], rows: [], note: "Choose an owner: each owner keeps its own books." };
       const { data } = await db
         .from("journal_line")
-        .select("debit_cents, credit_cents, property(name), journal_entry!inner(entity_id, entry_date), gl_account!inner(number, name, type)")
+        .select("debit_cents, credit_cents, property(name), journal_entry!inner(entity_id, entry_date), gl_account!inner(number, name, type, tax_line)")
         .eq("company_id", companyId)
         .eq("journal_entry.entity_id", f.owner)
         .in("journal_entry.status", ["posted", "reversed"])
@@ -681,15 +681,15 @@ export const REPORTS: ReportDef[] = [
         .lte("journal_entry.entry_date", f.to)
         .in("gl_account.type", ["income", "expense"])
         .limit(10000);
-      const by = new Map<string, { property: string; account: string; type: string; amount: number }>();
+      const by = new Map<string, { property: string; account: string; type: string; line: string; amount: number }>();
       for (const l of data ?? []) {
         const key = `${l.property?.name ?? "(no property)"}|${l.gl_account.number}`;
-        const r = by.get(key) ?? { property: l.property?.name ?? "(no property)", account: `${l.gl_account.number} ${l.gl_account.name}`, type: l.gl_account.type === "income" ? "Income" : "Expense", amount: 0 };
+        const r = by.get(key) ?? { property: l.property?.name ?? "(no property)", account: `${l.gl_account.number} ${l.gl_account.name}`, type: l.gl_account.type === "income" ? "Income" : "Expense", line: l.gl_account.tax_line ?? "Not on Schedule E", amount: 0 };
         r.amount += normalBalance({ type: l.gl_account.type, debit_cents: Number(l.debit_cents), credit_cents: Number(l.credit_cents) });
         by.set(key, r);
       }
       const rows = [...by.values()].sort((a, b) => a.property.localeCompare(b.property) || a.account.localeCompare(b.account));
-      return { columns: [{ key: "property", label: "Property" }, { key: "type", label: "Type" }, { key: "account", label: "Account" }, { key: "amount", label: "Amount", kind: "money" }], rows, note: "Give this to your tax preparer with the year's statements. Depreciation isn't included." };
+      return { columns: [{ key: "property", label: "Property" }, { key: "type", label: "Type" }, { key: "line", label: "Schedule E line" }, { key: "account", label: "Account" }, { key: "amount", label: "Amount", kind: "money" }], rows, note: "Give this to your tax preparer with the year's statements. Each account's Schedule E line is set in Settings › Accounts; check them with your preparer. Depreciation shows only if you post it." };
     },
   },
 

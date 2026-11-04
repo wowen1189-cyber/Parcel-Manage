@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { billAccountProblem } from "@/lib/accounts";
+import { findWorkOrders, type WorkOrderPick } from "@/lib/bills";
 import { requireCompany } from "@/lib/session";
 import { canPay } from "@/lib/vendor-requests";
 
@@ -12,6 +14,25 @@ import { canPay } from "@/lib/vendor-requests";
 export type BillState = { error?: string; message?: string; values?: Record<string, string> };
 const APPROVE_ROLES = ["admin", "property_manager", "accountant"];
 const PAY_ROLES = ["admin", "accountant"];
+const workOrderField = z.union([z.literal(""), z.string().regex(/^#?\d{1,7}$/, "Enter the work order number, like 1042.")]).optional();
+
+/** The work order a bill is linked to, checked against the bill's property. */
+async function linkWorkOrder(supabase: Awaited<ReturnType<typeof requireCompany>>["supabase"], companyId: string, raw: string | undefined, propertyId: string): Promise<{ id: string | null } | { error: string }> {
+  if (!raw) return { id: null };
+  const n = Number(raw.replace("#", ""));
+  const { data: wo } = await supabase.from("work_order").select("id, property_id").eq("company_id", companyId).eq("number", n).maybeSingle();
+  if (!wo) return { error: `There's no work order #${n}.` };
+  if (wo.property_id !== propertyId) return { error: `Work order #${n} is for a different property.` };
+  return { id: wo.id };
+}
+
+/** Search box on the bill forms: work orders by number, title or property. */
+export async function searchWorkOrders(q: string): Promise<WorkOrderPick[]> {
+  const { supabase, company, membership } = await requireCompany();
+  if (!APPROVE_ROLES.includes(membership.role)) return [];
+  return findWorkOrders(supabase, company.id, String(q ?? "").slice(0, 80));
+}
+
 const typed = (form: FormData) => Object.fromEntries([...form.entries()].filter(([k]) => !k.startsWith("$")).map(([k, v]) => [k, String(v)]));
 const dollars = z
   .string()
@@ -40,10 +61,13 @@ export async function createBill(_: BillState, form: FormData): Promise<BillStat
       due_date: day,
       expense_account: z.string().regex(/^\d{4}$/, "Choose the expense account."),
       memo: z.string().trim().max(300).optional(),
+      work_order: workOrderField,
       purchase_order_id: z.union([z.literal(""), z.string().uuid()]).optional(),
     })
     .safeParse(Object.fromEntries(form));
   if (!p.success) return { error: p.error.issues[0].message, values: typed(form) };
+  const badAccount = await billAccountProblem(supabase, company.id, p.data.expense_account);
+  if (badAccount) return { error: badAccount, values: typed(form) };
   // A bill tied to a purchase order must be from that PO's vendor for that property; it then counts toward the PO's project.
   let po: { id: string; project_id: string | null } | null = null;
   if (p.data.purchase_order_id) {
@@ -54,9 +78,11 @@ export async function createBill(_: BillState, form: FormData): Promise<BillStat
   }
   const { data: property } = await supabase.from("property").select("id, entity_id").eq("id", p.data.property_id).eq("company_id", company.id).maybeSingle();
   if (!property) return { error: "Property not found.", values: typed(form) };
+  const wo = await linkWorkOrder(supabase, company.id, p.data.work_order, property.id);
+  if ("error" in wo) return { error: wo.error, values: typed(form) };
   const { data: bill, error } = await supabase
     .from("bill")
-    .insert({ company_id: company.id, entity_id: property.entity_id, vendor_id: p.data.vendor_id, property_id: property.id, amount_cents: p.data.amount, invoice_number: p.data.invoice_number || null, invoice_date: p.data.invoice_date, due_date: p.data.due_date, expense_account: p.data.expense_account, memo: p.data.memo || null, source: "manual", purchase_order_id: po?.id ?? null, project_id: po?.project_id ?? null })
+    .insert({ company_id: company.id, entity_id: property.entity_id, vendor_id: p.data.vendor_id, property_id: property.id, amount_cents: p.data.amount, invoice_number: p.data.invoice_number || null, invoice_date: p.data.invoice_date, due_date: p.data.due_date, expense_account: p.data.expense_account, memo: p.data.memo || null, work_order_id: wo.id, source: "manual", purchase_order_id: po?.id ?? null, project_id: po?.project_id ?? null })
     .select("id")
     .single();
   if (error) return { error: error.message, values: typed(form) };
@@ -73,6 +99,8 @@ export async function approveBill(_: BillState, form: FormData): Promise<BillSta
   const { data: bill } = await supabase.from("bill").select("id, status, entity_id, property_id, unit_id, memo, invoice_number, vendor(contact(first_name, last_name, business_name, kind))").eq("id", p.data.id).eq("company_id", company.id).maybeSingle();
   if (!bill) return { error: "Bill not found." };
   if (bill.status !== "received") return { error: "This bill was already approved." };
+  const badAccount = await billAccountProblem(supabase, company.id, p.data.expense_account);
+  if (badAccount) return { error: badAccount };
   if (!bill.vendor) return { error: "Choose the vendor first (Correct the details)." };
   if (!bill.entity_id) return { error: "Choose the property first so it posts to the right owner's books." };
   const vendor = bill.vendor ? [bill.vendor.contact.business_name, bill.vendor.contact.first_name, bill.vendor.contact.last_name].filter(Boolean).join(" ") : "Vendor";
@@ -103,7 +131,7 @@ export async function editBill(_: BillState, form: FormData): Promise<BillState>
       id: z.string().uuid(),
       vendor_id: z.string().uuid("Choose the vendor."),
       property_id: z.string().uuid("Choose the property."),
-      work_order: z.union([z.literal(""), z.string().regex(/^#?\d{1,7}$/, "Enter the work order number, like 1042.")]),
+      work_order: workOrderField,
       invoice_number: z.string().trim().max(60),
       invoice_date: day,
       memo: z.string().trim().max(300),
@@ -118,13 +146,9 @@ export async function editBill(_: BillState, form: FormData): Promise<BillState>
     supabase.from("vendor").select("id").eq("id", p.data.vendor_id).eq("company_id", company.id).maybeSingle(),
   ]);
   if (!property || !vendor) return { error: "Choose the vendor and property again." };
-  let workOrderId: string | null = null;
-  if (p.data.work_order) {
-    const { data: wo } = await supabase.from("work_order").select("id, property_id").eq("company_id", company.id).eq("number", Number(p.data.work_order.replace("#", ""))).maybeSingle();
-    if (!wo) return { error: `There's no work order #${p.data.work_order.replace("#", "")}.` };
-    if (wo.property_id !== property.id) return { error: "That work order is for a different property." };
-    workOrderId = wo.id;
-  }
+  const wo = await linkWorkOrder(supabase, company.id, p.data.work_order, property.id);
+  if ("error" in wo) return { error: wo.error };
+  const workOrderId = wo.id;
   const { error } = await supabase
     .from("bill")
     .update({ vendor_id: vendor.id, property_id: property.id, entity_id: property.entity_id, work_order_id: workOrderId, invoice_number: p.data.invoice_number || null, invoice_date: p.data.invoice_date, memo: p.data.memo || null, review_notes: bill.review_notes.filter((n) => !/^(Vendor|Property) not identified/.test(n)) })

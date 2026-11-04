@@ -1,21 +1,30 @@
 "use client";
 
 import { useActionState } from "react";
+import { AccountSelect } from "@/components/account-select";
 import { Button, Field, Input, Notice, Select } from "@/components/ui";
+import type { AccountOption } from "@/lib/accounts";
+import type { WorkOrderPick } from "@/lib/bills";
 import { approveBill, createBill, editBill, payBill, type BillState } from "./actions";
+import { WorkOrderPicker } from "./work-order-picker";
 
 const empty: BillState = {};
+// After a failed save, keep the work order that was chosen (it may be one found by search).
+const typedWorkOrder = (values: Record<string, string> | undefined, recent: WorkOrderPick[]): WorkOrderPick | null => {
+  const n = Number((values?.work_order ?? "").replace("#", ""));
+  return n ? (recent.find((w) => w.number === n) ?? { number: n, title: values?.work_order_label ?? "", property: values?.work_order_property ?? "" }) : null;
+};
 function Status({ state }: { state: BillState }) {
   if (state.error) return <Notice tone="danger">{state.error}</Notice>;
   if (state.message) return <Notice tone="success">{state.message}</Notice>;
   return null;
 }
 
-export function NewBillForm({ vendors, properties, accounts, today, purchaseOrders = [] }: { vendors: { id: string; name: string }[]; properties: { id: string; name: string }[]; accounts: [string, string][]; today: string; purchaseOrders?: { id: string; label: string }[] }) {
+export function NewBillForm({ vendors, properties, accounts, today, recentWorkOrders, purchaseOrders = [] }: { vendors: { id: string; name: string }[]; properties: { id: string; name: string }[]; accounts: AccountOption[]; today: string; recentWorkOrders: WorkOrderPick[]; purchaseOrders?: { id: string; label: string }[] }) {
   const [state, action, pending] = useActionState(createBill, empty);
   const v = (k: string, d = "") => state.values?.[k] ?? d;
   return (
-    <form action={action} className="space-y-4 p-5">
+    <form key={JSON.stringify(state.values ?? {})} action={action} className="space-y-4 p-5">
       <Status state={state} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Vendor">
@@ -42,13 +51,7 @@ export function NewBillForm({ vendors, properties, accounts, today, purchaseOrde
           <Input name="amount" inputMode="decimal" defaultValue={v("amount")} />
         </Field>
         <Field label="Expense account">
-          <Select name="expense_account" defaultValue={v("expense_account", "5000")}>
-            {accounts.map(([n, label]) => (
-              <option key={n} value={n}>
-                {n} {label}
-              </option>
-            ))}
-          </Select>
+          <AccountSelect accounts={accounts} defaultValue={v("expense_account", "5000")} />
         </Field>
         <Field label="Invoice number">
           <Input name="invoice_number" defaultValue={v("invoice_number")} />
@@ -62,6 +65,7 @@ export function NewBillForm({ vendors, properties, accounts, today, purchaseOrde
         <Field label="Memo">
           <Input name="memo" defaultValue={v("memo")} />
         </Field>
+        <WorkOrderPicker key={v("work_order")} recent={recentWorkOrders} current={typedWorkOrder(state.values, recentWorkOrders)} />
         {purchaseOrders.length > 0 && (
           <Field label="Purchase order (optional)" hint="Counts this bill toward that project">
             <Select name="purchase_order_id" defaultValue={v("purchase_order_id")}>
@@ -82,7 +86,7 @@ export function NewBillForm({ vendors, properties, accounts, today, purchaseOrde
   );
 }
 
-export function ApproveForm({ id, amount, account, due, accounts }: { id: string; amount: string; account: string; due: string; accounts: [string, string][] }) {
+export function ApproveForm({ id, amount, account, due, accounts }: { id: string; amount: string; account: string; due: string; accounts: AccountOption[] }) {
   const [state, action, pending] = useActionState(approveBill, empty);
   return (
     <form action={action} className="space-y-3">
@@ -93,13 +97,7 @@ export function ApproveForm({ id, amount, account, due, accounts }: { id: string
           <Input name="amount" inputMode="decimal" defaultValue={amount} />
         </Field>
         <Field label="Expense account">
-          <Select name="expense_account" defaultValue={account}>
-            {accounts.map(([n, label]) => (
-              <option key={n} value={n}>
-                {n} {label}
-              </option>
-            ))}
-          </Select>
+          <AccountSelect accounts={accounts} defaultValue={account} />
         </Field>
         <Field label="Due">
           <Input type="date" name="due_date" defaultValue={due} />
@@ -142,7 +140,7 @@ export function PayForm({ id, today, blocked }: { id: string; today: string; blo
   );
 }
 
-export function EditBillForm({ bill, vendors, properties }: { bill: { id: string; vendor_id: string | null; property_id: string | null; work_order: string; invoice_number: string; invoice_date: string; memo: string }; vendors: { id: string; name: string }[]; properties: { id: string; name: string }[] }) {
+export function EditBillForm({ bill, vendors, properties, recentWorkOrders }: { bill: { id: string; vendor_id: string | null; property_id: string | null; work_order: WorkOrderPick | null; invoice_number: string; invoice_date: string; memo: string }; vendors: { id: string; name: string }[]; properties: { id: string; name: string }[]; recentWorkOrders: WorkOrderPick[] }) {
   const [state, action, pending] = useActionState(editBill, empty);
   return (
     <form action={action} className="space-y-3">
@@ -169,9 +167,7 @@ export function EditBillForm({ bill, vendors, properties }: { bill: { id: string
             ))}
           </Select>
         </Field>
-        <Field label="Work order # (optional)">
-          <Input name="work_order" inputMode="numeric" defaultValue={bill.work_order} />
-        </Field>
+        <WorkOrderPicker recent={recentWorkOrders} current={bill.work_order} />
         <Field label="Invoice number">
           <Input name="invoice_number" defaultValue={bill.invoice_number} />
         </Field>

@@ -22,7 +22,7 @@ The starting schema is in `supabase/migrations/0001_core.sql`. Claude Code shoul
 - **notice_to_vacate**, **move_out** (charges, statement, refund).
 
 ## Money (double-entry)
-- **gl_account** (chart of accounts per company), **journal_entry** (date, entity, memo, source, status draft/posted/reversed, reversal_of; only drafts can be edited or deleted, a posted entry can only be marked reversed), **journal_line** (account, property, unit, debit_cents, credit_cents). A database check/trigger enforces debits = credits on post.
+- **gl_account** (chart of accounts per company: number, name, type, section heading, Schedule E tax_line, system = posted to by the app and can't be hidden, active = offered for new entries; standard list in `ensure_chart_of_accounts`, migration 0062), **journal_entry** (date, entity, memo, source, status draft/posted/reversed, reversal_of; only drafts can be edited or deleted, a posted entry can only be marked reversed), **journal_line** (account, property, unit, debit_cents, credit_cents). A database check/trigger enforces debits = credits on post.
 - **charge** (tenant ledger charge: rent, late fee, pet rent, NSF, false-emergency charge, move-out charge…) and **payment** (method, processor ids, status, returned) both post journal entries.
 - **bank_account** (entity, type operating/trust/reserve, Plaid ids), **property_bank_map** (rent → account, deposits → trust, bills → account), **bank_transaction** (from Plaid), **reconciliation**.
 - **vendor** (contact, trade, W-9, COI expiry, 1099), **bill** (+ **bill_line**), **recurring_bill**, **owner_distribution** (+ lines per owner).

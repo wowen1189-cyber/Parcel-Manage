@@ -1768,27 +1768,39 @@ export type Database = {
       }
       gl_account: {
         Row: {
+          active: boolean
           company_id: string
           id: string
           is_trust: boolean
           name: string
           number: string
+          section: string | null
+          system: boolean
+          tax_line: string | null
           type: string
         }
         Insert: {
+          active?: boolean
           company_id: string
           id?: string
           is_trust?: boolean
           name: string
           number: string
+          section?: string | null
+          system?: boolean
+          tax_line?: string | null
           type: string
         }
         Update: {
+          active?: boolean
           company_id?: string
           id?: string
           is_trust?: boolean
           name?: string
           number?: string
+          section?: string | null
+          system?: boolean
+          tax_line?: string | null
           type?: string
         }
         Relationships: [

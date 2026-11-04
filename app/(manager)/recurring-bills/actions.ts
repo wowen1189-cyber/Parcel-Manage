@@ -1,5 +1,6 @@
 "use server";
 
+import { billAccountProblem } from "@/lib/accounts";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { runRecurringBills } from "@/lib/bills";
@@ -24,6 +25,8 @@ export async function createRecurringBill(_: RecurringState, form: FormData): Pr
     })
     .safeParse(Object.fromEntries(form));
   if (!p.success) return { error: p.error.issues[0].message };
+  const badAccount = await billAccountProblem(supabase, company.id, p.data.expense_account);
+  if (badAccount) return { error: badAccount };
   const { amount, ...rest } = p.data;
   const { error } = await supabase.from("recurring_bill").insert({ company_id: company.id, ...rest, amount_cents: amount });
   if (error) return { error: error.message };
